@@ -11,6 +11,7 @@ const char what[] = "$Revision$";
 #include <errno.h>
 #include <time.h>
 #include <bterr.h>
+#include "btserve.h"
 #include "btdev.h"
 #include "btbuf.h"
 
@@ -33,7 +34,7 @@ DEV::~DEV() {
 }
 
 int DEV::read(t_block blk,char *buf) {
-  ++serverstats.preads;
+  //++serverstats.preads;
   int i = blk_dev(blk);			/* extent index */
 
   if (i >= dcnt || blk_off(blk) > ext(i).d.eod) {
@@ -66,7 +67,7 @@ int DEV::read(t_block blk,char *buf) {
 }
 
 int DEV::write(t_block blk,const char *buf) {
-  ++serverstats.pwrites;
+  //++serverstats.pwrites;
   int fd = ext(blk_dev(blk)).fd;
 #if TRACE > 1
   fprintf(stderr,"fd=%d ",fd);
@@ -91,7 +92,7 @@ int DEV::write(t_block blk,const char *buf) {
    on an in memory list so that corrupted free space cannot corrupt
    a file. */
 
-int DEV::chkspace(int needed) {	/* check available space */
+int DEV::chkspace(int needed,bool safe_eof) {	/* check available space */
   if (needed <= space + newspace) return 0;	/* enough known space */
   char *zbuf = (char *)alloca(blksize);
   memset(zbuf,0,blksize);
@@ -180,7 +181,7 @@ int DEV::open(const char *name,bool rdonly) {
     (btfhdr &)*this = u.d.hdr;	/* install new table entry */
     server = index;		/* set server ID */
     mcnt = 0;			/* reset mount count */
-    curtime = time(&mount_time);	/* mark mount time */
+    btserve::curtime = time(&mount_time);		/* mark mount time */
     if (strlen(name) > sizeof u.d.dtbl->name) {
       for (const char *p = name; *p; ++p) {
   #ifdef __MSDOS__
@@ -291,7 +292,7 @@ int DEV::writehdr() const {
   return 0;
 }
 
-int DEV::sync() {
+int DEV::sync(long &) {
   if (blksize && flag) {
     flag = 0;
     return writehdr();
