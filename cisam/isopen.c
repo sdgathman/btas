@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.12  2003/07/29 18:53:37  stuart
+ * Cache first free fd so repeated calls to isnewfd are fast.
+ *
  * Revision 1.11  2003/07/29 18:41:41  stuart
  * Check for fd avail before creating file in isbuildx.
  *
@@ -120,7 +123,11 @@ int isclose(int fd) {
 void cdecl iscloseall() {
   register int i;
   for (i = 0; i < isamfdsize; ++i)
-    if (isamfdptr[i]) (void)isclose(i);
+    if (isamfdptr[i]) isclose(i);
+  free(isamfdptr);
+  startsearch = 0;
+  isamfdsize = 0;
+  isamfdptr = 0;
 }
 
 int isopen(const char *name,int mode) {
