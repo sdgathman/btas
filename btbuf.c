@@ -5,6 +5,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+ * Revision 1.4  1993/12/09  19:42:31  stuart
+ * log bad roots on 205, clear free space
+ *
  * Revision 1.3  1993/12/09  19:30:56  stuart
  * ANSI formatting, rough in checkpoint logic
  *
@@ -49,7 +52,7 @@ int maxrec;		/* maximum record size */
 int safe_eof = 1;	/* safe OS eof processing */
 char *workrec;
 DEV devtbl[MAXDEV];	/* headers by mid */
-struct btpstat stat;
+struct btpstat serverstats;
 
 static struct extent {
   int fd;		/* OS file descriptor */
@@ -80,7 +83,7 @@ int checkpoint(int ckpt,BLOCK **a,int n) {
     char buf[SECT_SIZE];
   } u;
   time(&u.hdr.tstamp);
-  u.hdr.ckptcnt = (short)stat.checkpoints++;
+  u.hdr.ckptcnt = (short)serverstats.checkpoints++;
   u.hdr.version = 107;
   u.hdr.mntcnt = MAXDEV;
   u.hdr.extcnt = extcnt;
@@ -184,7 +187,7 @@ short btmount(const char *name) { /* mount filesystem & return mount id */
 
   /* does the super block seem reasonable ? */
   else if (rc != sizeof u.buf || u.d.hdr.blksize > blksize
-	|| u.d.hdr.blksize < SECT_SIZE || (int)u.d.hdr.baseid < 0
+	|| u.d.hdr.blksize < SECT_SIZE || (char)u.d.hdr.baseid < 0
 	|| u.d.hdr.magic != BTMAGIC)
     rc = BTERMBLK;	/* invalid filesystem */
 
@@ -317,7 +320,7 @@ static int sortout(BLOCK **a,int n) {
     if (wc = writebuf(a[i]))
       rc = wc;
   }
-  stat.fbufs += n;
+  serverstats.fbufs += n;
   return rc;
 }
 
@@ -342,7 +345,7 @@ int btflush() {			/* flush buffers to disk */
   }
   if (wc = sortout(a,n))
     rc = wc;
-  ++stat.fcnt;
+  ++serverstats.fcnt;
   for (i = 0; i < MAXDEV; ++i)	/* update all super blocks */
     if (devtbl[i].blksize && devtbl[i].flag) {
       devtbl[i].flag = 0;
@@ -376,7 +379,8 @@ int btbegin(int size,unsigned psize) {		/* initialize buffer pool */
     free(pool);
     return -1;
   }
-  time(&stat.uptime);
+  time(&serverstats.uptime);
+  serverstats.version = 112;
   return 0;
 }
 
@@ -462,7 +466,7 @@ BLOCK *btnew(short flag) {
   }
   ++newcnt;
 
-  bp->flags = (flag & ~BLK_CHK) | BLK_MOD | BLK_ACC;
+  bp->flags = (flag & ~BLK_CHK) | BLK_MOD;
   if (bp->flags&BLK_ROOT) {
     bp->np = (union node *)bp->buf.r.data;
     bp->buf.r.root = bp->blk;	/* make root node */
@@ -515,11 +519,7 @@ void btfree(BLOCK *bp) {		/* delete node */
   }
 }
 
-int gethdr(dp,h,len)
-  const DEV *dp;
-  char *h;
-  int len;		/* maximum buffer size */
-{
+int gethdr(const DEV *dp,char *h,int len) {
   struct btfs f;
   register int i;
   f.hdr = *dp;
@@ -531,9 +531,7 @@ int gethdr(dp,h,len)
   return i;
 }
 
-static int writehdr(dp)
-  DEV *dp;
-{
+static int writehdr(DEV *dp) {
   union {
     char buf[SECT_SIZE];
     struct btfs d;
@@ -558,7 +556,7 @@ int writebuf(BLOCK *bp) {
 #ifdef FAILSAFE
   assert(bp->flags & BLK_CHK);
 #endif
-  ++stat.pwrites;
+  ++serverstats.pwrites;
   dp = devtbl + bp->mid;
   fd = extbl[dp->baseid + blk_dev(bp->blk)].fd;
   blk = blk_off(bp->blk);
@@ -599,14 +597,14 @@ BLOCK *btread(t_block blk) {
   int fd, rc, retry;
   unsigned short i;
   short mid = dev - devtbl;
-  ++stat.lreads;
+  ++serverstats.lreads;
 
   /* search for matching block */
   bp = getbuf(blk,mid);
   if (bp->blk == blk)
     return bp;
 
-  ++stat.preads;
+  ++serverstats.preads;
 #if TRACE > 1
   fprintf(stderr,"readbuf(%d,%lx)\n",mid,blk);
 #endif
