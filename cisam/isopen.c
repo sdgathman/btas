@@ -5,6 +5,10 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.7  1998/12/17  23:34:05  stuart
+ * return user key length from iskeynorm
+ * set unique klen when no idx
+ *
  * Revision 1.6  1998/12/09  22:05:25  stuart
  * support directory open
  *
@@ -253,6 +257,9 @@ int isopenx(const char *name,int mode,int rlen) {
   }
   else {		/* no idx - use master field table */
     int klen;
+    int kflds;
+    struct keydesc *k = &cp->key.k;
+    struct btflds *f;
     (void)btclose(cp->idx);
     cp->idx = 0;	/* isunique not possible */
     if (mode & ISDIROK) bmode |= BTDIROK;
@@ -268,15 +275,30 @@ int isopenx(const char *name,int mode,int rlen) {
       cp->key.f = ldflds((struct btflds *)0,
 		      cp->key.btcb->lbuf,cp->key.btcb->rlen);
     if (cp->key.f == 0) errpost(EBADMEM);
+    f = cp->key.f;
     /* should check for BT_RECNO . . . */
-    cp->key.k.k_flags = 0;		/* no dups on primary */
-    cp->key.k.k_nparts = 1;		/* primary key normalized */
-    cp->key.k.k_start = 0;
-    klen = cp->key.f->f[cp->key.f->klen].pos;
-    cp->key.k.k_leng = klen;
-    cp->key.k.k_len = klen;
+    /* Construct keydesc from btas fields. */
+    k->k_flags = 0;		/* no dups on primary */
+    kflds = f->klen;
+    klen = f->f[kflds].pos;
+    if (kflds <= NPARTS) {
+      int fidx;
+      k->k_nparts = kflds;
+      for (fidx = 0; fidx < kflds; ++fidx) {
+        struct keypart *kp = &k->k_part[fidx];
+        kp->kp_start = f->f[fidx].pos;
+        kp->kp_leng = f->f[fidx].len;
+	kp->kp_type = CHARTYPE;
+      }
+    }
+    else {	/* primary key normalized if too many key fields. */	
+      k->k_nparts = 1;		
+      k->k_start = 0;
+      k->k_leng = klen;
+      k->k_type = CHARTYPE;
+    }
+    k->k_len = klen;
     cp->key.klen = klen;
-    cp->key.k.k_type = CHARTYPE;
     ctl_name[len] = 0;
     strncpy(cp->key.name,np,MAXKEYNAME)[MAXKEYNAME] = 0;
   }
