@@ -1,4 +1,4 @@
-static char what[] = "@(#)btree.c	1.3";
+static char what[] = "@(#)btree.c	1.4";
 
 #include "node.h"
 #include "btbuf.h"
@@ -62,11 +62,9 @@ void btadd(urec,ulen)
       }
       ap->buf.l.lbro = bp->blk;
       bp->buf.l.lbro = 0;
-      limit = node_free(bp,0) / 2;
+      limit = node_free(bp->np,0) / 2;
       acnt = node_count(np);
-      for (i = cnt = 0; cnt < limit && ++i < acnt;) {
-	cnt += node_size(np->np,i);
-      }
+      for (i = cnt = 0; node_free(np->np,i) > limit && ++i < acnt;);
       if (i > idx && bp->flags & BLK_STEM) --i;
       (void)node_move(np,bp,1,0,i);
       (void)node_move(np,ap,i+1,0,acnt - i);
@@ -91,8 +89,8 @@ void btadd(urec,ulen)
     if (np->buf.l.lbro) {		/* if left brother */
       bp = btbuf(np->buf.l.lbro);
       do {
-	--sp;
 	assert(sp > stack);
+	--sp;
       } while (sp->slot == 0);		/* find dad node */
       dp = btbuf(sp->node);
       rc = 0;			/* try to move dadkey left if needed */
@@ -103,7 +101,6 @@ void btadd(urec,ulen)
 	else
 	  rc = -1;
       }
-      node_dup = -1;
 
       /* if key left ok, try to rotate with brother first */
 
@@ -136,11 +133,9 @@ void btadd(urec,ulen)
       ap->buf.l.lbro = np->buf.l.lbro;
       np->buf.l.lbro = ap->blk;
 
-      limit = node_free(bp,0)/2 - ulen;
       cnt = node_count(bp);
-      for (i = cnt; limit > 0 && i > 0; --i) {
-	limit -= node_size(bp->np,i);
-      }
+      limit = node_free(bp->np,0)/2 - ulen + node_free(bp->np,cnt);
+      for (i = cnt; node_free(bp->np,i) < limit && i > 0; --i);
       if (++i <= cnt) {
 	cnt = node_move(bp,ap,i,0,node_count(bp)-i+1);
 	node_delete(bp,i,cnt);
@@ -248,9 +243,9 @@ int getkey(bp,np,urec,blkp)
 {
   register int ulen,i;
   node_dup = 0;
+  i = node_count(bp);
   if (np->flags & BLK_STEM) {
-    i = node_count(bp);
-    if (node_free(bp,i) > node_free(np,node_count(np))) {
+    if (node_free(bp->np,i) > node_free(np->np,node_count(np))) {
       bp = np;
       i = 1;
     }
@@ -260,12 +255,14 @@ int getkey(bp,np,urec,blkp)
     node_delete(bp,i,1);
   }
   else {
-    assert(node_count(np) > 1);
-    ulen = *rptr(np->np,1);
-    node_copy(np,1,urec,++ulen);
+    short size;
+    ulen = node_size(np->np,1);
+    size = node_size(bp->np,i);
+    node_copy(np,1,urec,ulen);
+    if (ulen > size) ulen = size;
+    ulen = blkcmp(rptr(bp->np,i)+1,(unsigned char *)urec,ulen) + 1;
   }
   (void)memcpy(urec+ulen,(char *)blkp,sizeof *blkp);
   ulen += sizeof *blkp;
-  node_dup = -1;
   return ulen;
 }
