@@ -1,4 +1,5 @@
-VERS = 2.10.5
+VERS = 2.10.6
+CVSTAG = btas-2_10_6
 
 OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
 	btfile.o btkey.o assert.o server.o btdev.o fsdev.o alarm.o	\
@@ -31,14 +32,13 @@ btinit:	btinit.c btbuf.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $< $(BMSLIB) -o btinit
 
 SRCTAR=btas-$(VERS).src.tar.gz
+PKG=btas-$(VERS)
 
 $(SRCTAR):	
-	rm btas-$(VERS); ln -s . btas-$(VERS)
-	for dir in . sql util lib cisam include fix btbr; do \
-	   path=btas-$(VERS)/$$dir; \
-    ls $$path/*.[chy] $$path/*.cc $$path/makefile $$path/*.spec $$path/*.sh \
-	  $$path/*.scr $$path/*.def $$path/*.help $$path/*.py; done |	\
-	  tar cvT - -f - | gzip >btas-$(VERS).src.tar.gz
+	cvs export -r$(CVSTAG) -d $(PKG) btas
+	tar cvf $(PKG).src.tar $(PKG)
+	gzip -f $(PKG).src.tar
+	rm -r $(PKG)
 
 tar:	$(SRCTAR)
 
