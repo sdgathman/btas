@@ -1,4 +1,4 @@
-static char id[] = "1 isserve.c 1.1 2/9/94";
+static char id[] = "@(#)isserve.c 1.2 2/9/94";
 
 #include <isam.h>
 #include "isreq.h"
