@@ -1,2 +1,1 @@
-isbuild - when no filedescriptors left after creating file, file
-is still created.
+isbuild - check for fd avail could be expensive.

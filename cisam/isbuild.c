@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.5  2003/07/29 18:15:38  stuart
+/* Auto expand file descriptor array.
+/*
 /* Revision 1.4  2001/02/28 23:14:39  stuart
 /* better handling of recno key
 /*
@@ -75,6 +78,7 @@ int isbuildx(
   const char *fname;
   if (len + sizeof CTL_EXT > sizeof idxname) return iserr(EFNAME);
   if (k->k_flags & ISDUPS) return iserr(EBADKEY);
+  if (isnewfd() < 0) return -1;
   kd = *k;
   iskeynorm(&kd);
 

@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.10  2003/07/29 18:15:39  stuart
+ * Auto expand file descriptor array.
+ *
  * Revision 1.9  2003/07/29 16:46:35  stuart
  * isfdlimit entry point.  Always use ischkfd.
  *
@@ -118,7 +121,7 @@ int isopen(const char *name,int mode) {
   return isopenx(name,mode,MAXCISAMREC);	/* no recsize protection */
 }
 
-static int isnewfd() {
+int isnewfd() {
   int startsearch = 0;
   for (;;) {
     int fd;
