@@ -3,6 +3,9 @@
 	Copyright 1991 Business Management Systems, Inc.
 */
 // $Log$
+// Revision 1.2  1995/11/02  15:33:59  stuart
+// rearrange RCS id
+//
 #include <stdio.h>
 #include <fcntl.h>
 #include <io.h>
@@ -16,6 +19,8 @@ int main(int argc,char **argv) {
   for (i = 1; i < argc; ++i) {
     if (strcmp(argv[i],"-6") == 0)
       convert68k = true;
+    else
+      break;
   }
   if (i + 1 != argc) {
     fputs("$Id$\n\
