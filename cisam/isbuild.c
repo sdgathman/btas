@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.1  1995/04/07  22:52:21  stuart
+ * Initial revision
+ *
  */
 #include <errenv.h>
 #include <string.h>
@@ -45,27 +48,29 @@ static struct btflds *makeflds(const struct keydesc *k,int rlen,int num) {
   return (struct btflds *)&fcb;
 }
 
-int isbuildx(name,rlen,k,mode,f)
-  const char *name;     	/* filename to create */
-  int rlen;			/* C-isam record length */
-  const struct keydesc *k;	/* primary keydesc */
-  int mode;			/* file mode */
-  struct btflds *f;		/* field table for C-isam record */
+int isbuildx(
+  const char *name,     	/* filename to create */
+  int rlen,			/* C-isam record length */
+  const struct keydesc *k,	/* primary keydesc */
+  int mode,			/* file mode */
+  struct btflds *f)		/* field table for C-isam record */
 {
   struct btflds *fcb;
   struct keydesc kd;
   char idxname[128];
   struct keydesc kr;
   char recno = 0;
+  char needrecnum;
   int rc, len = strlen(name);
   const char *fname;
   if (len + sizeof CTL_EXT > sizeof idxname) return iserr(EFNAME);
   kd = *k;
   iskeynorm(&kd);
+  needrecnum = (kd.k_nparts > 0 && f && isrlen(f) != btrlen(f));
 
   /* create .idx file */
-#ifdef OPTIDX
-  if (kd.k_nparts > 1 || kd.k_start > 0)	/* create .idx file */
+#ifdef 1 /* OPTIDX */
+  if (needrecnum || kd.k_nparts > 1 || kd.k_start > 0)	/* create .idx file */
 #endif
   {
     static const char idxf[] = { 0, 1,		/* idxname, klen */
@@ -96,9 +101,10 @@ int isbuildx(name,rlen,k,mode,f)
 	++fname;
       idxname[len] = 0;
       isstkey(fname,k,&idxrec);
+      idxrec.flag |= ISCLUSTER;	/* mark as primary key */
       u2brec(fcb->f,(char *)&idxrec,sizeof idxrec,ctlf,sizeof idxrec.name);
       btas(ctlf,BTWRITE);	/* write primary key record */
-      if (kd.k_nparts > 0 && f && isrlen(f) != btrlen(f)) {
+      if (needrecnum) {
 	/* create isrecnum key */
 	strcpy(idxname + len,".num");
 	kr.k_flags = kr.k_nparts = 0;
@@ -114,7 +120,7 @@ int isbuildx(name,rlen,k,mode,f)
   }
 
   /* create default field table if needed */
-  if (!f) f = makeflds(k,rlen,0);
+  if (!f) f = makeflds(k,rlen,!k->k_nparts?4:0);
 
   /* create files */
   if (recno) {		/* if recidx created */
