@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 1.14  1993/08/25  22:56:24  stuart
+ * use btfirst, new bttrace
+ *
  * Revision 1.13  1993/05/27  21:58:24  stuart
  * symbolic link support, beginning failsfae support
  *
@@ -204,15 +207,22 @@ int btas(BTCB *b,int opcode) {
     return openfile(b);		/* check permissions */
   case BTCLOSE:
     closefile(b);
-#ifdef __MSDOS__
+#ifdef SINGLE
     return btflush();
 #else
     return 0;
 #endif
   case BTUMOUNT:
-    return btunjoin(b);	/* unmount filesystem */
+    if (b->root)
+      return btunjoin(b);	/* unmount filesystem */
+    if (devtbl[b->mid].mcnt) return BTERBUSY;
+    return btumount(b->mid);
   case BTMOUNT:
-    return btjoin(b);
+    if (b->root)
+      return btjoin(b);
+    b->lbuf[b->klen] = 0;
+    b->mid = btmount(b->lbuf);
+    return 0;
   case BTSTAT:		/* set/extract status information */
 	/* FIXME: if klen set, stat a pathname */
     if (b->root) {
