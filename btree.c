@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.12";
+static char what[] = "@(#)btree.c	1.13";
 #endif
 
 #include "btbuf.h"
@@ -311,7 +311,7 @@ void btdel()
     }
     else {
       totfree = (nfree + bfree)/2;	/* even up data in brothers */
-      if (nfree > bfree || bcnt < 2) {
+      if (nfree < bfree || bcnt < 2) {
 	totfree += node_free(np->np,0) - bfree;
 	for (i = 0; node_free(np->np,i) > totfree; ++i);
 	cnt = node_move(np,bp,1,bcnt,i+1);
@@ -387,7 +387,7 @@ static int getkey(bp,np,urec,blkp)
     short size; unsigned char *p;
     size = node_size(np->np,1);
     ulen = node_size(bp->np,i);
-    if (ulen < size) ulen = size;
+    if (ulen > size) ulen = size;
     node_copy(np,1,urec,ulen);
     p = rptr(bp->np,i) + 1;
     ulen = blkcmp(p,(unsigned char *)urec,ulen);
