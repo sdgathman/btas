@@ -10,7 +10,7 @@ class BlockCache;
 
 class BufferPool {
   enum {
-    MAXFLUSH = 200,	// try not to flush more than this at a time
+    MAXFLUSH = 400,	// try not to flush more than this at a time
     MAXBUF = MAXLEV * 2	// maximum buffers reserved (worst case insert)
   };
   int hash(unsigned long v) const {
