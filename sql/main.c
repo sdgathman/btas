@@ -379,6 +379,35 @@ static void sqlexec(const struct sql_stmt *cmd) {
     }
     report(cnt,"inserted");
     break;
+  case SQL_CREATE:
+    {
+      struct btflds f;
+      int i,pos = 0;
+      const char *tblname;
+      x = cmd->dst->table_list;
+      assert(x != 0);
+      assert(x->op == EXNAME);
+      tblname = x->u.name[0];
+      x = cmd->val->u.opd[1];
+      for (i = 0; x && i < MAXFLDS; ++i) {
+        sql typ = x->u.opd[0];
+	assert(typ->op == EXTYPE);
+	f.f[i].pos = pos;
+	f.f[i].type = typ->u.t.type;
+	f.f[i].len  = typ->u.t.len;
+	pos += typ->u.t.len;
+	x = x->u.opd[1];
+      }
+      f.f[i].pos = pos;
+      f.f[i].type = 0;
+      f.f[i].len = 0;
+      f.rlen = i;
+      f.klen = f.rlen;	/* FIXME */
+      fprintf(stderr,"Creating new table %s, cols = %d, rlen = %d\n",
+        tblname,i,pos);
+      if (btcreate(tblname,&f,0666)) break;
+    }
+    break;
   }
   enverr
     fprintf(stderr,"Fatal error %d\n",errno);

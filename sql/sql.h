@@ -65,6 +65,10 @@ struct sqlnode {
       struct obstack *stk;
       sql freelist;
     } p;
+    struct type_node {
+      sql def;
+      unsigned char type, len;
+    } t;   
   } u;
 };
 
@@ -103,6 +107,7 @@ sql mkalias(const char *, sql);
 sql mkunop(enum sqlop, sql);
 sql mkname(const char *, const char *);
 sql mkconst(const sconst *);
+sql mktype(const char *,const char *,int,int);
 sql mkstring(const char *);
 sql mklit(const char *,sql);
 sql tostring(sql);

@@ -1,5 +1,9 @@
 /*
  * $Log$
+ * Revision 1.2  2001/11/14 19:16:46  stuart
+ * Implement INSERT INTO ... VALUES
+ * Fix assignment bug.
+ *
  * Revision 1.1  2001/02/28 23:00:05  stuart
  * Old C version of sql recovered as best we can.
  *
@@ -161,24 +165,30 @@ fldlist	: alist
 		{ $$ = 0; }
 	;
 
-typelist: type
-	| type NOT NUL
-	| typelist ',' type
-	| typelist ',' type NOT NUL
+typelist: IDENT type
+		{ addlist($$ = mklist(),$2); $2->u.t.def = mkname($1,$1); }
+	| IDENT type NOT NUL
+		{ addlist($$ = mklist(),$2); $2->u.t.def = mkname($1,$1); }
+	| typelist ',' IDENT type
+		{ addlist($$ = $1,$4); $4->u.t.def = mkname($3,$3); }
+	| typelist ',' IDENT type NOT NUL
+		{ addlist($$ = $1,$4); $4->u.t.def = mkname($3,$3); }
 	| typelist ',' UNIQUE '(' filelist ')'
 	;
 
 type	: IDENT IDENT
-		{ addlist($$ = mklist(),mkname($1,$2)); }
+		{ $$ = mktype($1,$2,0,0); }
+	| IDENT
+		{ $$ = mktype($1,0,0,0); }
+	| IDENT '(' CONST ')'
+		{ if ($3.fix) YYERROR;
+		  $$ = mktype($1,0,(int)Mtol(&$3.val),0); }
 	| IDENT IDENT '(' CONST ')'
 		{ if ($4.fix) YYERROR;
-		  addlist($$ = mklist(),mkname($1,$2));
-		  addlist($$,mkconst(&$4)); }
-	| IDENT IDENT '(' CONST ',' CONST ')'
-		{ if ($4.fix || $6.fix) YYERROR;
-		  addlist($$ = mklist(),mkname($1,$2));
-		  addlist($$,mkconst(&$4));
-		  addlist($$,mkconst(&$6)); }
+		  $$ = mktype($1,$2,(int)Mtol(&$4.val),0); }
+	| IDENT '(' CONST ',' CONST ')'
+		{ if ($3.fix || $5.fix) YYERROR;
+		  $$ = mktype($1,0,(int)Mtol(&$3.val),(int)Mtol(&$5.val)); }
 	;
 
 join	: SELECT fldlist FROM joinlist

@@ -61,3 +61,4 @@ DEF_SQL(EXNOT,"x","|")
 DEF_SQL(EXLIKE,"xx","LIKE")
 DEF_SQL(EXINT,"i","")		/* logical constant */
 DEF_SQL(EXNOP,"x","")
+DEF_SQL(EXTYPE,"x","")

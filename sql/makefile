@@ -8,11 +8,12 @@ LIBS = -lbtas -lbms -lm		# for most others
 
 OBJS = parse.o exec.o vwsel.o vwopt.o join.o version.o cursor.o	\
        istable.o sql.o column.o order.o like.o coldate.o fdbl.o selcol.o \
-       system.o func.o btdir.o lit.o values.o
+       system.o func.o btdir.o lit.o values.o sqltype.o
 
 sql:	main.o $(OBJS)
 	$(CC) $(LDFLAGS) main.o $(OBJS) $(LIBS) -o sql
 
+sqltype.o : sqltype.c sql.h
 values.o : values.c cursor.h
 vwsel.o : vwsel.c object.h vwopt.h sql.h obmem.h sql.def cursor.h column.h 
 order.o : order.c object.h cursor.h column.h sql.h obmem.h sql.def 
