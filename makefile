@@ -1,4 +1,4 @@
-VERS = 2.9.5
+VERS = 2.10.0
 
 OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
 	btfile.o btkey.o assert.o server.o btdev.o fsdev.o alarm.o	\
@@ -8,9 +8,6 @@ L = lib/libbtas.a
 CC=g++
 CXXFLAGS=$(CFLAGS)
 BMSLIB=/bms/lib/libbms.a
-
-.DEFAULT:
-	co -rR2V05 $(<:.o=.c)
 
 make:	btserve btstop btstat btinit $L
 
@@ -34,6 +31,7 @@ btinit:	btinit.c btbuf.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $< $(BMSLIB) -o btinit
 
 tar:
+	rm $(VERS); ln -s . $(VERS)
 	for dir in . sql util lib cisam include fix; do \
 	   path=btas-$(VERS)/$$dir; \
     ls $$path/*.[chy] $$path/*.cc $$path/makefile $$path/*.spec $$path/*.sh \
