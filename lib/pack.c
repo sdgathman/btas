@@ -11,7 +11,8 @@ are left alone.  The resulting compressed record will never be larger
 than the original, but non-printing bytes in character fields may be lost.
 
 Character field compression is designed to preserve sort order.
-*/
+ * $Log$
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -86,6 +87,20 @@ void b2urec(p,urec,ulen,buf,len)
   }
 }
 
+/* copy characters, stop at 0, return number copied */
+
+static int fldccpy(char *tbuf,const char *ubuf,int flen) {
+  char *buf = tbuf;
+  while (flen--) {
+    int c = *ubuf++;
+    if (c == 0) break;
+    if ((c & ~0x7f) || c < ' ')	/* make sure we won't screw up decompress */
+      c = ':';
+    *buf++ = c;
+  }
+  return buf - tbuf;
+}
+
 void u2brec(p,urec,ulen,b,klen)
   const struct btfrec *p;	/* field table */
   const char *urec;		/* unpacked user record */
@@ -124,7 +139,6 @@ void u2brec(p,urec,ulen,b,klen)
 	*/
       register int blen;		/* leading blank count */
       register int nblen;		/* non-blank count */
-      char *cp;
       if ((blen = blkfntr(ubuf,' ',flen)) == flen || *ubuf == 0) {
 	*buf++ = 0;
 	nblen = 0;
@@ -146,10 +160,7 @@ void u2brec(p,urec,ulen,b,klen)
 	  flen -= blen;
 	}
 
-	if (cp = memccpy(buf,ubuf,0,flen))
-	  nblen = cp - buf - 1;
-	else
-	  nblen = flen;
+	nblen = fldccpy(buf,ubuf,flen);
 	nblen = blkfntl(buf+nblen,' ',nblen);
 	buf += nblen;	/* otherwise, all is copied */
 	if (nblen < p->len - blen)
