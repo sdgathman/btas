@@ -29,6 +29,9 @@ btkey:	verify()		locate record with a given key.
 	addrec()		add user record, check for DUPKEY
 	delrec()		delete user record, caller locates first
  * $Log$
+ * Revision 1.2  1993/05/28  19:40:28  stuart
+ * isolated partial key searches to btfirst(), btlast()
+ *
  */
 
 #include "btbuf.h"
@@ -39,30 +42,44 @@ btkey:	verify()		locate record with a given key.
 #include "btfile.h"
 
 BLOCK *btfirst(BTCB *b) {
-  BLOCK *bp = bttrace(b->root,b->lbuf,b->klen,1);
-  if (sp->slot == 0 || node_dup < b->klen) return 0; /* not found */
-  b->u.cache = *sp;
+  BLOCK *bp = bttrace(b,b->klen,1);
+  if (sp->slot == 0) {
+    if ((bp->flags && BLK_ROOT) || bp->buf.l.lbro == 0L) return 0;
+    b->u.cache.node = bp->buf.l.lbro;
+    btget(1);
+    bp = btbuf(b->u.cache.node);
+    b->u.cache.slot = node_count(bp);
+    node_dup = node_comp(bp,b->u.cache.slot,b->lbuf,b->klen);
+  }
+  if (node_dup < b->klen) return 0;
   return bp;
 }
 
 BLOCK *btlast(BTCB *b) {
-  BLOCK *bp = bttrace(b->root,b->lbuf,b->klen,-1);
-  if (sp->slot == node_count(bp)
-    || node_comp(bp,++sp->slot,b->lbuf,b->klen) < b->klen) return 0;
-  b->u.cache = *sp;
+  BLOCK *bp = bttrace(b,b->klen,-1);
+  if (sp->slot == node_count(bp)) {
+    if ((bp->flags && BLK_ROOT) || bp->buf.l.rbro == 0L) return 0;
+    b->u.cache.node = bp->buf.l.rbro;
+    btget(1);
+    bp = btbuf(b->u.cache.node);
+    sp->slot = b->u.cache.slot = 0;
+  }
+  else
+    ++sp->slot;
+  if (node_comp(bp,++b->u.cache.slot,b->lbuf,b->klen) < b->klen) return 0;
   return bp;
 }
 
 BLOCK *uniquekey(BTCB *b) {
-  BLOCK *bp, *dp;
   t_block rbro;
 
   /* We would like to use verify(), but we don't for now because
      our callers often need to call btadd() or btdel() and they
      would have to check sp and call bttrace() themselves when necessary.
   */
-  bp = btfirst(b);
-  if (!bp) btpost(BTERKEY);
+  BLOCK *dp;
+  BLOCK *bp = bttrace(b,b->klen,1);
+  if (sp->slot == 0 || node_dup < b->klen) btpost(BTERKEY); /* not found */
 
   /* check for unique key */
 
@@ -89,14 +106,10 @@ BLOCK *uniquekey(BTCB *b) {
   return btbuf(b->u.cache.node);	/* get back our node */
 }
 
-/* Verify cached record location.  Call bttrace() if required.
-   Set b->u.cache.node,b->u.cache.slot to the located record.
-   We should probably guarrantee first or last record based on dir, but
-   the caller does it currently.  The dir now supplied is just an optimization.
-*/
+/* Verify cached record location. */
 
-BLOCK *verify(BTCB *b,int dir) {
-  register BLOCK *bp;
+BLOCK *verify(BTCB *b) {
+  BLOCK *bp;
   if (b->u.cache.slot > 0) {		/* if cached location */
     btget(1);
     bp = btread(b->u.cache.node);
@@ -109,15 +122,12 @@ BLOCK *verify(BTCB *b,int dir) {
       return bp;
     }
   }
-  /* failed exam, retrace */
-  bp = bttrace(b->root,b->lbuf,b->klen,dir);
-  b->u.cache = *sp;
-  return bp;
+  return 0;
 }
 
 int addrec(BTCB *b) {
   BLOCK *bp;
-  bp = bttrace(b->root,b->lbuf,b->klen,1);
+  bp = bttrace(b,b->klen,1);
   if (node_dup == b->klen) {
     return BTERDUP;	/* duplicate */
   }
@@ -127,10 +137,8 @@ int addrec(BTCB *b) {
     btadd(b->lbuf,b->rlen);
     b->u.cache.slot = 0;		/* didn't keep track of slot */
   }
-  else {
-    b->u.cache.node = sp->node;
-    b->u.cache.slot = sp->slot + 1;
-  }
+  else
+    ++b->u.cache.slot;
   btget(1);
   bp = btbuf(b->root);
   ++bp->buf.r.stat.rcnt;	/* increment record count */
@@ -149,10 +157,17 @@ void delrec(BTCB *b,BLOCK *bp) {
     btget(1);
     bp = btbuf(b->u.cache.node);
   }
+  /* save the record we are about to delete */
+  b->rlen = node_size(bp->np,b->u.cache.slot);
+  node_copy(bp,b->u.cache.slot,b->lbuf,b->rlen,b->klen);
+  /* delete the record */
   node_delete(bp,b->u.cache.slot,1);
   newcnt = 0;
-  if (node_free(bp->np,node_count(bp)) >= node_free(bp->np,0)/2)
-    btdel();
+  if (node_free(bp->np,node_count(bp)) >= node_free(bp->np,0)/2) {
+    if (sp->slot == 0)	/* need to trace location */
+      bttrace(b,b->rlen,1);
+    btdel();			/* adjust tree */
+  }
   btget(1);
   bp = btbuf(b->root);
   --bp->buf.r.stat.rcnt;	/* decrement record count */
