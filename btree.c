@@ -62,9 +62,18 @@ void btadd(urec,ulen)
       }
       ap->buf.l.lbro = bp->blk;
       bp->buf.l.lbro = 0;
-      limit = node_free(bp->np,0) / 2;
       acnt = node_count(np);
-      for (i = cnt = 0; node_free(np->np,i) > limit && ++i < acnt;);
+      switch (acnt) {
+      case 1:
+	i = idx;
+	break;
+      case 2:
+	i = 1;
+	break;
+      default:
+	limit = node_free(np->np,0) / 2;
+	for (i = cnt = 0; node_free(np->np,i) > limit && ++i < acnt;);
+      }
       if (i > idx && (bp->flags & BLK_STEM)) --i;
       (void)node_move(np,bp,1,0,i);
       (void)node_move(np,ap,i+1,0,acnt - i);
