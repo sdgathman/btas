@@ -21,9 +21,7 @@ int ischkerr(int mask,int lineno,const char *module) {
   register int err = iserrno - 100;
   char buf[80];
   if (err < 0 || err >= sizeof errtbl || (errtbl[err] & mask) == 0 ) {
-    strcpy(buf,module);
-    strcat(buf," line ");
-    strcat(buf,ltoa(lineno,buf+strlen(buf),10));
+    sprintf(buf,"%s line %d",module,lineno);
     errdesc(buf,iserrno);
   }
   return iserrno;
