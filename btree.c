@@ -1,4 +1,4 @@
-static char what[] = "@(#)btree.c	1.5";
+static char what[] = "@(#)btree.c	1.6";
 
 #include "node.h"
 #include "btbuf.h"
@@ -68,16 +68,8 @@ void btadd(urec,ulen)
       if (i > idx && (bp->flags & BLK_STEM)) --i;
       (void)node_move(np,bp,1,0,i);
       (void)node_move(np,ap,i+1,0,acnt - i);
-      if (i >= idx) {		/* insert new record in one of the nodes */
-	rc = node_insert(bp,idx,urec,ulen);
-	sp->node = bp->blk;
-      }
-      else {
-	rc = node_insert(ap,idx -= i,urec,ulen);
-	sp->node = ap->blk;
-      }
+      rc = insert(bp,ap,idx -= i,urec,ulen,sp);
       assert (rc == 0);
-      sp->slot = idx + 1;
       node_clear(np);
       np->buf.r.son = bp->blk;
       ulen = getkey(bp,ap,insrec,&ap->blk);
@@ -87,6 +79,7 @@ void btadd(urec,ulen)
 
     if (np->buf.l.lbro) {		/* if left brother */
       bp = btbuf(np->buf.l.lbro);
+      assert((bp->flags & BLK_STEM) || bp->buf.l.rbro == np->blk);
       savstk = sp;
       do {
 	assert(sp > stack);
@@ -107,20 +100,16 @@ void btadd(urec,ulen)
       if (rc == 0) {
 	if (idx && (acnt = node_move(np,bp,1,cnt,idx))) {
 	  node_delete(np,1,acnt);
-	  cnt += acnt;
 	  idx -= acnt;
 	}
-	if (idx || (rc = node_insert(bp,cnt,urec,ulen)))
-	  rc = node_insert(np,idx++,urec,ulen);
+	rc = insert(bp,np,idx,urec,ulen,savstk);
 	if (rc == 0) {
-	  savstk->slot = idx; /* update stack in case of recursive call */
 	  ulen = getkey(bp,np,insrec,&sp[1].node);
 	  if (node_replace(dp,sp->slot,insrec,ulen) == 0) return;
 	  urec = insrec;
 	  --sp->slot;
 	  continue;		/* insert on another iteration */
 	}
-	--idx;
 	rc = 0;
       }
 
@@ -135,6 +124,7 @@ void btadd(urec,ulen)
       }
       ap->buf.l.lbro = np->buf.l.lbro;
       np->buf.l.lbro = ap->blk;
+      np->flags |= BLK_MOD;
 
       cnt = node_count(bp);
       limit = node_free(bp->np,0)/2 - ulen + node_free(bp->np,cnt);
@@ -152,13 +142,10 @@ void btadd(urec,ulen)
       /* cnt should have current number of records in ap node */
       if (idx && (acnt = node_move(np,ap,1,cnt,idx))) {
 	node_delete(np,1,acnt);
-	cnt += acnt;
 	idx -= acnt;
       }
-      if (idx || (rc = node_insert(ap,cnt,urec,ulen)))
-	rc = node_insert(np,idx++,urec,ulen);
+      rc = insert(ap,np,idx,urec,ulen,savstk);
       assert(rc == 0);
-      savstk->slot = idx;	/* update stack in case of recursive call */
       --savstk;
       if (savstk->slot)
 	ulen = getkey(bp,ap,insrec,&ap->blk);
@@ -182,21 +169,20 @@ void btadd(urec,ulen)
     /* append sequential node */
 
       ap = btnew(np->flags);
-      if ((ap->flags & BLK_STEM) == 0)
+      if (ap->flags & BLK_STEM)
+	ap->buf.s.son = np->buf.s.son;
+      else
 	ap->buf.l.rbro = np->blk;
       np->buf.l.lbro = ap->blk;
       ap->buf.l.lbro = 0;
+      np->flags |= BLK_MOD;
       limit = node_free(ap->np,0) / 2;
       i = (np->flags & BLK_STEM) ? 1 : 0;
       while (i < idx && node_free(np->np,i) > limit) ++i;
       cnt = node_move(np,ap,1,0,i);
       node_delete(np,1,cnt);
-      idx -= cnt;
-      if (idx || (rc = node_insert(ap,cnt,urec,ulen)))
-	rc = node_insert(np,idx++,urec,ulen);
+      rc = insert(ap,np,idx -= cnt,urec,ulen,sp);
       assert(rc == 0);
-      sp->slot = idx;
-      (void)node_insert(ap,cnt,urec,ulen);
       --sp;
       assert(sp->slot == 0);
     }
@@ -207,7 +193,10 @@ void btadd(urec,ulen)
       dp->buf.s.son = ap->blk;
     }
     assert(sp->slot <= node_count(dp));
-    if (node_insert(dp,sp->slot,insrec,ulen) == 0) return;
+    if (node_insert(dp,sp->slot,insrec,ulen) == 0) {
+      ++sp->slot;
+      return;
+    }
     dp->flags |= BLK_MOD;
     urec = insrec;
   }
@@ -258,6 +247,39 @@ void btdel()
 {
 }
 
+int insert(bp,np,idx,urec,ulen,sp)
+  BLOCK *bp,*np;
+  short idx;
+  char *urec;
+  short ulen;
+  struct level *sp;
+{
+  int rc;
+
+  if (idx <= 0) {		/* insert new record in one of the nodes */
+    rc = node_insert(bp,idx + node_count(bp),urec,ulen);
+    if (idx < 0) {
+      sp->node = bp->blk;
+      idx += node_count(bp);
+      if (rc) --idx;
+    }
+    else {
+      idx = 0;
+      if (rc) {
+	rc = node_insert(np,idx,urec,ulen);
+	if (rc == 0) ++idx;
+      }
+    }
+  }
+  else {
+    rc = node_insert(np,idx,urec,ulen);
+    if (rc == 0) ++idx;
+  }
+
+  sp->slot = idx;
+  return rc;
+}
+
 int getkey(bp,np,urec,blkp)
   BLOCK *bp, *np;
   char *urec;
@@ -270,6 +292,7 @@ int getkey(bp,np,urec,blkp)
     assert(i>1);
     ulen = node_size(bp->np,i) - sizeof *blkp;
     node_ldptr(bp,i,&np->buf.s.son);
+    np->flags |= BLK_MOD;
     node_copy(bp,i,urec,ulen);
     node_delete(bp,i,1);
   }
