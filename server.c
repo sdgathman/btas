@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.5  1995/05/31  20:57:22  stuart
+ * error reporting bug
+ *
  * Revision 1.3  1994/03/28  20:14:55  stuart
  * improve error logging
  *
@@ -26,7 +29,7 @@
 #include <errno.h>
 #include <sys/lock.h>
 
-#ifdef DETERMINISTIC
+#ifdef DETERMINISTIC	/* make certain problems reproducible for debugging */
 time_t time(time_t *p) {
   if (p)
     *p = 0x7FFFFFFFL;		/* the clock is frozen */
@@ -48,7 +51,7 @@ static void ignore(int), cleanq(int,int);
 static int btasreq, btasres;
 static int ticks = 0, fatal = 0;
 
-static void ignore(sig) {	/* ignore signals (but terminate system call) */
+static void ignore(int sig) {	/* ignore signals (but terminate system call) */
   if (sig == SIGALRM) {
     if (ticks) {
       ++ticks;
@@ -65,7 +68,7 @@ static void ignore(sig) {	/* ignore signals (but terminate system call) */
 
 #define validpid(pid) (kill(pid,0) == 0 || errno != ESRCH)
 
-static void cleanq(qid,size) {
+static void cleanq(int qid,int size) {
   struct {
     long mtype;
     char mtext[1024];
@@ -88,11 +91,9 @@ static void cleanq(qid,size) {
 char debug = 0;
 char noflush = 0;
 
-main(argc,argv)
-  char **argv;
-{
-  register int rc;
-  register BTCB *reqp;
+int main(int argc,char **argv) {
+  int rc;
+  BTCB *reqp;
   struct msqid_ds buf;
   unsigned cache = 50000U;	/* works on 16 bit systems */
   unsigned block = BLKSIZE;	/* good for most systems */
@@ -156,13 +157,16 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
   if (!debug)
     (void)setpgrp();			/* disconnect from interrupts */
 
-  (void)signal(SIGTERM,ignore);	/* shutdown on terminate */
-  (void)signal(SIGPWR,ignore);	/* attempt shutdown on powerfail */
+  signal(SIGTERM,ignore);	/* shutdown on terminate */
+  signal(SIGPWR,ignore);	/* attempt shutdown on powerfail */
+#ifdef SIGDANGER
+  signal(SIGDANGER,ignore);	/* shutdown on SIGDANGER */
+#endif
 
   btasreq = msgget(BTASKEY,0620+IPC_CREAT+IPC_EXCL);
   if (btasreq == -1) {
     if (errno == EEXIST)
-      (void)fputs("BTAS/X Server already loaded\n",stderr);
+      fputs("BTAS/X Server already loaded\n",stderr);
     else
       perror(*argv);
     return 1;
@@ -170,20 +174,20 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
   btasres = msgget(BTASKEY+1,0640+IPC_CREAT+IPC_EXCL);
   if (btasres == -1) {
     perror(*argv);
-    (void)msgctl(btasreq,IPC_RMID,&buf);
+    msgctl(btasreq,IPC_RMID,&buf);
     return 1;
   }
 #ifdef DETERMINISTIC
-  (void)fprintf(stderr,"DETERMINISTIC version for testing.\n");
+  fprintf(stderr,"DETERMINISTIC version for testing.\n");
 #endif
 
   while (i < argc) {		/* mount listed filesystems */
     char *s = argv[i++];	/* setjmp may or may not increment i! */
     if (rc = setjmp(btjmp))
-      (void)fprintf(stderr,"Error %d mounting %s\n",rc,s);
+      fprintf(stderr,"Error %d mounting %s\n",rc,s);
     else {
-      (void)btmount(s);
-      (void)fprintf(stderr,"%s mounted on /\n",s);
+      btmount(s);
+      fprintf(stderr,"%s mounted on /\n",s);
     }
   }
 
@@ -285,7 +289,14 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
   (void)msgctl(btasreq,IPC_RMID,&buf);
   (void)msgctl(btasres,IPC_RMID,&buf);
   if (rc == EINTR) {
-    (void)fputs("BTAS/X shutdown: SIGTERM\n",stderr);
+    const char *s = "SIGNAL";
+    switch (fatal) {
+    case SIGTERM: s = "SIGTERM"; break;
+#ifdef SIGDANGER
+    case SIGDANGER: s = "SIGDANGER"; break;
+#endif
+    }
+    fprintf(stderr,"BTAS/X shutdown: %s\n",s);
     return 0;
   }
   if (rc == EIDRM) {
