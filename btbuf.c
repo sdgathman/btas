@@ -5,9 +5,12 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+ * Revision 1.2  1993/02/23  18:49:33  stuart
+ * fix assertion failure following 201 error
+ *
  */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "%W%";
+static char what[] = "$Id$";
 #endif
 
 #define MAXFLUSH 60
@@ -28,19 +31,19 @@ static char what[] = "%W%";
 
 typedef struct btfhdr DEV;
 
-static int writehdr(/**/ DEV * /**/);
+static int writehdr(DEV *);
 
 static t_block root;		/* current root node */
 static unsigned blksize;	/* max block size */
 static char *pool;		/* buffer storage */
 static int poolsize;		/* number of buffers */
 static unsigned nsize;		/* sizeof a buffer */
-static int sortout(/**/ BLOCK **, int /**/);
+static int sortout(BLOCK **, int);
 
 int newcnt = 0;		/* accumulates new blocks added/deleted */
 long curtime;		/* BTAS time */
 int maxrec;		/* maximum record size */
-int safe_eof = 1;		/* safe OS eof processing */
+int safe_eof = 1;	/* safe OS eof processing */
 char *workrec;
 DEV devtbl[MAXDEV];	/* headers by mid */
 struct btpstat stat;
@@ -53,12 +56,66 @@ static struct extent {
 
 static int extcnt = 0;	/* extent table entries in use */
 
+#ifdef FAILSAFE
+#include <sys/types.h>
+#include <sys/uio.h>
+
+int checkpoint(int ckpt,BLOCK **a,int n) {
+  int i;
+  int totlen;
+  struct iovec v[MAXFLUSH + 4];
+  union {
+    struct {
+      time_t tstamp;
+      short ckptcnt;
+      short version;	/* checkpoint/filesystem format version */
+      short mntcnt;
+      short extcnt;
+      short blkcnt;
+      short magic;
+    } hdr;
+    char buf[SECT_SIZE];
+  } u;
+  time(&u.hdr.tstamp);
+  u.hdr.ckptcnt = (short)stat.checkpoints++;
+  u.hdr.version = 107;
+  u.hdr.mntcnt = MAXDEV;
+  u.hdr.extcnt = extcnt;
+  u.hdr.blkcnt = n;
+  u.hdr.magic = BTMAGIC;
+  v[0].iov_base = (PTR)&u.hdr;
+  v[0].iov_len = sizeof u.hdr;
+  v[1].iov_base = (PTR)devtbl;
+  v[1].iov_len  = sizeof devtbl;
+  v[2].iov_base = (PTR)extbl;
+  v[2].iov_len = sizeof extbl[0] * extcnt;
+  for (i = 0; i < n; ++i) {
+    BLOCK *bp = a[i];
+    bp->flags |= BLK_CHK;
+    v[i+3].iov_base = (PTR)bp;
+    v[i+3].iov_len = nsize;
+  }
+  i += 3;
+  /* repeat header at end to make sure we got everything */
+  v[i].iov_base = (PTR)&u.hdr;
+  v[i].iov_len = sizeof u.hdr;
+  totlen = sizeof u.hdr * 2 + sizeof devtbl + v[2].iov_len + n * nsize;
+  /* round to sector size */
+  if (totlen & SECT_SIZE - 1) {
+    int addlen = SECT_SIZE - (totlen & SECT_SIZE - 1) ;
+    totlen += addlen;
+    v[i].iov_len += addlen;
+  }
+  if (lseek(ckpt,0L,0))
+    return -1;
+  if (writev(ckpt,v,++i) != totlen)
+    return -1;
+  return 0;
+}
+#endif
 static struct btfhdr *dev;	/* current file system */
 
-int btroot(r,mid)
-  t_block r;		/* set current root node */
-  short mid;		/* mount id */
-{
+int btroot(t_block r,short mid) {
   if (mid < 0 || mid >= MAXDEV) return -1;
   dev = &devtbl[mid];	/* base device for current root node */
   if (!dev->blksize) return -1;
@@ -108,9 +165,7 @@ void btspace() {	/* check available space */
 /* We need to read/write SECT_SIZE bytes for raw devices.  We should have
    an additional verification field in sector 1. */
 
-short btmount(name)	/* mount filesystem & return mount id */
-  char *name;           /* OS file name */
-{
+short btmount(const char *name) { /* mount filesystem & return mount id */
   register int i;
   int fd, rc;
   union {
@@ -151,7 +206,7 @@ short btmount(name)	/* mount filesystem & return mount id */
       u.d.hdr.baseid = extcnt;	/* base extent table entry */
       u.d.hdr.mcnt = 0;			/* reset mount count */
       if (strlen(name) > sizeof u.d.dtbl->name) {
-	char *p;
+	const char *p;
 	for (p = name; *p; ++p) {
 #ifdef __MSDOS__
 	  if (*p == '/' || *p == '\\')
@@ -200,9 +255,7 @@ short btmount(name)	/* mount filesystem & return mount id */
   return i;
 }
 
-int btumount(m)		/* unmount filesystem */
-  short m;
-{
+int btumount(short m) {		/* unmount filesystem */
   register int i;
   int rc = 0;
   register BLOCK *bp;
@@ -238,10 +291,7 @@ int btumount(m)		/* unmount filesystem */
   return rc;
 }
 
-static int sortout(a,n)
-  BLOCK **a;		/* block pointers to output */
-  int n;
-{
+static int sortout(BLOCK **a,int n) {
   int gap,i,rc;
   for (gap = n/2; gap > 0; gap /= 2) {
     for (i = gap; i < n; ++i) {
@@ -268,8 +318,7 @@ static int sortout(a,n)
   return rc;
 }
 
-int btflush()			/* flush buffers to disk */
-{
+int btflush() {			/* flush buffers to disk */
   register int i;
   int n = 0;
   int rc = 0,wc;
@@ -303,10 +352,7 @@ int btflush()			/* flush buffers to disk */
   return rc;
 }
 
-int btbegin(size,psize)		/* initialize buffer pool */
-  int size;			/* maximum buffer size */
-  unsigned psize;		/* total buffer pool size */
-{
+int btbegin(int size,unsigned psize) {		/* initialize buffer pool */
   register int i;
   register BLOCK *p;
   blksize = size;		/* save max block size */
@@ -327,11 +373,11 @@ int btbegin(size,psize)		/* initialize buffer pool */
     free(pool);
     return -1;
   }
+  time(&stat.uptime);
   return 0;
 }
 
-void btend()
-{
+void btend() {
   register int i;
   for (i = 0; i < MAXDEV; ++i) {	/* unmount all filesystems */
     if (devtbl[i].blksize) {
@@ -343,9 +389,7 @@ void btend()
   (void)free(pool);		/* release buffer pool */
 }
 
-BLOCK *btbuf(blk)
-  t_block blk;
-{
+BLOCK *btbuf(t_block blk) {
   register BLOCK *bp;
   if (blk == 0L)
     btpost(BTERROOT);	/* invalid root error */
@@ -357,7 +401,7 @@ BLOCK *btbuf(blk)
       (bp->flags & BLK_MOD) ? "BLK_MOD" : "",
       (bp->flags & BLK_ROOT) ? "BLK_ROOT" : "",
       (bp->flags & BLK_STEM) ? "BLK_STEM" : "",
-      (bp->flags & BLK_NEW) ? "BLK_NEW" : ""
+      (bp->flags & BLK_CHK) ? "BLK_CHK" : ""
     );
     fprintf(stderr,"root = %08lX, son/rbro = %08lX\n",
       bp->buf.r.root, bp->buf.r.son);
@@ -373,9 +417,7 @@ BLOCK *btbuf(blk)
   return bp;
 }
 
-BLOCK *btnew(flag)
-  short flag;		/* type of node to create */
-{
+BLOCK *btnew(short flag) {
   register BLOCK *bp;
 
   if (dev->free == 0L) {
@@ -413,8 +455,7 @@ BLOCK *btnew(flag)
   }
   ++newcnt;
 
-  /* BLK_NEW below might be incorrect */
-  bp->flags = flag | BLK_NEW | BLK_MOD | BLK_ACC;
+  bp->flags = (flag & ~BLK_CHK) | BLK_MOD | BLK_ACC;
   if (bp->flags&BLK_ROOT) {
     bp->np = (union node *)bp->buf.r.data;
     bp->buf.r.root = bp->blk;	/* make root node */
@@ -438,9 +479,7 @@ BLOCK *btnew(flag)
   return bp;
 }
 
-void btfree(bp)		/* delete node */
-  BLOCK *bp;
-{
+void btfree(BLOCK *bp) {		/* delete node */
   t_block left, right;
   left = bp->buf.r.son;
   bp->buf.r.root = 0;	/* mark deleted */
@@ -505,17 +544,18 @@ static int writehdr(dp)
   return (lseek(i,0L,0) || _write(i,u.buf,sizeof u.buf) != sizeof u.buf);
 }
 
-int writebuf(bp)
-  BLOCK *bp;
-{
+int writebuf(BLOCK *bp) {
   int fd; t_block blk;
   DEV *dp;
   int rc = 0;
+#ifdef FAILSAFE
+  assert(bp->flags & BLK_CHK);
+#endif
   ++stat.pwrites;
   dp = devtbl + bp->mid;
   fd = extbl[dp->baseid + blk_dev(bp->blk)].fd;
   blk = blk_off(bp->blk);
-  bp->flags &= ~(BLK_MOD|BLK_NEW);	/* mark unmodifed oldtimer */
+  bp->flags &= ~BLK_MOD;	/* mark unmodifed */
 #if TRACE > 1
   fprintf(stderr,"fd=%d ",fd);
 #endif
@@ -546,9 +586,7 @@ int writebuf(bp)
   return rc;
 }
 
-BLOCK *btread(blk)
-  t_block blk;
-{
+BLOCK *btread(t_block blk) {
   register BLOCK *bp;
   t_block dblk;
   int fd, rc, retry;
@@ -598,11 +636,11 @@ BLOCK *btread(blk)
 #endif
   if (blk == bp->buf.r.root) {
     bp->np = (union node *)bp->buf.r.data;
-    bp->flags = BLK_ROOT | BLK_NEW;
+    bp->flags = BLK_ROOT;
   }
   else {
     bp->np = (union node *)bp->buf.s.data;
-    bp->flags = BLK_NEW;
+    bp->flags = 0;
   }
   bp->count = *bp->np->tab;
   bp->flags |= (bp->count&BLK_STEM);
