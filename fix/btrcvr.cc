@@ -4,6 +4,9 @@
 	Recover a list of files while BTAS/X is running.
 
 $Log$
+ * Revision 2.3  1999/05/10  22:41:19  stuart
+ * *** empty log message ***
+ *
 # Revision 2.2  1998/01/14  20:13:09  stuart
 # Use btasXFS class
 #
@@ -36,6 +39,7 @@ $Log$
 */
 #include <stdio.h>
 #include <string.h>
+#include <new.h>
 #include <time.h>
 #pragma implementation "VHMap.cc"
 #pragma implementation "Map.cc"
@@ -282,8 +286,6 @@ Usage:	btrcvr [-t] [file]\n\
 ");
   exit(1);
 }
-
-extern "C" void (* cdecl set_new_handler(void (*new_handler)(void)))();
 
 void nomem() {
   puts("Out of memory!");
