@@ -2,6 +2,9 @@
 	variable length records up to 1/2 node size
 	minimum unique keys
  * $Log$
+ * Revision 2.1  1996/12/17  16:38:05  stuart
+ * C++ bufpool interface
+ *
  * Revision 1.23  1993/08/25  22:57:29  stuart
  * new bttrace interface
  *
@@ -9,15 +12,16 @@
 #if !defined(lint) && !defined(__MSDOS__)
 static char what[] = "$Id$";
 #endif
-
-#include "hash.h"
-#include "btas.h"
-#include "bterr.h"
 #include <stdio.h>
 #include <assert.h>
+#include "btbuf.h"
+#include "btas.h"
+#include "bterr.h"
+#include "btfile.h"
 
-static int getkey(BLOCK *, BLOCK *, char *, t_block *);
-static int insert(BLOCK *, BLOCK *, int, char *, int, struct btlevel *);
+inline BLOCK *bttrace::btnew(short flags) { return bufpool->btnew(flags); }
+BLOCK *bttrace::btbuf(t_block node) { return bufpool->btbuf(node); }
+inline void bttrace::btfree(BLOCK *blk) { bufpool->btfree(blk); }
 
 /*	the level stack records the path followed when
 	locating a record.  bttrace() follows the tree
@@ -26,18 +30,15 @@ static int insert(BLOCK *, BLOCK *, int, char *, int, struct btlevel *);
 	nodes.
 */
 
-struct btlevel stack[MAXLEV];	/* level stack */
-struct btlevel *sp;		/* stack pointer */
-
 /*
-	btadd() - may be called from btwrite or btrewrite when more space
+	add() - may be called from btwrite or btrewrite when more space
 		is needed in a data node.
 
 	bttrace() must have been called first.
 	A record may be replaced and/or inserted at each iteration.
 */
 
-void btadd(char *urec,int ulen) {
+void bttrace::add(char *urec,int ulen) {
   BLOCK *bp,*np,*dp,*ap;
   struct btlevel *savstk;
   short idx,i,limit,acnt,cnt;
@@ -173,7 +174,7 @@ void btadd(char *urec,int ulen) {
       if (dp->replace(sp->slot,insrec,ulen)) {
 	t_block apblk = ap->blk, npblk = np->blk;
 	--sp->slot;
-	btadd(insrec,ulen);	/* nasty recursive insert */
+	add(insrec,ulen);	/* nasty recursive insert */
 	btget(3);
 	/* continue where we left off, this depends on the node stack
 	   being correctly maintained */
@@ -228,28 +229,30 @@ void btadd(char *urec,int ulen) {
 	build level stack for possible inserts later
 */
 
-BLOCK *bttrace(BTCB *b,int klen,int dir) {
-  t_block root = b->root;
+bttrace::bttrace(BlockCache *c) {
+  bufpool = c;
+}
+
+BLOCK *bttrace::trace(BTCB *b,int klen,int dir) {
   char *key = b->lbuf;
-  BLOCK *bp;
-  short pos;
+  BLOCK *leaf = 0;
   sp = stack;
-  sp->node = root;
+  sp->node = b->root;
   for (;;) {
     btget(1);
-    bp = btbuf(sp->node);
-    pos = bp->find(key,klen,dir);
+    leaf = btbuf(sp->node);
+    short pos = leaf->find(key,klen,dir);
     sp->slot = pos;
-    if ((bp->flags&BLK_STEM) == 0) break;
+    if ((leaf->flags&BLK_STEM) == 0) break;
     if (++sp >= stack + MAXLEV)
       btpost(BTERSTK);
     if (pos == 0)
-      sp->node = bp->buf.s.son;		/* store node */
+      sp->node = leaf->buf.s.son;		/* store node */
     else
-      sp->node = bp->ldptr(pos);	/* store node */
+      sp->node = leaf->ldptr(pos);	/* store node */
   }
   b->u.cache = *sp;
-  return bp;
+  return leaf;
 }
 
 /*
@@ -260,10 +263,10 @@ BLOCK *bttrace(BTCB *b,int klen,int dir) {
 	A record may be replaced and/or deleted at each iteration.
 */
 
-void btdel() {
-  register BLOCK *np, *bp, *dp;
-  register short i;
-  short nfree,bfree,totfree,cnt,ulen,bcnt;
+void bttrace::del() {
+  BLOCK *np, *bp, *dp;
+  int i;
+  int nfree,bfree,totfree,cnt,ulen,bcnt;
   char keyrec[MAXKEY+sizeof (t_block)];
 
   for (;;) {
@@ -347,7 +350,7 @@ void btdel() {
       ulen = getkey(bp,np,keyrec,&np->blk);
       if (dp->replace(sp->slot,keyrec,ulen)) {
 	--sp->slot;
-	btadd(keyrec,ulen);
+	add(keyrec,ulen);
 	return;
       }
     }
@@ -361,8 +364,8 @@ void btdel() {
    location, otherwise point lp to the record after which the new record
    still needs to be inserted.  Return 0 for success. */
 
-static int
-insert(BLOCK *bp,BLOCK *np,int idx,char *urec,int ulen,struct btlevel *lp) {
+int
+bttrace::insert(BLOCK *bp,BLOCK *np,int idx,char *urec,int ulen,btlevel *lp) {
   int rc;
   if (idx <= 0) {
     rc = bp->insert(idx + bp->cnt(),urec,ulen);
@@ -385,7 +388,7 @@ insert(BLOCK *bp,BLOCK *np,int idx,char *urec,int ulen,struct btlevel *lp) {
 
 /* compute the unique key record to distinquish two nodes */
 
-static int getkey(BLOCK *bp,BLOCK *np,char *urec,t_block *blkp) {
+int bttrace::getkey(BLOCK *bp,BLOCK *np,char *urec,t_block *blkp) {
   register int ulen,i;
   i = bp->cnt();
   if (np->flags & BLK_STEM) {
