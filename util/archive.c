@@ -6,6 +6,9 @@
 	not all) errors.
  *
  * $Log$
+ * Revision 1.3  1997/09/10  21:39:20  stuart
+ * make intermediate directories
+ *
  * Revision 1.2  1996/01/05  01:37:22  stuart
  * fix many bugs
  *
@@ -15,7 +18,7 @@
 #include <fcntl.h>
 #include <errenv.h>
 #include <string.h>
-#include <btas.h>
+#include <btflds.h>
 #include <bttype.h>
 #include "btar.h"
 #include <ftype.h>	/* portable file formats */
@@ -25,6 +28,8 @@
 #include <bterr.h>
 
 extern volatile int cancel;
+
+static int maxdat = 1024;
 
 struct ar_hdr;
 
@@ -189,7 +194,7 @@ static struct {
 
 int btar_opennew(const char *t,int seekflag) {
   /* char buf[8192];		/* big I/O buffer */
-  f = fopen(t,"wb");
+  f = t ? fopen(t,"wb") : stdout;
   seekable = seekflag;
   if (f == 0 /* || setvbuf(f,buf,_IOFBF,sizeof buf) */) {
     perror(t);
@@ -383,11 +388,20 @@ static int btmkdirp(char *dir,int mode) {
 
 static BTCB *b = 0;
 
-int
-btar_extract(
+int btar_extract(
   const char *dir,const char *drec,int rlen,const struct btstat *bst) {
+  return btar_extractx(dir,drec,rlen,bst,0);
+}
+
+int btar_extractx(
+  const char *dir,const char *drec,int rlen,const struct btstat *bst,int flg) {
   BTCB *savdir = btasdir;
   BTCB *dtf = 0;
+  struct btflds *srctbl = 0;
+  struct btflds *dsttbl = 0;
+  int urlen = 0;
+  int uklen = 0;
+  char *buf = 0;
   int dirlen = strlen(dir);
   int rc;
   long recs = 0L, dups = 0L;
@@ -409,6 +423,12 @@ btar_extract(
     lastpath.len = dirlen;
   }
   btasdir = b;
+  if ((flg&FLAG_REPLACE) && !(flg&FLAG_FIELDS) && !(bst->id.mode&BT_DIR)) {
+    memcpy(b->lbuf,drec,(unsigned)rlen);
+    b->klen = strlen(drec) + 1;
+    b->rlen = rlen;
+    rc = btas(b,BTDELETE+NOKEY);
+  }
   /* make sure we can write to it */
   b->u.id.user = geteuid();
   b->u.id.group = getegid();
@@ -420,11 +440,25 @@ btar_extract(
   b->rlen = rlen;
   b->klen = strlen(drec) + 1;
   rc = btas(b,BTCREATE+DUPKEY);
-  if (rc)
-    fprintf(stderr," rewriting, ");
-  else
-    fprintf(stderr," creating,  ");
-  dtf = btopen(b->lbuf,BTWRONLY+BTDIROK,MAXREC);
+  if (rc) {
+    if (flg & FLAG_FIELDS) {
+      if (flg & FLAG_REPLACE)
+	fprintf(stderr," rewriting, ");
+      else
+	fprintf(stderr," converting, ");
+    }
+    else
+      fprintf(stderr," merging, ");
+  }
+  else {
+    flg &= ~FLAG_FIELDS;
+    if (flg & FLAG_REPLACE)
+      fprintf(stderr," replacing,  ");
+    else
+      fprintf(stderr," creating,  ");
+    flg &= ~FLAG_REPLACE;
+  }
+  dtf = btopen(b->lbuf,BTWRONLY+BTDIROK,maxdat);
   if (dtf) {
     if ((bst->id.mode & BT_DIR) && rc == 0) {
       strcpy(dtf->lbuf,".");
@@ -436,10 +470,25 @@ btar_extract(
       dtf->u.cache.node = b->root;
       btas(dtf,BTLINK);
     }
-    while ( (dtf->rlen = getdata(dtf->lbuf,MAXREC)) > 0) {
-      dtf->klen = dtf->rlen;
-      if (btas(dtf,BTWRITE+DUPKEY))
+    if (flg&FLAG_FIELDS) {
+      srctbl = ldflds(0,drec,rlen);
+      dsttbl = ldflds(0,dtf->lbuf,dtf->rlen);
+      urlen = btrlen(srctbl);
+      uklen = dsttbl->f[dsttbl->klen].pos;
+    }
+    buf = alloca(urlen);
+    while ( (dtf->rlen = getdata(dtf->lbuf,maxdat)) > 0) {
+      if (flg&FLAG_FIELDS) {
+	b2urec(srctbl->f,buf,urlen,dtf->lbuf,dtf->rlen);
+	u2brec(dsttbl->f,buf,urlen,dtf,uklen);
+      }
+      else
+	dtf->klen = dtf->rlen;
+      if (btas(dtf,BTWRITE+DUPKEY)) {
 	++dups;
+	if (flg&FLAG_REPLACE)
+	  btas(dtf,BTREPLACE+NOKEY);
+      }
       ++recs;
     }
     done = 1;
@@ -451,7 +500,7 @@ btar_extract(
   enverr
     if (!done) {	// skip 
       long skipped = 0L;
-      while (getdata(dtf->lbuf,MAXREC) > 0)
+      while (getdata(dtf->lbuf,maxdat) > 0)
 	++skipped;
       fprintf(stderr,"	%ld records skipped.\n",skipped);
     }
@@ -467,9 +516,12 @@ btar_extract(
   envend
   btasdir = savdir;
   btclose(dtf);
+  if (srctbl) free(srctbl);
+  if (dsttbl) free(dsttbl);
   fprintf(stderr,"%ld records loaded, %ld duplicates\n",recs,dups);
   return rc;
 }
+
 
 static struct ar_hdr hdr;
 
@@ -492,7 +544,7 @@ int btar_load(const char *t,loadf *userf) {
   } u;
   static char prefix[MAXREC];
   int rc, rlen;
-  f = fopen(t,"rb");
+  f = t ? fopen(t,"rb") : stdin;
   if (!f /* || setvbuf(f,buf,_IOFBF,sizeof buf) */) {
     perror(t);
     return -1;
