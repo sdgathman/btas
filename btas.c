@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 2.3  1998/04/22  03:33:06  stuart
+ * prevent instant delete of root
+ *
  * Revision 2.2  1997/06/23  15:29:15  stuart
  * implement btserve object, use btkey object
  *
@@ -53,6 +56,7 @@ extern "C" {
 #include "btbuf.h"		/* buffer, btree operations */
 #include "btfile.h"		/* files and directories */
 #include "btdev.h"
+#include "LockTable.h"
 
 /* NOTE - for historical reasons, higher keys and lower indexes are
 	  to the "left", lower keys and higher indexes to the "right".
@@ -94,6 +98,10 @@ int btserve::btas(BTCB *b,int opcode) {
     return rc;
   case BTWRITE:				/* write unique key */
     if (b->flags & BT_DIR) return BTERDIR;
+    if (b->op & LOCK) {
+      if (!locktbl->addLock(b))
+	return BTERLOCK;
+    }
     return engine->addrec(b);
   case BTDELETE:			/* delete unique key */
     engine->delrec(b,engine->uniquekey(b));
@@ -275,6 +283,9 @@ int btserve::btas(BTCB *b,int opcode) {
       b->rlen = sizeof bufpool->serverstats;
     memcpy(b->lbuf,&bufpool->serverstats,b->rlen);
     return 0;
+  case BTRELEASE:
+    locktbl->delLock(b->msgident);
+    return 0;
   default:
     return BTEROP;	/* invalid operation */
   }
@@ -288,5 +299,11 @@ int btserve::btas(BTCB *b,int opcode) {
   bp->copy(b->u.cache.slot,b->lbuf,b->rlen);
   if ((b->flags & BT_DIR) && b->rlen >= node::PTRLEN)
     b->rlen -= node::PTRLEN;	/* hidden root, but user can look if he wants */
+
+  if (b->op & LOCK) {
+    if (!locktbl->addLock(b))
+      return BTERLOCK;
+  }
+
   return 0;
 }
