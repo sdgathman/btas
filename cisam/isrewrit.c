@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.2  1995/04/06  21:03:09  stuart
+ * backout partial rewrite on DUPKEY
+ *
  * Revision 1.1  1995/04/06  20:17:26  stuart
  * Initial revision
  *
@@ -36,11 +39,12 @@ static int isrew(struct cisam *r,const void *rec) {
   char *buf;
   kp = &r->key;
   b = kp->btcb;
-  if (b->op || r->start != ISCURR) return iserr(ENOCURR);
+  if (b->op || r->start != ISCURR) return ENOCURR;
   rlen = isrlen(kp->f);		/* actual record length */
   buf = alloca(rlen);
   b2urec(kp->f->f,buf,rlen,b->lbuf,b->rlen);	/* save master record */
   /* first do the writes, saving the cmpresults and checking for DUPKEY */
+  /* FIXME: should write the master record last */
   do {
     kp->cmpresult = cmprec(kp->f,rec,buf,r->rlen);
     if (kp->cmpresult == 1) {
@@ -61,7 +65,7 @@ static int isrew(struct cisam *r,const void *rec) {
 	return rc;
       }
     }
-  } while (kp = kp->next);
+  } while ((kp = kp->next) != 0);
 
   /* now delete the old and rewrite the new */
 
@@ -83,7 +87,7 @@ static int isrew(struct cisam *r,const void *rec) {
 
 /* the Cisam calls */
 
-isrewcurr(int fd,const void *rec) {
+int isrewcurr(int fd,const void *rec) {
   struct cisam *r;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
