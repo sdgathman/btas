@@ -60,6 +60,7 @@ enum {
   BT_BITS = 10,		/* null value map */
   BT_EBCDIC = 11,	/* EBCDIC character field */
   BT_REL = 0x20, /* - 0x2f */	/* related fields */
+  BT_VNUM = 0x30,	/* compressed fixed point binary */
   BT_NUM = 0x40 /* - 0x4f */	/* fixed decimal point binary */
 };
 
