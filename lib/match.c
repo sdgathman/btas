@@ -3,9 +3,11 @@
 */
 
 #include <btas.h>
+#include <string.h>
 
 int match(const char *p,const char *pat) {
-  register char inverse;
+  char inverse;
+  const char *b = p;
   while (*pat) {
     switch (*pat) {
     case 0:
@@ -15,9 +17,16 @@ int match(const char *p,const char *pat) {
       break;		/* always matches */
     case '*':		/* match any number of characters */
       if (!*++pat) return 1;
-      do 
-	if (match(p,pat)) return 1;
-      while (*++p);
+      if (strchr("*?[",*pat)) {
+	do 
+	  if (match(p,pat)) return p - b + 1;
+	while (*p++);
+      }
+      else {
+	while (p = strchr(p,*pat)) {
+	  if (match(p++,pat)) return p - b;
+	}
+      }
       return 0;
     case '[':
       if (*++pat != '!' || pat[1] == ']')
@@ -50,3 +59,16 @@ int match(const char *p,const char *pat) {
   if (*p) return 0;
   return 1;		/* matches */
 }
+
+#if 0
+#include <stdio.h>
+
+int main(int argc,char **argv) {
+  char buf[256];
+  while (gets(buf)) {
+    if (match(buf,argv[1]))
+      puts(buf);
+  }
+  return 0;
+}
+#endif
