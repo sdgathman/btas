@@ -1,4 +1,6 @@
-static char what[] = "@(#)btree.c	1.8";
+#if !defined(lint) && !defined(__MSDOS__)
+static char what[] = "@(#)btree.c	1.10";
+#endif
 
 #include "btbuf.h"
 #include "node.h"
@@ -367,7 +369,7 @@ STATIC int insert(bp,np,idx,urec,ulen,lp)
   return rc;
 }
 
-STATIC int getkey(bp,np,urec,blkp)
+static int getkey(bp,np,urec,blkp)
   BLOCK *bp, *np;
   char *urec;
   t_block *blkp;
