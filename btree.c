@@ -1,8 +1,9 @@
-static char what[] = "@(#)btree.c	1.6";
+static char what[] = "@(#)btree.c	1.7";
 
-#include "node.h"
 #include "btbuf.h"
+#include "node.h"
 #include "bterr.h"
+#include <stdio.h>
 #include <assert.h>
 
 #define MAXLEV	16	/* maximum tree levels */
@@ -50,6 +51,7 @@ void btadd(urec,ulen)
     /* root node gets special split so that it never moves */
 
     if (sp == stack) {		/* if root node */
+      (void)fputs("root split\n",stderr);
       bp = btnew(np->flags & ~BLK_ROOT);
       ap = btnew(bp->flags);
       if ((ap->flags & BLK_STEM) == 0) {
@@ -68,6 +70,7 @@ void btadd(urec,ulen)
       if (i > idx && (bp->flags & BLK_STEM)) --i;
       (void)node_move(np,bp,1,0,i);
       (void)node_move(np,ap,i+1,0,acnt - i);
+      sp->node = ap->blk;	/* default to right node */
       rc = insert(bp,ap,idx -= i,urec,ulen,sp);
       assert (rc == 0);
       node_clear(np);
@@ -155,6 +158,7 @@ void btadd(urec,ulen)
 	t_block new;
 	new = ap->blk;
 	--sp->slot;
+	(void)fputs("Recursive btadd()\n",stderr);
 	btadd(insrec,ulen);
 	btget(3);
 	ap = btbuf(new);
