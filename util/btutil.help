@@ -1,0 +1,223 @@
+NOTE: Detailed help can be added to /local/lib/btutil.help!
+
+ARchive pattern osfile		archive file in portable form
+CD	same as SE
+CHange user group mode patterns	change file permissions
+CLear patterns			empty file
+COpy pattern filename		copy files
+CReate filename {DIR|fcblist}	create file
+DElete patterns			delete file
+DF [d:]				list mounted filesystems
+DIrectory[/ft1dv] [patterns]	list files
+DUmp[/xhr] filename keydata	dump file
+ENd				end utility
+HElp [command]			detailed help with commands
+
+..		This is a page break
+
+LC	same as DI
+LN pattern filename		link files
+LOad pattern osfile		reload archived file
+LS	same as DI
+MOunt osname dir		mount filesystem
+MV	same as RE
+PAtch filename			change records in file
+REname patterns name		rename files
+RM	same as DE
+SEt directory			set working directory
+STat 				performance statistics
+SYnc				flush system buffers
+UMount dir			unmount filesystem
+UNlock[/nn] patterns		unlock files - careful!
+.
+
+*****
+Help sections start with a "dot label" line.  Text is output verbatim
+until the next "dot" line.  A double dot pauses until the user presses return.
+A single dot terminates the help command.  General help is at the beginning
+of this file.  A help section may be chained to a following section by
+terminating it with a "hyphen label" line.
+
+Comments can be added anywhere not in a help section.
+*****
+.CL
+USAGE: CL filepatterns
+
+	All files matching the patterns will be emptied of all records.
+All other attributes are preserved.
+-WC
+
+.CH
+USAGE: CH user group mode filepattern
+
+	The CHange command alters permissions for a file.  Multiple files
+may be altered using wildcards.  You must be the owner of a file or
+super user to alter its permissions.
+
+	user	The login name or user id of a valid user.  The file
+		will be owned by this user.  You may "give away" files
+		that you own.  Using a '-' will leave the owner unchanged.
+
+	group	A group name or group id.  The file will belong to this
+		group.  Using a '-' will leave the group unchanged.
+
+	mode	The permissions to be assigned to the file.  These are
+		normally entered in octal notation by using a leading
+		zero.  Using a '-' will leave the permissions unchanged.
+-WC
+
+.CR
+USAGE: CR file [#key_fields] [field_type field_len ...]
+
+	CReate files or directories.  To create a file specify the file
+name and the number of key fields.  You will be prompted to enter field type
+and length (in bytes). 
+
+Allowable types are:
+	Nx	Numeric Field with "x" places after the decimal point.
+	C	Character Field.
+	D	Date Field.  If length=2 then Day of Century is assumed
+			Length of 4 is BMS Julian Date.
+	T	Time field.  Only four bytes for unix time is supported.
+	X	Binary.
+
+Terminate the list with a "."	 
+
+Directories are created with "." and ".." links to themselves and their
+parent, respectively.
+..
+
+The field table is stored in the directory record.  You can't see it in
+it's original format at present, but you can DUmp the directory to see
+it as hex bytes.  The first byte is the number of key fields.  Succeeding
+pairs of bytes are the type and length of each field.  Type codes are
+as follows:
+
+	01	Character
+	02	Date
+	03	Time
+	04	Binary field (displayed in hex)
+	05	Packed Binary (used by EDX emulator)
+	06	Record Handle field (used by C-isam emulator)
+	07	Sortable IEEE floating point
+	09	Record segment id (used by EDX emulator)
+	40-4F	Numeric field (0-F decimal places)
+.
+.DI
+USAGE: DI[/opt] filepattern
+
+	The DI command displays data about files in the current directory.
+The normal display is: 
+	Mode  User  Group  Lock  Records  Blocks  Name
+
+The following options are available (the option must be in lower case!):
+	DI/d	Display only directories
+	DI/1	Display Name only
+	DI/v	Display total number of files, blocks and bytes.
+	DI/t	Display Last modified time instead of locks, records and blocks.
+	DI/f	Display Record and Key lengths and field counts, 
+			and Links instead of locks, records and blocks.
+
+-WC
+
+.DE
+USAGE: DE filepatterns
+
+	The delete command deletes files.  Multiple files may be deleted
+using wildcards.  Files that are currently open (i.e. locked) cannot be
+deleted.  If a file has multiple links (directory entries) the named
+directory entry is removed, but the file is not actually deleted.
+
+	Directories may be removed when only self and parent links remain.
+-WC
+
+.CO
+
+USAGE:	CO/opt filepattern dir
+	CO/opt file file
+
+	The copy command copies records from one file to another.  Multiple
+files may be copied from one directory to another using wildcards.  The
+following options are available:
+
+	CO/e	convert records to/from BTAS/1 EBCDIC format while copying.
+		This works with ASCII data also when character fields
+		match between source and destination.
+	CO/d	copy directory records only, do not copy data records.
+	CO/r	replace records with duplicate keys.  This option is
+		typically only effective in combination with /e (since
+		otherwise the entire record up to 256 bytes is the key).
+-WC
+
+.RE
+-MV
+.MV
+
+USAGE:	MV/opt filepattern dir
+	RE/opt filepattern dir
+	MV/opt file file
+	RE/opt file file
+
+	The move or rename command moves files from one name to another.  
+Multiple files may be moved from one directory to another using wildcards.
+If the new name is on a seperate filesystem, the file is copied and the
+original is deleted.  The following options are available when the file
+is copied:
+
+	MV/e	convert records to/from BTAS/1 EBCDIC format while copying
+	MV/d	copy directory records only, do not copy data records
+
+-WC
+
+.AR
+USAGE: AR[/ST] pattern osfile
+
+	The archive command copies groups of files matching the pattern to
+a sequential file.  With the /S option, subdirectories are also searched 
+for matching files.  (Sorry, wildcards are not supported for /S this version.)
+If you are archiving to a sequential device (i.e. tape) but the lseek system
+call reports success nevertheless, you need to tell btutil that you are
+writing to a sequential medium with the /T option.  Motorola systems require
+this flag when writing to tape.
+
+-WC
+
+.LO
+USAGE: LO pattern osfile [DIR]
+
+	The load command restores files written to a sequential archive that
+match the pattern.  The files are restored relative to the current directory.
+This allows entire directory trees to be copied between directories.
+
+	The "dir" option displays, but does not load, files in the archive.
+-WC
+
+.DU
+USAGE: DU[/opt] file key
+
+	The dump command displays data from files.  The data is displayed
+in hex format.  The main help screen says that keydata can be used, but I 
+have not been able to figure out how.  
+
+If you try to stop the display with del, it will terminate btutil as well.
+
+The following options are available:
+	DU/r	Display file in reverse order.
+	DU/x	Display data in pure hex format.
+	DU/h	Display data in human readable hex & character format.
+	DU/e	Used with /h option. Converts EBCDIC to ASCII.
+
+.WC
+
+..
+
+	When a "pattern" is allowed in a btutil command certain characters
+have a special meaning:
+
+	*		matches anything
+	?		matches any single character
+	[A-Z]		matches a range of characters
+	[0-9A-Za-z]	multiple ranges allowed
+	[!0-9]		matches any chars *except* range
+	[[]		matches '['
+	[][]		matches '[' or ']'
