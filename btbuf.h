@@ -25,7 +25,6 @@ public:
   void btfree(BLOCK *);			/* free block */
   short mount(const char *);		/* mount fs, return mid */
   int unmount(short mid);		/* unmount fs */
-  static void dumpbuf(const BLOCK *);
   int newcnt;				/* counts new/deleted blocks */
   ~BlockCache();
 };
