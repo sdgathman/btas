@@ -3,7 +3,11 @@
 
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
+ *
  * $Log$
+ * Revision 1.1  1993/09/14  17:22:09  stuart
+ * Initial revision
+ *
  */
 
 #include <string.h>
@@ -11,6 +15,12 @@
 #include <errenv.h>
 #include <bterr.h>
 #include "cisam.h"
+
+struct btflds *isflds(int fd) {
+  struct cisam *r = ischkfd(fd);
+  if (!r) return 0;
+  return r->key.f;
+}
 
 int iserrno, iserrio, issingleuser = 0;
 char isstat1, isstat2;	/* not updated */
@@ -233,9 +243,7 @@ int isopenx(const char *name,int mode,int rlen) {
 
 /* normalize keydesc */
 
-void iskeynorm(k)
-  struct keydesc *k;
-{
+void iskeynorm(struct keydesc *k) {
   register struct keypart *kp;
   register int i;
   k->k_flags &= ISDUPS;		/* only ISDUPS flag used with BTAS */
