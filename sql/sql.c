@@ -236,18 +236,18 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
       x->op = EXINT;
       break;
     case EXLT:
-      d = x->u.val - y->u.val;
-      x->u.ival = (d <= eps);
+      d = y->u.val - x->u.val;
+      x->u.ival = (d >= eps);
       x->op = EXINT;
       break;
     case EXGE:
       d = y->u.val - x->u.val;
-      x->u.ival = (d <= eps);
+      x->u.ival = (d < eps);
       x->op = EXINT;
       break;
     case EXLE:
-      d = y->u.val - x->u.val;
-      x->u.ival = (d >= eps);
+      d = x->u.val - y->u.val;
+      x->u.ival = (d < eps);
       x->op = EXINT;
       break;
     default:
