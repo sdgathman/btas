@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.10";
+static char what[] = "@(#)btas.c	1.11";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -49,7 +49,8 @@ int btas(b,opcode)
   if (b->root && btroot(b->root,b->mid)) return BTERMID;
   b->op = opcode;
   opcode &= 31;
-  if ( (btopflags[opcode] & b->flags) != btopflags[opcode]) return BTERMOD;
+  if (btopflags[opcode] && (btopflags[opcode] & b->flags) == 0)
+    return BTERMOD;
   switch (opcode) {
   case BTLINK: case BTCREATE:
     if ( (b->flags & BT_DIR) == 0) return BTERDIR;
@@ -127,7 +128,7 @@ int btas(b,opcode)
     break;
   case BTREADL:			/* read last matching key */
     bp = bttrace(b->root,b->lbuf,b->klen,-1);
-    if (sp->slot == 0
+    if (sp->slot == node_count(bp)
       || node_comp(bp,++sp->slot,b->lbuf,b->klen) < b->klen) return BTERKEY;
     b->u.cache = *sp;
     break;
@@ -210,23 +211,29 @@ int btas(b,opcode)
     return btunjoin(b);	/* unmount filesystem */
   case BTMOUNT:
     return btjoin(b);
-  case BTSTAT:		/* extract status information */
+  case BTSTAT:		/* set/extract status information */
+	/* FIXME: if klen set, stat a pathname */
     if (b->root) {
-      btget(1);
-      bp = btbuf(b->root);
-      if (b->rlen > sizeof bp->buf.r.stat) b->rlen = sizeof bp->buf.r.stat;
-      (void)memcpy(b->lbuf,(char *)&bp->buf.r.stat,b->rlen);
-      return 0;
+      if (b->rlen >= sizeof (struct btstat)) {
+	struct btstat st;
+	btget(1);
+	bp = btbuf(b->root);
+	(void)memcpy(b->lbuf,(PTR)&bp->buf.r.stat,sizeof st);
+	b->rlen = sizeof st;
+	return 0;
+      }
+      return BTERKLEN;
     }
     if (btroot(b->root,b->mid)) return BTERMID;
     b->rlen = gethdr(devtbl + b->mid, b->lbuf, b->rlen);
     return 0;
   case BTTOUCH:
-    btget(1);
-    bp = btbuf(b->root);
     if (b->rlen >= sizeof (struct btstat)) {
       struct btstat st;
-      (void)memcpy((char *)&st,b->lbuf,sizeof st);
+      btget(1);
+      bp = btbuf(b->root);
+      st = bp->buf.r.stat;
+      (void)memcpy((char *)&st,b->lbuf,b->klen);
       bp->buf.r.stat.atime = st.atime;
       bp->buf.r.stat.mtime = st.mtime;
       if (b->u.id.user == bp->buf.r.stat.id.user || b->u.id.user == 0) {
@@ -243,11 +250,18 @@ int btas(b,opcode)
   /* system maintenance functions */
   case BTFREE:		/* add block to free space */
     btget(1);
-    bp = btread((t_block)0);
+    bp = getbuf(b->u.cache.node,b->mid);
     bp->blk = b->u.cache.node;
+    bp->flags = BLK_NEW;
     btfree(bp);
     return 0;
   /* BTUNLINK is done by setting b->flags at present */
+  case BTPSTAT:
+    if (b->rlen >= sizeof stat) {
+      memcpy(b->lbuf,(PTR)&stat,b->rlen = sizeof stat);
+      return 0;
+    }
+    return BTERKLEN;
   default:
     return BTEROP;	/* invalid operation */
   }
