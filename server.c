@@ -3,8 +3,9 @@
 /*
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
-	Flush buffer on timer - SDG 03-19-89
-*/
+ * $Log$
+ * Flush buffer on timer - SDG 03-19-89
+ */
 
 #include "btbuf.h"
 #include "node.def"
@@ -219,7 +220,6 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
     len = sizeof *reqp - sizeof reqp->msgident - sizeof reqp->lbuf;
     if (reqp->op >= 200 && reqp->op < sizeof btflags + 200) {
       reqp->op |= btflags[reqp->op - 200] << 8;
-      if (reqp->op & NOKEY) len += reqp->klen;	/* report why nokey failed */
 #if TRACE > 0
       if (reqp->op != 217 && (reqp->op & BTERR) == 0) {	/* if fatal error */
 	int i, n;
@@ -237,8 +237,10 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
       }
 #endif
     }
-    else if (btopflags[op&31] != BT_UPDATE)
+    if (btopflags[op&31] != BT_UPDATE)
       len += reqp->rlen;
+    else if (reqp->op & NOKEY)
+      len += reqp->klen;	/* report why nokey failed */
 #if TRACE > 1
     fprintf(stderr,"smlen=%d\n",len);
 #endif
