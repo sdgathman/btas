@@ -4,6 +4,9 @@
 	Recover a list of files while BTAS/X is running.
 
 $Log$
+Revision 2.5  2003/03/04 16:03:16  stuart
+Convert btrcvr to use STL.
+
 Revision 2.4  2001/02/28 22:46:38  stuart
 use new.h
 
@@ -175,7 +178,7 @@ bool rcvrlist::add(rcvr *p,const char *image) {
 // display what we are about to do for confirmation
 
 void rcvrlist::display() {
-  printf("%16s %8s %8s %s\n","OS file","Old root","Path");
+  printf("%16s %8s %8s\n","OS file","Old root","Path");
   const char *devname;
   Pix i = list.begin();
   if (i == list.end()) return;

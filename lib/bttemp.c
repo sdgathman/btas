@@ -20,9 +20,7 @@ BTCB *btopentmp(prefix,flds,name)
   static short ctr;
   char buf[18];
   BTCB *b;
-  (void)strcpy(name,"/tmp/");
-  (void)strcat(name,prefix);
-  (void)strcat(name,ltoa(((long)getpid()*1000L)+ctr++,buf,10));
+  sprintf(name,"/tmp/%s%ld",prefix,getpid()*1000L+ctr++);
   b = btopen(name,BTRDONLY + BTEXCL + LOCK + NOKEY,strlen(name));
   if (b->op == BTERLOCK) b->flags = BTEXCL;
   btclose(b);		/* unlock if already open */
