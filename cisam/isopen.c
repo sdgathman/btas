@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.4  1997/05/01  19:13:39  stuart
+ * save index names for use by isstartn
+ *
  * Revision 1.3  1994/02/24  20:05:23  stuart
  * Use last ISCLUSTER file, if any, as master
  *
@@ -70,6 +73,7 @@ int isclose(int fd) {
     if (cur != &ip->key)
       free((char *)cur);
   }
+  free(ip->min);
   free((char *)ip);
   isamfd[fd] = 0;
   return iserr(rc);
@@ -118,6 +122,8 @@ int isopenx(const char *name,int mode,int rlen) {
       cp->f = 0;
       cp->start = ISFIRST;
       cp->curidx = &cp->key;	/* default to primary key */
+      cp->min = 0;
+      cp->max = 0;
       isamfd[fd] = cp;
       len = strlen(name);
       if (len > sizeof ctl_name - sizeof CTL_EXT)
@@ -125,7 +131,8 @@ int isopenx(const char *name,int mode,int rlen) {
       strcpy(ctl_name,name);
       strcat(ctl_name+len,CTL_EXT);
       cp->idx = btopen(ctl_name,cmode + NOKEY,sizeof (struct fisam));
-      if (np = strrchr(ctl_name,'/'))
+      np = strrchr(ctl_name,'/');
+      if (np)
 	++np;
       else
 	np = ctl_name;
@@ -205,7 +212,14 @@ int isopenx(const char *name,int mode,int rlen) {
 	  else {
 	    kp->f = isconvkey(cp->key.f,&kn,1);
 	    if (kp->f == 0) errpost(EBADMEM);
-	    kp->btcb = btopen(ctl_name,bmode,btrlen(kp->f));
+	    kp->btcb = btopen(ctl_name, bmode | NOKEY, btrlen(kp->f));
+	    /* create any missing key fiels as empty */
+	    if (kp->btcb->flags == 0) {
+	      btclose(kp->btcb);
+	      kp->btcb = 0;
+	      (void)btcreate(ctl_name,kp->f,0666);
+	      kp->btcb = btopen(ctl_name, bmode, btrlen(kp->f));
+	    }
 	  }
 	  if (kn.k_flags&ISDUPS)
 	    kp->klen = btrlen(kp->f);
@@ -249,7 +263,9 @@ int isopenx(const char *name,int mode,int rlen) {
 	np[0] = 0;
 	cp->dir = btopen(ctl_name,BTWRONLY+4,0);
       }
-      cp->rlen = rlen;		/* save users record size */
+      cp->rlen = isrlen(cp->key.f);
+      if (rlen < cp->rlen)
+	cp->rlen = rlen;		/* check users record size */
       cp->klen = cp->key.k.k_len;
       iserrno = 0;
       if (!installed) {
