@@ -72,6 +72,6 @@ Alarm::~Alarm() {
     case SIGDANGER: s = "SIGDANGER"; break;
 #endif
     }
-    fprintf(stderr,"BTAS/X shutdown: %s\n",s);
+    fprintf(stderr,"BTAS/X shutdown: %s at %s",s,ctime(&btserve::curtime));
   }
 }
