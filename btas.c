@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 2.4  2001/02/28 21:25:24  stuart
+ * support record locking
+ *
  * Revision 2.3  1998/04/22  03:33:06  stuart
  * prevent instant delete of root
  *
@@ -214,6 +217,8 @@ int btserve::btas(BTCB *b,int opcode) {
 #ifdef SINGLE
     return bufpool->flush();
 #else
+    /* FIXME: release all locks for file only */
+    //locktbl->delLock(b->msgident); 
     return 0;
 #endif
   case BTUMOUNT:

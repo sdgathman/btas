@@ -1,6 +1,6 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.10.7
+%define version 2.10.8
 Version: %{version}
 Release: 1
 Copyright: Commercial
@@ -8,6 +8,9 @@ Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
+%ifos aix4.1
+Provides: libbtas.a
+%endif
 
 %description
 The BTAS filesystem is a hierarchical filesystem where each file and
@@ -160,7 +163,12 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
-* Sat Sep 13 2003 Stuart Gathman <stuart@bmsi.com> 2.10.7
+- check ulimit when mounting filesystems
+- fix error reporting on startup
+- fix btchdir when btasdir is NULL
+- fix isserve to set isfdlimit for local connection
+- fix sql update to rewrite by primary key
+* Sat Sep 13 2003 Stuart Gathman <stuart@bmsi.com> 2.10.7-1
 - fix iserase of open files
 * Wed Aug 06 2003 Stuart Gathman <stuart@bmsi.com>
 - fix sql -f with negative numbers

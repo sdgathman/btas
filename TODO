@@ -1,3 +1,13 @@
+Don't use hash_map - it is not portable.
+
+Add call to allocate transaction id.  A TID will have a bit set
+to distinguish it from PIDs.  btserve will keep a table of tid by
+pid.  When the PID for a TID is discovered to be dead, locks for the
+TID can be released.  The TID can then be used in msgs to distinguish
+transaction contexts.  Should BTRELEASE free TID also (when root == 0)?
+
+Have BTRELEASE release only locks for file unless root node is 0.
+
 Recovery utilities must be run as root to avoid permission errors on
 btas files.  Should treat effective user id of btas as an alternate
 super user for btas permissions so that recovery utilities don't have

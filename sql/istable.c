@@ -1,3 +1,6 @@
+/*
+ * $Log$
+ */
 #include <stdio.h>
 #include <string.h>
 #include <btflds.h>
