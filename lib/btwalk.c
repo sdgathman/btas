@@ -13,33 +13,25 @@ struct nest {
 
 struct stk {
   BTCB *b;
-  long root;
-  short mid;
-  short flags;
+  struct bttag tag;
   struct btlevel cache;
   struct stk *prev;
 };
 
-static int dodir(n,len,prev)
-  struct nest *n;
-  int len;
-  struct stk *prev;
-{
+static int dodir(struct nest *n,int len,struct stk *prev) {
   /* FIXME: hate to waste MAXREC bytes/level on 16-bit machines */
   struct btstat st;
   int rc;
   struct stk stk;
-  if (rc = btopenf(&n->bt,n->rpath,BTRDONLY+BTDIROK+NOKEY,MAXREC))
+  if (rc = btopenf(&n->bt,n->rpath,BTRDONLY+BTDIROK+NOKEY,MAXREC)) {
     return rc;
-  stk.root = n->bt.root;
-  stk.mid  = n->bt.mid;
-  stk.flags= n->bt.flags;
-  stk.cache= n->bt.u.cache;
+  }
   stk.prev = prev;
+  btcb2tag(&n->bt,&stk.tag);
 
   /* check if this is a '.' or '..' directory and skip */
   while (prev) {
-    if (n->bt.root == prev->root && n->bt.mid == prev->mid) {
+    if (n->bt.root == prev->tag.root && n->bt.mid == prev->tag.mid) {
       btas(&n->bt,BTCLOSE);
       return 0;
     }
@@ -64,30 +56,25 @@ static int dodir(n,len,prev)
 	int nlen = strlen(n->bt.lbuf) + len;
 	if (nlen >= sizeof n->rpath) return -1;
 	strcpy(n->rpath+len,n->bt.lbuf);
+	stk.cache= n->bt.u.cache;
 	if (rc = dodir(n,nlen,&stk))
 	  errpost(rc);
-	n->bt.root = stk.root;
-	n->bt.mid  = stk.mid;
-	n->bt.flags= stk.flags;
 	n->bt.u.cache = stk.cache;
+	tag2btcb(&n->bt,&stk.tag);
 	n->rpath[nlen] = 0;
 	strcpy(n->bt.lbuf,n->rpath + len);
       }
-      rc = 0;
+      n->rpath[--len] = 0;
+      rc = (*n->userf)(n->rpath,0);
     }
   enverr
-    n->bt.root = stk.root;
-    n->bt.mid  = stk.mid;
-    n->bt.flags= stk.flags;
+    tag2btcb(&n->bt,&stk.tag);
   envend
   btas(&n->bt,BTCLOSE);
   return rc;
 }
 
-int btwalk(path,fn)
-  const char *path;
-  btwalk_fn fn;
-{
+int btwalk(const char *path,btwalk_fn fn) {
   struct nest n;
   struct stk stk, *stkp = 0;
   BTCB * volatile savdir;
@@ -107,9 +94,7 @@ int btwalk(path,fn)
     len = strlen(p);
   }
   btopenf(&n.bt,"",BTRDONLY+BTDIROK,MAXREC);
-  stk.root = n.bt.root;
-  stk.mid  = n.bt.mid;
-  stk.flags= n.bt.flags;
+  btcb2tag(&n.bt,&stk.tag);
   stk.cache= n.bt.u.cache;
   stk.prev = 0;
   stkp = &stk;
