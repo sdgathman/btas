@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
 */
+#if !defined(lint) && !defined(__MSDOS__)
+static char what[] = "@(#)btas.c	1.2";
+#endif
 
 #include "btbuf.h"		/* buffer, btree operations */
 #include "node.h"		/* node operations */
@@ -47,15 +50,12 @@ int btas(b,opcode)
   opcode &= 31;
   if ( (btopflags[opcode] & b->flags) != btopflags[opcode]) return BTEROP;
   switch (opcode) {
-  case BTLINK:
+  case BTLINK: case BTCREATE:
     if ( (b->flags & BT_DIR) == 0) return BTERDIR;
-    root = linkfile(b);		/* add root ptr to record */
-    if (rc = addrec(b))
-      (void)delfile(root);		/* unlink if can't write record */
-    return rc;
-  case BTCREATE:
-    if ( (b->flags & BT_DIR) == 0) return BTERDIR;
-    root = creatfile(b);		/* add root ptr to record */
+    if (opcode == BTLINK)
+      root = linkfile(b);		/* add root ptr to record */
+    else
+      root = creatfile(b);		/* add root ptr to record */
     if (rc = addrec(b))
       (void)delfile(root);		/* unlink if can't write record */
     return rc;
@@ -80,6 +80,7 @@ int btas(b,opcode)
     return 0;
   case BTREPLACE: case BTREWRITE:
     bp = uniquekey(b);
+    if (btspace()) return BTERFULL;
     newcnt = 0;
     if (b->flags & BT_DIR) {
       if (b->rlen > MAXREC - sizeof (t_block))
