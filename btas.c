@@ -10,9 +10,10 @@
 	     before use and need not be correct.
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
-*/
+ * $Log$
+ */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.12";
+static char what[] = "$Id$";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -32,9 +33,7 @@ jmp_buf btjmp;		/* jump target for btpost */
 #include <stdio.h>
 #endif
 
-int btas(b,opcode)
-  BTCB *b;
-{
+int btas(BTCB *b,int opcode) {
   register BLOCK *bp;
   int rlen,rc;
   t_block root;
@@ -59,7 +58,7 @@ int btas(b,opcode)
     else
       root = creatfile(b);		/* add root ptr to record */
     if (rc = addrec(b))
-      (void)delfile(root);		/* unlink if can't write record */
+      (void)delfile(b,root);		/* unlink if can't write record */
     return rc;
   case BTWRITE:				/* write unique key */
     if (b->flags & BT_DIR) return BTERDIR;
@@ -82,15 +81,28 @@ int btas(b,opcode)
     return 0;
   case BTREPLACE: case BTREWRITE:
     bp = uniquekey(b);
-    btspace();		/* check for enough free space */
+    /* check free space, physical size could change because of key
+       compression even when logical size doesn't */
+    btspace();
     newcnt = 0;
+    /* convert user record to a directory record if required */
     if (b->flags & BT_DIR) {
+      t_block root;
       if (b->rlen > maxrec - sizeof (t_block))
-        b->rlen = maxrec - sizeof (t_block);
-      node_ldptr(bp,sp->slot,b->lbuf + b->rlen);
-      b->rlen += sizeof (t_block);
+	b->rlen = maxrec - sizeof (t_block);
+      node_ldptr(bp,sp->slot,&root);
+      b->rlen += stptr(root,b->lbuf + b->rlen);
     }
     switch (opcode) {
+    case BTREWRITE:
+      rlen = node_size(bp->np,sp->slot);
+      /* extend user record with existing record if required */
+      if (rlen > b->rlen) {
+	int ptrlen = (b->flags & BT_DIR) ? PTRLEN : 0;
+	node_copy(bp,sp->slot,b->lbuf,rlen,b->rlen - ptrlen);
+	b->rlen = rlen;
+      }
+      /* OK, now replace the record */
     case BTREPLACE:
       if (node_replace(bp,sp->slot,b->lbuf,b->rlen)) {
 	--sp->slot;
@@ -99,14 +111,6 @@ int btas(b,opcode)
       else if (node_free(bp->np,node_count(bp)) >= node_free(bp->np,0)/2)
 	btdel();
       break;
-    case BTREWRITE:
-      rlen = node_size(bp->np,sp->slot);
-      if (rlen > b->rlen)
-	node_copy(bp,sp->slot,b->lbuf,rlen,b->rlen);
-      if (node_replace(bp,sp->slot,b->lbuf,b->rlen)) {
-	--sp->slot;
-	btadd(b->lbuf,b->rlen);
-      }
     }
     btget(1);
     bp = btbuf(b->root);
@@ -253,7 +257,7 @@ int btas(b,opcode)
     btget(1);
     bp = getbuf(b->u.cache.node,b->mid);
     bp->blk = b->u.cache.node;
-    bp->flags = BLK_NEW;
+    bp->flags = 0;
     btfree(bp);
     return 0;
   /* BTUNLINK is done by setting b->flags at present */
