@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.2  1994/02/13  21:26:16  stuart
+ * convert keydesc and dictinfo parms
+ *
  * Revision 2.1  1994/02/13  20:36:47  stuart
  * works on same architecture with sockets
  *
@@ -13,6 +16,16 @@ static const char id[] = "$Id$";
 #include <fcntl.h>
 #include <stdlib.h>
 #include "isreq.h"
+
+int readFully(int fd,char *buf,int len) {
+  int cnt = 0;
+  while (cnt < len) {
+    int n = read(fd,buf + cnt,len - cnt);
+    if (n <= 0) return cnt;
+    cnt += n;
+  }
+  return cnt;
+}
 
 int server() {
   int i, trace = -1, trout = -1;
@@ -37,7 +50,7 @@ int server() {
     }
   }
 #endif
-  while (read(0,(char *)&r,sizeof r) == sizeof r) {
+  while (readFully(0,(char *)&r,sizeof r) == sizeof r) {
     int p1len = ldshort(r.p1);
     int p2len = ldshort(r.p2);
     if (trace > 0)
@@ -135,7 +148,7 @@ int server() {
 	if (ldshort(r.mode))
 	  stshort(stkeydesc(&d.desc,p1.buf),res.p1);
 	else
-	  stshort(stinfo(&d.dict,p1.buf),res.p1);
+	  stshort(stdictinfo(&d.dict,p1.buf),res.p1);
 	break;
     case ISAUDIT:
 	i = isaudit(r.fd,p1.buf,ldshort(r.mode));
@@ -175,13 +188,20 @@ int server() {
   return 0;
 }
 
+#if 1
+int main() {
+  return server();
+}
+#else
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <netdb.h>
 
 int main(int argc,char **argv) {
-  int port = 5911;
+  int port = -1;
   int fd;
   struct sockaddr_in saddr;
   if (argc > 1) {
@@ -192,6 +212,7 @@ int main(int argc,char **argv) {
     }
   }
 
+  if (port < 1) return server();
   /* setup socket for listening */
   fd = socket(AF_INET,SOCK_STREAM,0);
   if (fd == -1) {
@@ -213,16 +234,22 @@ int main(int argc,char **argv) {
   /* accept incoming connections */
   for (;;) {
     int s, len = sizeof saddr;
+    int nodelay = 1;
     s = accept(fd,(struct sockaddr *)&saddr,&len);
     if (s < 0) {
       perror("accept");
       continue;
     }
+    setsockopt(s,IPPROTO_TCP,TCP_NODELAY,&nodelay,sizeof nodelay);
     switch (fork()) {
     case -1:
       perror("fork");
       break;
     case 0:	/* child */
+      fprintf(stderr,"Connected to %s:%d\n",
+	inet_ntoa(saddr.sin_addr),
+	saddr.sin_port
+      );
       close(fd); close(0); close(1);
       dup(s); dup(s); close(s);
       return server();
@@ -231,3 +258,4 @@ int main(int argc,char **argv) {
   }
   return 0;
 }
+#endif
