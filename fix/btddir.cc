@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.2  2001/02/28 22:44:02  stuart
+/* use new API
+/*
  * Revision 1.1  1999/01/25  22:26:27  stuart
  * Initial revision
  *
@@ -13,6 +16,7 @@ can be used to identify the root id's of files on an image backup, or to find
 */
 
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include "fs.h"

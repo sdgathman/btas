@@ -37,7 +37,7 @@ btfree:	btfree.o $F
 #	g++ $(CPPFLAGS) -c btfree.c
 
 btddir: btddir.o $F
-	g++ $(LDFLAGS) btddir.o $F $L -lg++ -lbms -o btddir
+	g++ $(LDFLAGS) btddir.o $F $L -lbms -o btddir
 
 btddir1: btddir1.o s1fs.o $F
 	g++ -L/bms/lib -g btddir1.o s1fs.o $F -lptrep -lg++ $L -lbms -o btddir1
