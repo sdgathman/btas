@@ -5,6 +5,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+ * Revision 2.1  1995/12/12  23:36:31  stuart
+ * C++ version
+ *
  * Revision 1.6  1995/07/31  18:06:16  stuart
  * Use bufpool object
  *
@@ -66,6 +69,8 @@ void btspace() {	/* check available space */
   if (rc) btpost(rc);
 }
 
+void btcheck() { bufpool->get(0); }
+
 short btmount(const char *name) { /* mount filesystem & return mount id */
   int i, rc;
   for (i = 0; i < MAXDEV && devtbl[i].isopen(); ++i); /* find free mid */
@@ -86,6 +91,7 @@ int btumount(short m) {		/* unmount filesystem */
   //   the problem is that apps with open files may make additional
   //   calls against another filesystem mounted at the same mid.
   if (d->mcnt > 1) return 0;	/* still in use */
+  bufpool->get(0);
   --d->mcnt;
   int rc = bufpool->sync(m);
   bufpool->wait(m);	// untouch buffers
