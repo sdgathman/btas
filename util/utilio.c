@@ -4,18 +4,17 @@
 
 char *readtext(const char *s) {
   char *p;
-  static char buf[256], *wsp = " \t\n", *last = 0;
-  if (!s) last = 0;
+  static char buf[256], *wsp = " \t\n", *last = buf;
+  if (!s) last = buf;
   p = gettoken((char *)0,wsp);		/* next command word */
   while (!p && s) {
-    int len = 0;
     char *t;
-    if (last)
-      len = last - buf;
+    int len = last - buf;
     t = buf + len;
     (void)fputs(s,stdout);
     if (fgets(t,sizeof buf - len,stdin) == 0) return 0;
     last = t + strlen(t) + 1;
+    if (buf + sizeof buf - last < 80) last = buf;
     p = gettoken(t,wsp);
   }
   return p;
