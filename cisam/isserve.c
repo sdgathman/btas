@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.19  2003/04/05 04:40:59  stuart
+ * Sanity check keydesc.  Initialize kp->k.k_len in isaddindex().
+ *
  * Revision 2.18  2003/03/18 21:38:34  stuart
  * Make isreq a public interface.
  *
@@ -285,6 +288,10 @@ Usage:	isserve [-a] [-ftracedir] [tcpport]\n",stderr);
     perror("listen");
     return 1;
   }
+
+  /* Limit file descriptors for this process.  We shortsightedly
+   * allocated only 8 bits for fd. */
+  isfdlimit(255);
 
   /* accept incoming connections */
   for (;;) {
