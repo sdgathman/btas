@@ -4,6 +4,9 @@
 	Recover a list of files while BTAS/X is running.
 
 $Log$
+# Revision 2.2  1998/01/14  20:13:09  stuart
+# Use btasXFS class
+#
 # Revision 2.1  1995/12/20  23:48:57  stuart
 # *** empty log message ***
 #
@@ -34,7 +37,8 @@ $Log$
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
+#pragma implementation "VHMap.cc"
+#pragma implementation "Map.cc"
 #include <VHMap.cc>
 #include <Map.cc>
 
@@ -42,155 +46,18 @@ extern "C" {
 #include <btas.h>
 #include "../util/util.h"
 }
-#include <ftype.h>
 #include <bterr.h>
 #include <errenv.h>
 #include "fs.h"
+#include "rcvr.h"
 #include "../node.h"
 #include "btfind.h"
 
 static char *fsname(int);
-static t_block dirstat(BTCB *, const char *, struct btstat *);
-
-// info about one file to be recovered
-// Our constructor disconnects the original file and creates a new
-// empty file.
-// Our destructor restores the original file if no blocks have been
-// written, otherwise the new file has the recovered data.
-// If we were interrupted, some data may still be under the old root
-// and may be recovered by appending from the old root to the already
-// recovered data.
-
-class rcvr {
-  char *name;		/* pathname of file being recovered */
-  t_block root;		/* old root id */
-  long blks;		/* blocks processed */
-  long recs;		/* records processed */
-  long dups;		/* duplicates */
-  struct bttag tag;	/* BT_DIR is turned off */
-  char undo;
-  friend class rcvrlist;
-public:
-  int test() const { return !(tag.flags & BT_UPDATE); }
-  rcvr(const char *name,long rt,char test = 0,char interactive = 1);
-  int donode(BTCB *,NODE *,int,unsigned);
-  static void summaryHeader() {
-    printf("%8s %8s %8s %s\n","BLKS","RECS","DUPS","PATHNAME");
-  }
-  void summary() const {
-    printf("%8ld %8ld %8ld %s\n",blks,recs,dups,name);
-  }
-  short mid() const { return tag.mid; }
-  ~rcvr();
-};
-
-rcvr::rcvr(const char *n,long rt,char test,char interactive) {
-  tag.flags = 0;
-  blks = 0L;
-  recs = 0L;
-  dups = 0L;
-  root = 0L;
-  undo = 0;
-  name = new char[strlen(n) + 1];
-  if (!name) return;
-  strcpy(name,n);
-
-  BTCB * volatile dirf = 0;
-
-  envelope
-    const char *p = basename(n);
-    int mode = (test) ? BTRDONLY : BTRDWR;
-
-    /* open directory */
-    dirf = btopendir(n,mode);
-    /* check filename and get root id if required */
-    if (dirf->flags & BT_DIR) {
-      struct btstat st;
-      dirf->rlen = MAXREC;
-      root = dirstat(dirf,p,&st);
-      if (root == -1L) {
-	printf("%s: different filesystem.\n",p);
-	errpost(BTERMID);
-      }
-      int rc = btas(dirf,BTREADEQ + NOKEY);
-      if (rc == 0) {
-	if (interactive)
-	  puts("Records will be added to the existing file.");
-	if (!rt || !root) {
-	/* unlink filename */
-	  if (test)
-	    printf("test: UNLINK %s\n",dirf->lbuf);
-	  else {
-	    dirf->flags ^= BT_DIR;
-	    undo = (btas(dirf,BTDELETE + NOKEY) == 0);
-	    dirf->flags ^= BT_DIR;
-	  }
-	}
-	if (rt)
-	  root = rt;
-      }
-      else
-	dirf->rlen = dirf->klen;	/* no field table */
-      if (root == 0) {
-	printf("%s: not found.\n",p);
-	if (interactive) {
-	  puts("NOTE: the recovered file will have no field table,");
-	  puts("      but the records will be correct.");
-	}
-	root = rt;
-      }
-      if (test) {
-	if (rc)
-	  printf("test: CREATE %s\n",dirf->lbuf);
-      }
-      else {
-	dirf->u.id = st.id;
-	(void)btas(dirf,BTCREATE + DUPKEY);	/* create new file */
-      }
-      BTCB b;
-      btopenf(&b,name,mode + BTDIROK,sizeof b.lbuf);
-      btcb2tag(&b,&tag);
-      printf("%s: root %08lX from %08lX\n",p,tag.root,root);
-      tag.flags &= ~BT_DIR;	/* treat directories as files */
-    }
-    else {
-      printf("%s: invalid path\n",name);
-    }
-  enverr
-    printf("%s: errno %d\n",name,errno);
-  envend
-  btclose(dirf);
-}
-
-rcvr::~rcvr() {
-  BTCB *b = (BTCB *)alloca(btsize(0));
-  tag2btcb(b,&tag);
-  b->klen = b->rlen = 0;
-  btas(b,BTCLOSE);
-  // no recovered data yet, restore original root
-  if (blks == 0L && !test() && undo) {
-    BTCB * volatile dirf = 0;
-    envelope
-      dirf = btopendir(name,BTRDWR);
-      dirf->rlen = MAXREC;
-      int rc = btas(dirf,BTREADEQ + NOKEY);	// get dir rec
-      if (rc == 0) {
-	(void)btas(dirf,BTDELETE + NOKEY);	// delete new root
-	stlong(root,dirf->lbuf + dirf->rlen);
-	dirf->rlen += 4;
-	dirf->flags ^= BT_DIR;
-	(void)btas(dirf,BTWRITE + DUPKEY);	// restore old root
-	dirf->flags ^= BT_DIR;
-      }
-    envend
-    btclose(dirf);
-  }
-  delete [] name;
-}
 
 // files to be recovered from one filesystem
 
-inline unsigned hash(t_block t) { return t; }
+inline unsigned hash(const t_block &t) { return t; }
 
 template class VHMap<t_block,rcvr *>;
 template class Map<t_block,rcvr *>;
@@ -199,12 +66,13 @@ class rcvrlist {
   rcvrlist *next;
   VHMap<t_block,rcvr *> list;
   const char *imagefile;// image backup file or NULL for in place
-  char test,interactive;
+  bool test,interactive;
   friend class rcvrall;
 public:
-  rcvrlist(char = 0,char = 1,const char * = 0);
+  rcvrlist(bool = false,bool = true,const char * = 0);
   const char *name() ;
-  int add(rcvr *,const char *image = 0); // add a file to recover
+  bool add(rcvr *,const char *image = 0); // add a file to recover
+  rcvr *get(t_block root);
   void display();			// display files to recover
   void recover();			// recover files in list
   void summary();			// summarize recovery results
@@ -213,9 +81,9 @@ public:
 
 class rcvrall {
   rcvrlist *list;
-  char test,interactive;
+  bool test,interactive;
 public:
-  rcvrall(char t = 0,char i = 1): test(t), interactive(i), list(0) {}
+  rcvrall(bool t = false,bool i = true): test(t), interactive(i), list(0) {}
   void add(const char *,long,const char * = 0);
   void display();
   void recover();
@@ -254,7 +122,7 @@ void rcvrall::display() {
 
 void rcvrall::recover() {
   rcvrlist *p;
-  while (p = list) {
+  while ((p = list) != 0) {
     p->recover();
     list = p->next;
     delete p;
@@ -263,13 +131,13 @@ void rcvrall::recover() {
 
 rcvrall::~rcvrall() {
   rcvrlist *p;
-  while (p = list) {
+  while ((p = list) != 0) {
     list = p->next;
     delete p;
   }
 }
 
-rcvrlist::rcvrlist(char t,char interact,const char *name):
+rcvrlist::rcvrlist(bool t,bool interact,const char *name):
   list((rcvr *)0,100),
   test(t), interactive(interact)
 {
@@ -289,21 +157,23 @@ rcvrlist::~rcvrlist() {
     delete list.contents(i);
 }
 
-int rcvrlist::add(rcvr *p,const char *image) {
-  if (imagefile && strcmp(image,imagefile)) return 1;	// not added
+bool rcvrlist::add(rcvr *p,const char *image) {
+  if (imagefile && strcmp(image,imagefile))
+    return true;	// can't recover from different source images
   if (p) {
     Pix i = list.first();
-    if (!imagefile && i && p->mid() != list.contents(i)->mid()) return 1;
-    list[p->root] = p;
-    return 0;
+    if (!imagefile && i && p->mid() != list.contents(i)->mid())
+      return true;	// can't recover in place on different fs
+    list[p->rootid()] = p;
+    return false;
   }
-  return 1;
+  return true;
 }
 
 // display what we are about to do for confirmation
 
 void rcvrlist::display() {
-  printf("%16s %8s %8s %s\n","OS file","Old root","New root","Path");
+  printf("%16s %8s %8s %s\n","OS file","Old root","Path");
   const char *devname;
   Pix i = list.first();
   if (!i) return;
@@ -313,10 +183,16 @@ void rcvrlist::display() {
     devname = fsname(list.contents(i)->mid());
   while (i) {
     const rcvr *p = list.contents(i);
-    printf("%16s%9lx%9lx %s\n",devname,p->root,p->tag.root,p->name);
+    printf("%16s%9lx %s\n",devname,p->rootid(),p->path());
     devname="";		/* list each fs only once */
     list.next(i);
   }
+}
+
+rcvr *rcvrlist::get(t_block root) {
+  Pix i = list.seek(root);
+  if (i) return list.contents(i);
+  return 0;
 }
 
 void rcvrlist::recover() {
@@ -344,32 +220,24 @@ void rcvrlist::recover() {
   union btree *bt;
   unsigned blksize = fs.blksize();
   int maxrec = btmaxrec(blksize);
-  BTCB *b = (BTCB *)alloca(btsize(maxrec));
-  while (bt = fs.get()) {
+  while ((bt = fs.get()) != 0) {
     t_block blk = fs.lastblk();
-    Pix i = list.seek(bt->r.root&0x7FFFFFFFL);
-    if (i) {
-      rcvr *p = list.contents(i);
-      tag2btcb(b,&p->tag);
-      switch (fs.lasttype()) {
-      case BLKLEAF:
-	p->donode(b,(NODE *)bt->l.data,maxrec,
-	      blksize - ((char *)bt->l.data - bt->data));
+    rcvr *p = get(bt->r.root&0x7FFFFFFFL);
+    if (p) {
+      int t = fs.lasttype();
+      /* directories are recovered, but links to them need to be patched.
+       */
+      //if (t & BLKDIR) continue;
+      switch (t) {
+      case BLKLEAF + BLKDATA:
+	p->donode((NODE *)bt->l.data,maxrec,blksize + bt->data);
 	break;
-      case BLKROOT:
-	p->donode(b,(NODE *)bt->r.data,maxrec,
-	      blksize - ((char *)bt->r.data - bt->data));
+      case BLKROOT + BLKDATA:
+	p->donode((NODE *)bt->r.data,maxrec,blksize + bt->data);
 	break;
       }
-      if (!imagefile) {
-	b->u.cache.node = blk;
-	if (test)
-	  printf("test: FREE %08lX\n",blk);
-	else {
-	  b->klen = b->rlen = 0;
-	  btas(b,BTFREE);
-	}
-      }
+      if (!imagefile)
+	p->free(blk);
     }
   }
   summary();
@@ -384,33 +252,6 @@ void rcvrlist::summary() {
     list.contents(i)->summary();
     list.next(i);
   }
-}
-
-// write records in a node to recovered file.
-int rcvr::donode(BTCB *b,NODE *np,int maxrec,unsigned blksize) {
-  ++blks;
-  int cnt = np->size();
-  if (cnt <= 0) return 0;
-  np->setsize(blksize);
-  for (int i = 1; i <= cnt; ++i)	// offsets must be strictly descending
-    if (np->free(i) >= np->free(i-1)) return 0;
-  if (np->free(cnt) < 0) return 0;
-  if (*np->rptr(cnt)) return 0;	/* first dup count must be zero */
-  while (--i) {
-    unsigned char *p = np->rptr(i);
-    b->rlen = np->size(i);
-    if (b->rlen > maxrec) break;
-    memcpy(b->lbuf + *p,p + 1,b->rlen - *p);
-    b->klen = b->rlen;
-    if (test()) {
-      if (btas(b,BTREADF + NOKEY) == 0)
-	++dups;
-    }
-    else if (btas(b,BTWRITE + DUPKEY))
-      ++dups;
-  }
-  recs += cnt;
-  return cnt;
 }
 
 static char *fsname(int mid) {
@@ -433,44 +274,6 @@ static char *fsname(int mid) {
   return name;
 }
 
-static t_block dirstat(BTCB *dirf,const char *name,struct btstat *st) {
-  BTCB b;
-  int rc;
-  b.root = dirf->root;
-  b.mid = dirf->mid;
-  b.flags = 0;
-  b.u.id.user = 0;
-  b.u.id.group = 0;
-  b.u.id.mode = BT_DIR + 04;
-  b.rlen = b.klen = strlen(name);
-  (void)memcpy(b.lbuf,name,b.klen);
-  catch(rc)
-    btas(&b,BTOPEN);
-    b.rlen = sizeof *st;
-    b.klen = 0;
-    btas(&b,BTSTAT);
-    (void)memcpy((char *)st,b.lbuf,sizeof *st);
-    btas(&b,BTCLOSE);
-  enverr
-    if (rc == 209)
-      b.root = 0L;
-    printf("%s: STAT failed (rc == %d), using defaults\n",name,rc);
-    st->bcnt = 0;	/* can't get status */
-    st->rcnt = 0;
-    st->mtime = st->atime = time(&st->ctime);
-    st->links = 0;
-    st->opens = 0;
-    st->id.user = getuid();
-    st->id.group = getgid();
-    st->id.mode = 0666;
-  envend
-  if (b.mid == dirf->mid && b.root == dirf->root)
-    return 0L;	/* doesn't exist */
-  if (b.mid != dirf->mid)
-    return -1L;	/* different file system */
-  return b.root;
-}
-
 static GOTO usage() {
   puts("\
 Usage:	btrcvr [-t] [file]\n\
@@ -488,8 +291,8 @@ void nomem() {
 }
 
 int main(int argc,char **argv) {
-  char interactive = !!isatty(0);
-  char test = 0;		/* true if test mode (no writes) */
+  bool interactive = !!isatty(0);
+  bool test = false;		/* true if test mode (no writes) */
   const char *imagefile = 0;	/* true if restoring files from image backup */
   puts("Btas/X file recovery program\n\
 	$Id$");
@@ -497,7 +300,7 @@ int main(int argc,char **argv) {
     --argc; ++argv;
     switch (*++*argv) {
     case 't': case 'T':
-      test = 1;
+      test = true;
       break;
     default:
       usage();
@@ -517,7 +320,8 @@ int main(int argc,char **argv) {
 
   // get files to recover
   rcvrall list(test,interactive);
-  for (int i = 0; ; ++i) {
+  int i;
+  for (i = 0; ; ++i) {
     set_new_handler(nomem);
     if (interactive) {
       printf("Enter name of #%d file to recover.\n",i+1);
