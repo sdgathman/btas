@@ -1,6 +1,6 @@
 #pragma implementation
 #include <stdio.h>
-#include <Obstack.h>
+#include "Obstack.h"
 extern "C" {
 #include <tsearch.h>
 }

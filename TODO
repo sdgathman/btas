@@ -1,3 +1,8 @@
+Recovery utilities must be run as root to avoid permission errors on
+btas files.  Should treat effective user id of btas as an alternate
+super user for btas permissions so that recovery utilities don't have
+to run as unix root user.
+
 Default cache size is too small - results in screwy error code as well,
 and/or assertion errors in hash.c.  Btserve should check for big enough
 cache at startup.

@@ -254,7 +254,8 @@ static void isrstkey(const struct keydesc *kp,char *dst,const char *src) {
 static int Isam_update(Cursor *c) {
   Isam *thistab = (Isam *)c;
   if (!thistab->rdonly)
-    return isrewcurr(thistab->fd,thistab->ubuf);
+    //return isrewcurr(thistab->fd,thistab->ubuf);
+    return isrewrite(thistab->fd,thistab->ubuf);
   return -1;
 }
 
