@@ -53,6 +53,9 @@ static const char what[] =
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 2.3  1999/01/22  22:40:09  stuart
+ * fix opencnt updating
+ *
  * Revision 2.2  1997/06/23  15:30:00  stuart
  * implement btfile object
  *
@@ -166,6 +169,7 @@ int btfile::openfile(BTCB *b,int stat) {
 
   /* follow path */
 
+  t_block newroot = b->root;
   for (p = name; len > 0; len -= b->klen, p += b->klen) {
     btget(1);
     bp = btbuf(b->root);
@@ -180,10 +184,11 @@ int btfile::openfile(BTCB *b,int stat) {
     strcpy(b->lbuf,p);
     b->u.cache.slot = 0;		/* invalidate cache */
     bp = uniquekey(b);		/* lookup name, errors return failing name */
-    b->root = bp->ldptr(sp->slot);
+    newroot = bp->ldptr(sp->slot);
 
     /* check for null link (i.e. symbolic link) */
-    if (b->root == 0L) break;
+    if (newroot == 0L) break;
+    b->root = newroot;
 
     /* check join table for (b->mid,b->root) - should btroot do it? */
     for (int i = 0; i < joincnt; ++i) {
@@ -202,8 +207,10 @@ int btfile::openfile(BTCB *b,int stat) {
     /* give user dir record */
     bp->copy(sp->slot,b->lbuf,b->rlen,BLOCK::dup);
   }
-  if (b->root == 0L)
+  if (newroot == 0L) {
+    b->klen = len;	// return how much of path still unused
     return BTERLINK;
+  }
 
   btget(1);
   bp = btbuf(b->root);
