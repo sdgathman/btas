@@ -2,6 +2,9 @@
 	Dump records using fcb from directory record
  *
  * $Log$
+ * Revision 1.4  1994/04/22  15:27:35  stuart
+ * accept starting RECNO
+ *
  * Revision 1.3  1993/11/09  19:31:01  stuart
  * make du/e display uncompressed EBCDIC records
  *
@@ -11,6 +14,7 @@
  */
 
 #include <stdio.h>
+#include <malloc.h>
 #include <string.h>
 #include <ctype.h>
 #include <btflds.h>
