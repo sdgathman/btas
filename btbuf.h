@@ -16,17 +16,15 @@ extern long curtime;				/* BTAS time */
 void btfree(BLOCK *);		/* free block */
 int btumount(short);		/* unmount fs */
 int btflush(void);		/* flush all buffers */
+int writebuf(BLOCK *);
+void btspace(void);		/* check free space */
 void btend(void);		/* shutdown */
 
 extern struct btfhdr devtbl[MAXDEV];		/* mid table */
 int gethdr(const struct btfhdr *, char *, int);
-void btspace(void);		/* check free space */
 
 extern struct btpstat serverstats;
+extern class BufferPool *bufpool;
+extern const char version[];
 
-/* hash.c || nohash.c */
-BLOCK *getbuf(t_block, short);	/* find block, don't read */
-void swapbuf(BLOCK *, BLOCK *);/* swap block ids */
-void btget(int);		/* reserve buffers */
-void btget_deb(int,const char *,int);
-#define btget(i) btget_deb(i,what,__LINE__)
+#define btget(i) bufpool->get(i,what,__LINE__)
