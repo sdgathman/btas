@@ -4,6 +4,9 @@
 	Recover a list of files while BTAS/X is running.
 
 $Log$
+# Revision 2.1  1995/12/20  23:48:57  stuart
+# *** empty log message ***
+#
 # Revision 1.7  1993/08/02  19:22:30  stuart
 # Fixed: not finding btsaved root nodes
 #
@@ -37,14 +40,13 @@ $Log$
 
 extern "C" {
 #include <btas.h>
+#include "../util/util.h"
+}
 #include <ftype.h>
 #include <bterr.h>
 #include <errenv.h>
-#include "fix.h"
+#include "fs.h"
 #include "../node.h"
-#include "../util/util.h"
-}
-
 #include "btfind.h"
 
 static char *fsname(int);
@@ -331,24 +333,25 @@ void rcvrlist::recover() {
     puts("Continuing with recover.");
 
   while (btsync() == BTERBUSY);	// ensure our changes are on disk
-  struct fstbl *fs = fsopen(devname,1);
+  btasXFS fs(devname,
+	isatty(0) ? fsio::FS_RDONLY : fsio::FS_RDONLY + fsio::FS_BGND);
   if (!fs) {
-    perror(devname);
+    fprintf(stderr,"%s: not a BTAS/X filesystem.\n",devname);
     return;
   }
   printf("Processing %s\n",devname);
 
   union btree *bt;
-  unsigned blksize = fs->u.f.hdr.blksize;
+  unsigned blksize = fs.blksize();
   int maxrec = btmaxrec(blksize);
   BTCB *b = (BTCB *)alloca(btsize(maxrec));
-  while (bt = getblock(fs,(t_block)0)) {
-    t_block blk = lastblock(fs);
+  while (bt = fs.get()) {
+    t_block blk = fs.lastblk();
     Pix i = list.seek(bt->r.root&0x7FFFFFFFL);
     if (i) {
       rcvr *p = list.contents(i);
       tag2btcb(b,&p->tag);
-      switch ((int)buftype(bt,blk)) {
+      switch (fs.lasttype()) {
       case BLKLEAF:
 	p->donode(b,(NODE *)bt->l.data,maxrec,
 	      blksize - ((char *)bt->l.data - bt->data));
@@ -369,7 +372,6 @@ void rcvrlist::recover() {
       }
     }
   }
-  fsclose(fs);
   summary();
 }
 
