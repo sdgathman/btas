@@ -5,6 +5,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+ * Revision 1.5  1995/05/31  20:48:58  stuart
+ * rename serverstats to avoid conflict with stats (stat symbolic link)
+ *
  * Revision 1.4  1993/12/09  19:42:31  stuart
  * log bad roots on 205, clear free space
  *
@@ -24,19 +27,17 @@ static char what[] = "$Id$";
 #ifdef TRACE
 #include <stdio.h>
 #endif
-
+#include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
 #include <errno.h>
 #include <assert.h>
-#include "btbuf.h"
+#include "hash.h"
 #include <io.h>
 #include "node.h"
 #include "bterr.h"
-#include "hash.h"
 
 typedef struct btfhdr DEV;
-
 static int writehdr(DEV *);
 
 static t_block root;		/* current root node */
@@ -46,6 +47,7 @@ static int poolsize;		/* number of buffers */
 static unsigned nsize;		/* sizeof a buffer */
 static int sortout(BLOCK **, int);
 
+BufferPool *bufpool;
 int newcnt = 0;		/* accumulates new blocks added/deleted */
 long curtime;		/* BTAS time */
 int maxrec;		/* maximum record size */
@@ -62,63 +64,6 @@ static struct extent {
 
 static int extcnt = 0;	/* extent table entries in use */
 
-#ifdef FAILSAFE
-#include <sys/types.h>
-#include <sys/uio.h>
-
-int checkpoint(int ckpt,BLOCK **a,int n) {
-  int i;
-  int totlen;
-  struct iovec v[MAXFLUSH + 4];
-  union {
-    struct {
-      time_t tstamp;
-      short ckptcnt;
-      short version;	/* checkpoint/filesystem format version */
-      short mntcnt;
-      short extcnt;
-      short blkcnt;
-      short magic;
-    } hdr;
-    char buf[SECT_SIZE];
-  } u;
-  time(&u.hdr.tstamp);
-  u.hdr.ckptcnt = (short)serverstats.checkpoints++;
-  u.hdr.version = 107;
-  u.hdr.mntcnt = MAXDEV;
-  u.hdr.extcnt = extcnt;
-  u.hdr.blkcnt = n;
-  u.hdr.magic = BTMAGIC;
-  v[0].iov_base = (PTR)&u.hdr;
-  v[0].iov_len = sizeof u.hdr;
-  v[1].iov_base = (PTR)devtbl;
-  v[1].iov_len  = sizeof devtbl;
-  v[2].iov_base = (PTR)extbl;
-  v[2].iov_len = sizeof extbl[0] * extcnt;
-  for (i = 0; i < n; ++i) {
-    BLOCK *bp = a[i];
-    bp->flags |= BLK_CHK;
-    v[i+3].iov_base = (PTR)bp;
-    v[i+3].iov_len = nsize;
-  }
-  i += 3;
-  /* repeat header at end to make sure we got everything */
-  v[i].iov_base = (PTR)&u.hdr;
-  v[i].iov_len = sizeof u.hdr;
-  totlen = sizeof u.hdr * 2 + sizeof devtbl + v[2].iov_len + n * nsize;
-  /* round to sector size */
-  if (totlen & SECT_SIZE - 1) {
-    int addlen = SECT_SIZE - (totlen & SECT_SIZE - 1) ;
-    totlen += addlen;
-    v[i].iov_len += addlen;
-  }
-  if (lseek(ckpt,0L,0))
-    return -1;
-  if (writev(ckpt,v,++i) != totlen)
-    return -1;
-  return 0;
-}
-#endif
 static struct btfhdr *dev;	/* current file system */
 
 int btroot(t_block r,short mid) {
@@ -359,41 +304,38 @@ int btflush() {			/* flush buffers to disk */
 }
 
 int btbegin(int size,unsigned psize) {		/* initialize buffer pool */
-  register int i;
-  register BLOCK *p;
+  BLOCK *p;
   blksize = size;		/* save max block size */
   maxrec = (size - 18)/2 - 1;
   nsize = sizeof *p - sizeof p->buf + size;
   poolsize = psize / nsize;
-  pool = malloc(nsize * poolsize + maxrec);
+  pool = new char[nsize * poolsize + maxrec];
   if (pool == 0) return -1;
-  for (i = 0; i < poolsize; ++i) {
+  bufpool = new BufferPool(poolsize);
+  for (int i = 0; i < poolsize; ++i) {
     p = (BLOCK *)(pool + i * nsize);
     p->flags = 0;
     p->blk = 0;
     p->mid = 0;
     p->np = (union node *)p->buf.r.data;
+    bufpool->put(p);
   }
+  serverstats.bufs = poolsize;
   workrec = pool + poolsize * nsize;
-  if (begbuf(pool,nsize,poolsize)) {
-    free(pool);
-    return -1;
-  }
   time(&serverstats.uptime);
   serverstats.version = 112;
   return 0;
 }
 
 void btend() {
-  register int i;
-  for (i = 0; i < MAXDEV; ++i) {	/* unmount all filesystems */
+  for (int i = 0; i < MAXDEV; ++i) {	/* unmount all filesystems */
     if (devtbl[i].blksize) {
       devtbl[i].mcnt = 1;
       (void)btumount(i);
     }
   }
-  endbuf();
-  (void)free(pool);		/* release buffer pool */
+  delete bufpool;
+  delete [] pool;
 }
 
 BLOCK *btbuf(t_block blk) {
@@ -440,7 +382,7 @@ BLOCK *btnew(short flag) {
       }
     }
     if (blk == 0) btpost(BTERFULL);
-    bp = getbuf(blk,mid);
+    bp = bufpool->find(blk,mid);
     bp->blk = blk;
   }
   else {		/* remove block from free list */
@@ -450,7 +392,7 @@ BLOCK *btnew(short flag) {
     else {
       if (bp->buf.s.root != dev->droot) {
 	BLOCK *dp;
-	++curcnt;
+	bufpool->onemore();
 	dp = btread(bp->buf.s.root);	/* get root node */
 	if (dp->buf.r.root) {		/* verify that it's deleted */
 	  dev->free = 0; dev->space = 0;
@@ -554,7 +496,7 @@ int writebuf(BLOCK *bp) {
   DEV *dp;
   int rc = 0;
 #ifdef FAILSAFE
-  assert(bp->flags & BLK_CHK);
+  //assert(bp->flags & BLK_CHK);
 #endif
   ++serverstats.pwrites;
   dp = devtbl + bp->mid;
@@ -600,7 +542,7 @@ BLOCK *btread(t_block blk) {
   ++serverstats.lreads;
 
   /* search for matching block */
-  bp = getbuf(blk,mid);
+  bp = bufpool->find(blk,mid);
   if (bp->blk == blk)
     return bp;
 
