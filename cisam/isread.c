@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.4  1998/06/17  18:24:23  stuart
+ * adjust ISCURR behaviour
+ *
  * Revision 1.3  1998/05/26  18:20:09  stuart
  * record locking implemented
  *
@@ -19,12 +22,14 @@ int isread(int fd,void *rec,int mode) {
   int btmode;
   char *buf;
   int flags = mode;
+  int uklen;	/* use this keylength */
   struct cisam *r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
   buf = alloca(r->rlen);
   kp = r->curidx;
   b = kp->btcb;
   mode &= 0xFF;
+  uklen = (flags & ISFULL) ? kp->klen : r->klen;
 
   /* interpret special isstart() braindamage */
 
@@ -102,19 +107,19 @@ int isread(int fd,void *rec,int mode) {
     op = BTREADEQ;
     break;
   case ISGREAT:
-    u2brec(kp->f->f,rec,r->rlen,b,r->klen);
+    u2brec(kp->f->f,rec,r->rlen,b,uklen);
     op = BTREADGT;
     break;
   case ISGTEQ:
-    u2brec(kp->f->f,rec,r->rlen,b,r->klen);
+    u2brec(kp->f->f,rec,r->rlen,b,uklen);
     op = BTREADGE;
     break;
   case ISLESS:
-    u2brec(kp->f->f,rec,r->rlen,b,r->klen);
+    u2brec(kp->f->f,rec,r->rlen,b,uklen);
     op = BTREADLT;
     break;
   case ISLTEQ:
-    u2brec(kp->f->f,rec,r->rlen,b,r->klen);
+    u2brec(kp->f->f,rec,r->rlen,b,uklen);
     op = BTREADLE;
     break;
   }
