@@ -6,6 +6,9 @@
 	not all) errors.
  *
  * $Log$
+ * Revision 1.2  1996/01/05  01:37:22  stuart
+ * fix many bugs
+ *
  */
 
 #include <stdio.h>
@@ -218,6 +221,8 @@ int btar_add(const char *s,int dirflag,int subdirs) {
   dironly = dirflag;
   catch(rc)
     rc = findfirst(s,&ff);
+    if (rc)
+      fprintf(stderr,"%s: not found\n",s);
     while (rc == 0 && cancel == 0) {
       if (subdirs) {
 	if (strcmp(ff.b->lbuf,"..") && strcmp(ff.b->lbuf,"."))
@@ -346,7 +351,7 @@ static int arcone(const char *name,const struct btstat *stp) {
     }
     fputs(", ",stderr);
   envend
-  (void)btclose(dtf);
+  btclose(dtf);
 
   puteof();
   newpos = ftell(f);
@@ -359,8 +364,21 @@ static int arcone(const char *name,const struct btstat *stp) {
       puthdr(&hdr,(PTR)&st,sizeof st - sizeof st.rec + len);
       (void)fseek(f,newpos,0);
     }
-  (void)fprintf(stderr,"%ld records archived\n",recs);
+  fprintf(stderr,"%ld records archived\n",recs);
   return 0;		/* successful */
+}
+
+/* open directory, recursively creating parents if required */
+static int btmkdirp(char *dir,int mode) {
+  int rc = btmkdir(dir,mode);
+  char *p;
+  if (rc != BTERKEY) return rc;
+  p = strrchr(dir,'/');
+  if (!p || p == dir) return rc;
+  *p = 0;
+  btmkdirp(dir,mode);
+  *p = '/';
+  return btmkdir(dir,mode);
 }
 
 static BTCB *b = 0;
@@ -380,7 +398,13 @@ btar_extract(
     b = 0;
   }
   if (!b) {
-    b = btopen(dir,BTWRONLY+BTDIROK,MAXREC);
+    b = btopen(dir,BTWRONLY+BTDIROK+NOKEY,MAXREC);
+    if (!b->flags) {
+      char pdir[MAXKEY + 1];
+      strcpy(pdir,dir);
+      btmkdirp(pdir,0777);
+      btopenf(b,dir,BTWRONLY+BTDIROK,MAXREC);
+    }
     memcpy(lastpath.name,dir,dirlen);
     lastpath.len = dirlen;
   }
