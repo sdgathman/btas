@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.1  1994/02/13  20:36:47  stuart
+ * works on same architecture with sockets
+ *
  */
 static const char id[] = "$Id$";
 
@@ -16,13 +19,10 @@ int server() {
   struct ISREQ r;			/* request header */
   struct ISRES res;			/* result header */
   /* FIXME: need file formats for these also (and in isstub.c) */
-  union { struct keydesc desc;
-	  struct dictinfo dict;
-	  char buf[MAXRLEN+1];
+  union { char buf[MAXRLEN+1];
 	  long id;
 	} p1;		/* parameter 1 */
-  union { struct keydesc desc;
-	  char buf[MAXNAME+1];
+  union { char buf[MAXNAME+1];
 	} p2;		/* parameter 2 */
 
   for (i=3;i<20;) close(i++);	/* close parent's files */
@@ -59,28 +59,36 @@ int server() {
       
     stshort(0,res.p1);
     switch (r.fxn) {
+      union {
+	struct keydesc desc;
+	struct dictinfo dict;
+      } d;
     case ISBUILD:
-	i = isbuild(p1.buf,ldshort(r.len),&p2.desc,ldshort(r.mode));
+	ldkeydesc(&d.desc,p2.buf);
+	i = isbuild(p1.buf,ldshort(r.len),&d.desc,ldshort(r.mode));
 	break;
     case ISOPEN:
 	i = isopen(p1.buf,ldshort(r.mode));
 	if (i >= 0) {
-	  isindexinfo(i,&p1.desc,0);
-	  iserrno = p1.dict.di_recsize;
+	  isindexinfo(i,&d.desc,0);
+	  iserrno = d.dict.di_recsize;
 	}
 	break;
     case ISCLOSE:
 	i = isclose(r.fd);
 	break;
     case ISADDINDEX:
-	i = isaddindex(r.fd,&p1.desc);
+	ldkeydesc(&d.desc,p1.buf);
+	i = isaddindex(r.fd,&d.desc);
 	break;
     case ISDELINDEX:
-	i = isdelindex(r.fd,&p1.desc);
+	ldkeydesc(&d.desc,p1.buf);
+	i = isdelindex(r.fd,&d.desc);
 	break;
     case ISSTART:
+	ldkeydesc(&d.desc,p2.buf);
 	stshort(p1len,res.p1);
-	i = isstart(r.fd,&p2.desc,ldshort(r.len),p1.buf,ldshort(r.mode));
+	i = isstart(r.fd,&d.desc,ldshort(r.len),p1.buf,ldshort(r.mode));
 	break;
     case ISREAD:
 	stshort(p1len,res.p1);
@@ -123,11 +131,11 @@ int server() {
 	i = isuniqueid(r.fd,&p1.id);
 	break;
     case ISINDEXINFO:
-	stshort(sizeof p1.dict,res.p1);
-	if (ldshort(r.mode)) {
-	  stshort(sizeof p1.desc,res.p1);
-	}
-	i = isindexinfo(r.fd,&p1.desc,ldshort(r.mode));
+	i = isindexinfo(r.fd,&d.desc,ldshort(r.mode));
+	if (ldshort(r.mode))
+	  stshort(stkeydesc(&d.desc,p1.buf),res.p1);
+	else
+	  stshort(stinfo(&d.dict,p1.buf),res.p1);
 	break;
     case ISAUDIT:
 	i = isaudit(r.fd,p1.buf,ldshort(r.mode));
