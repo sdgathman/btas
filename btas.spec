@@ -1,8 +1,8 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.10.2
+%define version 2.10.3
 Version: %{version}
-Release: 2
+Release: 3
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -53,6 +53,7 @@ LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/incl
 LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C btbr
 
 %install
+rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
 cp btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
@@ -73,6 +74,8 @@ mkdir -p $RPM_BUILD_ROOT/bms/include
 cp include/[a-z]*.h $RPM_BUILD_ROOT/bms/include
 mkdir -p $RPM_BUILD_ROOT/bms/fbin
 cp util/btcd.sh $RPM_BUILD_ROOT/bms/fbin/btcd
+mkdir -p $RPM_BUILD_ROOT/usr/share/btas
+cp util/btutil.help $RPM_BUILD_ROOT/usr/share/btas
 cp sql/btl.sh $RPM_BUILD_ROOT/bms/bin/btl
 cp sql/btlc.sh $RPM_BUILD_ROOT/bms/bin/btlc
 cp sql/sql $RPM_BUILD_ROOT/bms/bin
@@ -150,6 +153,10 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
+* Tue Mar  4 2003 Stuart Gathman <stuart@bmsi.com>
+- finish converting to STL and test
+* Tue Nov  5 2002 Stuart Gathman <stuart@bmsi.com>
+- convert to STL
 * Thu Nov 22 2001 Stuart Gathman <stuart@bmsi.com>
 - sql bugfixes
 * Wed Oct 17 2001 Stuart Gathman <stuart@bmsi.com>

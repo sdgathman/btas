@@ -1,0 +1,18 @@
+Default cache size is too small - results in screwy error code as well,
+and/or assertion errors in hash.c.  Btserve should check for big enough
+cache at startup.
+
+Giving a non-existant file for root file system causes a core dump.
+
+Currently, PID is used as a session/transaction identifier.  This will
+not work for multithreaded programs (e.g. Java) or for a UDP socket protocol.
+The msgq protocol must continue to use PID to get messages back to the
+sender, and a socket protocol must use IPaddr,port.  (If an arbitrary
+id is assigned, how would the negotiation result get back to the client
+for msgq?)  The only solution is to add a "transaction id" to each request
+packet.  This causes either code compatibility problems, or extra copying.
+One solution is to implement this for UDP, and require multithreaded apps
+to use UDP.  
+
+Will a unix domain socket be faster or slower than msgq?  Only one way
+to find out . . .

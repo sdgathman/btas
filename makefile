@@ -1,4 +1,4 @@
-VERS = 2.10.2
+VERS = 2.10.3
 
 OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
 	btfile.o btkey.o assert.o server.o btdev.o fsdev.o alarm.o	\
@@ -12,7 +12,7 @@ BMSLIB=/bms/lib/libbms.a	# static libbms
 make:	btserve btstop btstat btinit $L
 
 btserve: $(OBJS) $L
-	gcc $(LDFLAGS) $(OBJS) $L $(BMSLIB) -o btserve
+	g++ $(LDFLAGS) $(OBJS) $L $(BMSLIB) -o btserve
 
 nohash.o hash.o:	btree.h
 
@@ -37,7 +37,7 @@ $(SRCTAR):
 	for dir in . sql util lib cisam include fix btbr; do \
 	   path=btas-$(VERS)/$$dir; \
     ls $$path/*.[chy] $$path/*.cc $$path/makefile $$path/*.spec $$path/*.sh \
-	  $$path/*.scr $$path/*.def; done |	\
+	  $$path/*.scr $$path/*.def $$path/*.help; done |	\
 	  tar cvT - -f - | gzip >btas-$(VERS).src.tar.gz
 
 tar:	$(SRCTAR)

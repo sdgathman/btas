@@ -1,4 +1,7 @@
 // $Log$
+// Revision 1.3  2003/03/05 02:50:30  stuart
+// Conversion to STL
+//
 // Revision 1.2  2001/02/28 21:48:19  stuart
 // record lock table
 //
@@ -9,10 +12,13 @@
 #include <btas.h>
 #include <signal.h>
 
-static hash<const char *> H;
-
 unsigned LockEntry::hash() const {
-  return root ^ mid ^ H(key.c_str());
+  int len = key.length();
+  const char *p = key.data();
+  unsigned long __h = 0; 
+  while (len-- > 0)
+    __h = 5*__h + *p++;
+  return root ^ mid ^ __h;
 }
 
 LockEntry::LockEntry() {
@@ -74,8 +80,8 @@ bool LockEntry::isValid() {
 #endif
 }
 
-template class hash_set<LockEntry::Ref>;
-typedef hash_set<LockEntry::Ref>::iterator lock_iter;
+template class hash_set<LockEntry *>;
+typedef hash_set<LockEntry *>::iterator lock_iter;
 template class hash_map<long,LockEntry *>;
 typedef hash_map<long,LockEntry *>::iterator pid_iter;
 
@@ -84,7 +90,7 @@ LockTable::~LockTable() { }
 
 bool LockTable::addLock(const BTCB *b) {
   LockEntry e(b);
-  lock_iter l = tbl.find(LockEntry::Ref(&e));
+  lock_iter l = tbl.find(&e);
   if (l != tbl.end()) {
     LockEntry &cur = **l;
     if (cur.pid == e.pid)
