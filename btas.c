@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.7";
+static char what[] = "@(#)btas.c	1.8";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -40,7 +40,7 @@ int btas(b,opcode)
   t_block root;
 
   if (b->klen > b->rlen
-    || (unsigned)b->klen > MAXKEY || (unsigned)b->rlen > MAXREC)
+    || (unsigned)b->klen > MAXKEY || (unsigned)b->rlen > maxrec)
     return BTERKLEN;	/* invalid key or record length */
   if (rc = setjmp(btjmp)) {
     return rc;
@@ -83,8 +83,8 @@ int btas(b,opcode)
     if (btspace()) return BTERFULL;
     newcnt = 0;
     if (b->flags & BT_DIR) {
-      if (b->rlen > MAXREC - sizeof (t_block))
-        b->rlen = MAXREC - sizeof (t_block);
+      if (b->rlen > maxrec - sizeof (t_block))
+        b->rlen = maxrec - sizeof (t_block);
       node_ldptr(bp,sp->slot,b->lbuf + b->rlen);
       b->rlen += sizeof (t_block);
     }
@@ -213,12 +213,12 @@ int btas(b,opcode)
     if (b->root) {
       btget(1);
       bp = btbuf(b->root);
-      b->rlen = sizeof bp->buf.r.stat;
-      (void)memcpy(b->lbuf,(char *)&bp->buf.r.stat,sizeof bp->buf.r.stat);
+      if (b->rlen > sizeof bp->buf.r.stat) b->rlen = sizeof bp->buf.r.stat;
+      (void)memcpy(b->lbuf,(char *)&bp->buf.r.stat,b->rlen);
       return 0;
     }
     if (btroot(b->root,b->mid)) return BTERMID;
-    b->rlen = gethdr(devtbl + b->mid, b->lbuf, MAXREC);
+    b->rlen = gethdr(devtbl + b->mid, b->lbuf, b->rlen);
     return 0;
   case BTTOUCH:
     btget(1);
