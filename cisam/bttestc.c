@@ -5,7 +5,7 @@
 	Author: Stuart D. Gathman
 */
 
-static char what[] = "@(#)bttestc.c	1.1";
+static char what[] = "@(#)bttestc.c	1.2";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +13,8 @@ static char what[] = "@(#)bttestc.c	1.1";
 #include <string.h>
 #include <isamx.h>
 #include <ischkerr.h>
-#include "ftype.h"
+#include <ftype.h>
+#include <btflds.h>
 
 struct trec {		/* test record */
   FLONG seq;
@@ -21,6 +22,10 @@ struct trec {		/* test record */
   char  txt[32];
   char  pad[64];
   FLONG ver;		/* reverse sign of sequence */
+};
+
+const char testf[] = {
+  0,2,BT_NUM,4,BT_NUM,2,BT_CHAR,32,BT_BIN,64,BT_NUM,4,BT_RECNO,4
 };
 
 struct keydesc Ktest = {
@@ -65,16 +70,22 @@ void verrec(rec)
 }
 
 void usage() {
-  puts("C-isam emulator exercises version 1.1");
-  puts("Usage:	btteste [-cef] cnt");
+  puts("C-isam emulator exerciser version 1.2");
+  puts("Usage:	btteste [-cefk] cnt");
   puts("	-c	test character field compression");
   puts("	-f	test fast emulation (no record numbers, etc.)");
   puts("	-e	test exact emulation (default)");
+  puts("	-k	keep test files (don't iserase)");
   exit(1);
 }
 
-int exact = 1;
-int compress = 0;
+struct {
+  int exact:1;
+  int compress:1;
+  int keep:1;
+} opt = { 1, 0, 0 };
+
+char *filename = "/tmp/testfile";
 
 int main(argc, argv)
   char **argv;
@@ -86,18 +97,23 @@ int main(argc, argv)
   int errs, i;
 
   for (i = 1; i < argc && *argv[i] == '-'; ++i) {
-    switch (*argv[i][1]) {
-    case 'c':
-      compress = 1;
-      break;
-    case 'e':
-      exact = 1;
-      break;
-    case 'f':
-      exact = 0;
-      break;
-    default:
-      usage();
+    while (*++argv[i]) {
+      switch (*argv[i]) {
+      case 'c':
+	opt.compress = 1;
+	break;
+      case 'e':
+	opt.exact = 1;
+	break;
+      case 'f':
+	opt.exact = 0;
+	break;
+      case 'k':
+	opt.keep = 1;
+	break;
+      default:
+	usage();
+      }
     }
   }
   if (i+1 != argc)
@@ -105,7 +121,21 @@ int main(argc, argv)
   cnt = atol(argv[i]);
   if (cnt <= 0) cnt = 1000L;
 
-  fd = isbuild("/tmp/testfile",sizeof t,&Ktest,ISINOUT + ISEXCLLOCK);
+  if (opt.compress) {
+    struct btflds *fcb;
+    if (opt.exact)
+      fcb = ldflds((struct btflds *)0,testf,sizeof testf);
+    else
+      fcb = ldflds((struct btflds *)0,testf,sizeof testf - 2);
+    if (!fcb) {
+      perror("malloc");
+      return 1;
+    }
+    fd = isbuildx(filename,sizeof t,&Ktest,ISINOUT + ISEXCLLOCK,fcb);
+    free((PTR)fcb);
+  }
+  else
+    fd = isbuild(filename,sizeof t,&Ktest,ISINOUT + ISEXCLLOCK);
   if (fd == -1) {
     (void)printf("isbuild failed, rc = %d\n",iserrno);
     return 1;
@@ -146,7 +176,7 @@ int main(argc, argv)
   while (rc == 0) {
     ++idx;
     verrec(&t);
-    if (exact) {
+    if (opt.exact) {
       /* isrewrec should not change key position */
       if (ldshort(t.rnd) == 0) {
 	stshort(-1,t.rnd);
@@ -163,7 +193,7 @@ int main(argc, argv)
   for (idx = 0L; idx < cnt; ++idx) {
     long key = (long)rand()%cnt;
     stlong(key,t.seq);
-    if (exact) {
+    if (opt.exact) {
       /* isstart sets key position */
       stshort(-1,t.rnd);
       if (!chk(isstart(fd,&Ktest,0,(PTR)&t,ISEQUAL),ISNOKEY)) {
@@ -187,7 +217,7 @@ int main(argc, argv)
 
   (void)printf("%d nokeys.\n",errs);
 
-  if (exact) {
+  if (opt.exact) {
     /* selecting "physical" order */
     isstart(fd,&Krec,0,(PTR)&t,ISFIRST);
     start_timer("Sequential read by record number");
@@ -219,7 +249,7 @@ int main(argc, argv)
     int i;
     ++idx;
     verrec(&t);
-    if (exact) {
+    if (opt.exact) {
       for (i = 0; i < sizeof t.txt; ++i)
 	t.txt[i] = toupper(t.txt[i]);
       isrewrite(fd,(PTR)&t);
@@ -237,7 +267,7 @@ int main(argc, argv)
   for (idx = 0L; idx < cnt; ++idx) {
     char txt[sizeof t.txt];
     stlong(idx,t.seq);
-    t.txt[rand()%sizeof t.txt] = 'A' + rand() % 26;
+    t.txt[rand()%sizeof t.txt] = (opt.exact) ? 'A' : 'a' + rand() % 26;
     memcpy(txt,t.txt,sizeof txt);
     if (chk(isread(fd,(char *)&t,ISLTEQ),ISNOKEY))
       ++errs;
@@ -264,9 +294,14 @@ int main(argc, argv)
   (void)isclose(fd);
 
   /* see if isdelindex() worked */
-  system("btutil 'di /tmp/*' 'du /tmp/testfile.idx'");
-  system("ls -l /tmp");
+  {
+    char buf[80];
+    sprintf(buf,"btutil 'di %s*' 'du %s.idx'; ls -l %s*",
+	filename,filename,filename);
+    system(buf);
+  }
 
-  iserase("/tmp/testfile");
+  if (!opt.keep)
+    iserase(filename);
   return 0;
 }
