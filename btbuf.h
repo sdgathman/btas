@@ -22,7 +22,7 @@ extern struct btfhdr devtbl[MAXDEV];		/* mid table */
 int gethdr(const struct btfhdr *, char *, int);
 void btspace(void);		/* check free space */
 
-extern struct btpstat stat;
+extern struct btpstat serverstats;
 
 /* hash.c || nohash.c */
 BLOCK *getbuf(t_block, short);	/* find block, don't read */

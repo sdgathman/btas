@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 1.17  1994/10/17  19:03:41  stuart
+ * support mounting on a bare drive letter (no mount directory)
+ *
  * Revision 1.16  1994/03/28  20:13:20  stuart
  * BTSTAT with pathname
  *
@@ -291,9 +294,9 @@ int btas(BTCB *b,int opcode) {
     return 0;
   /* BTUNLINK is done by setting b->flags at present */
   case BTPSTAT:
-    if (b->rlen >= sizeof stat)
-      b->rlen = sizeof stat;
-    memcpy(b->lbuf,(PTR)&stat,b->rlen);
+    if (b->rlen >= sizeof serverstats)
+      b->rlen = sizeof serverstats;
+    memcpy(b->lbuf,&serverstats,b->rlen);
     return 0;
   default:
     return BTEROP;	/* invalid operation */
