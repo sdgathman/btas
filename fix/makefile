@@ -24,8 +24,8 @@ $F:	$F(getblock.o)	\
 btrcvr:	btrcvr.o $F
 	g++ $(LDFLAGS) btrcvr.o $F $L -lg++ -lbms -o btrcvr
 
-btreload: btreload.o pt.o $F
-	g++ $(LDFLAGS) btreload.o pt.o $F $L -lg++ -lbms -o btreload
+btreload: btreload.o  $F
+	g++ $(LDFLAGS) btreload.o  $F $L -lbms -o btreload
 
 btfreeze: btfreeze.o
 	$(CC) $(LDFLAGS) btfreeze.o -lbtas -lbms -o btfreeze

@@ -1,11 +1,14 @@
 /* $Log$
+/* Revision 1.3  2001/10/17 00:49:32  stuart
+/* Minor AIX build bugs, help message for btreload.
+/*
 /* Revision 1.2  1999/12/14 04:33:03  stuart
 /* handle symlinks correctly
 /*
  */
 #include <stdio.h>
-#include <String.h>
-#include <VHMap.h>
+#include <string>
+#include <map>
 #include "fs.h"
 #include "rcvr.h"
 
@@ -14,7 +17,7 @@
  */
 class Xrcvr {
   rcvr *parent;	// directory to create file in
-  String rec;	// directory record to create
+  string rec;	// directory record to create
   //t_block root;	// old root of file to link to
   Xrcvr *next;
   friend class FileTable;
@@ -29,23 +32,24 @@ Xrcvr::Xrcvr(rcvr *p,const char *buf,int len): rec(buf,len) {
 Xrcvr::~Xrcvr() { }
 
 class FileTable: rcvr::linkdir {
-  VHMap<t_block,rcvr *> tbl;
-  VHMap<t_block,Xrcvr *> linktbl;
+  typedef map<t_block,rcvr *> RcvrMap;
+  typedef map<t_block,Xrcvr *> LinkMap;
+  RcvrMap tbl;
+  LinkMap linktbl;
   unsigned blksize;
   int maxrec;
   btasFS &fs;
   void link(rcvr *,const char *buf,int len,t_block root);
   void link(rcvr *parent,const char *buf,int len,rcvr *p);
   rcvr *rootdir;
-  String lostdir;
+  string lostdir;
 public:
   FileTable(btasFS &fs,const char *dir);
   void load();
   ~FileTable();
 };
 
-FileTable::FileTable(btasFS &f,const char *dir): lostdir(dir),
-  tbl((rcvr*)0,100), linktbl((Xrcvr*)0,100), fs(f) {
+FileTable::FileTable(btasFS &f,const char *dir): lostdir(dir), fs(f) {
   blksize = fs.blksize();
   maxrec = btmaxrec(blksize);
   rootdir = new rcvr;
@@ -56,8 +60,8 @@ FileTable::FileTable(btasFS &f,const char *dir): lostdir(dir),
 }
 
 FileTable::~FileTable() {
-  for (Pix i = tbl.first(); i != 0; tbl.next(i))
-    delete tbl.contents(i);
+  for (RcvrMap::iterator i = tbl.begin(); i != tbl.end(); ++i)
+    delete i->second;
 }
 
 void FileTable::link(rcvr *parent,const char *buf,int len,rcvr *p) {
@@ -92,7 +96,7 @@ void FileTable::load() {
     rcvr *p = tbl[root];
     if (!p) {
       char buf[32];
-      sprintf(buf,"%s/%08lX",lostdir.chars(),root);
+      sprintf(buf,"%s/%08lX",lostdir.c_str(),root);
       p = new rcvr;
       if (t & BLKDIR) {
 	p->setDir(this);
@@ -102,9 +106,9 @@ void FileTable::load() {
       p->setName(buf,root);
       tbl[root] = p;
       // apply queued links to new file
-      linktbl.del(root);
+      linktbl.erase(root);
       while (q) {
-        link(q->parent,q->rec.chars(),q->rec.length(),p);
+        link(q->parent,q->rec.c_str(),q->rec.length(),p);
 	Xrcvr *n = q->next;
 	delete q;
 	q = n;
@@ -126,14 +130,14 @@ void FileTable::load() {
 int main(int argc,char **argv) {
   if (argc < 2) {
     fputs("\
-Usage:	btreload btasimg\n\
+Usage:	btreload btasimg|-\n\
 	Restores all files and directories from a Btas image backup\n\
 	relative to the current directory.  All records are extracted\n\
 	and reindexed, so this can be used to change block size of\n\
 	a filesystem.\n",stderr);
     return 2;
   }
-  const char *imagefile = argv[1];
+  string imagefile = argv[1];
   const char *lostdir = "lost+found";
   if (btmkdir(lostdir,0755)) {
     fprintf(stderr,"\
@@ -141,7 +145,12 @@ Can't create %s directory.  You may wish to delete or rename\n\
 any existing file or directory.\n",lostdir);
     return 1;
   }
-  btasXFS fs(imagefile,fsio::FS_RDONLY);
+  btasXFS *fsp = 0;
+  if (imagefile == "-")
+    fsp = new btasXFS(0,fsio::FS_RDONLY);
+  else
+    fsp = new btasXFS(imagefile.c_str(),fsio::FS_RDONLY);
+  btasXFS &fs = *fsp;
   FileTable tbl(fs,lostdir);
   tbl.load();
 
