@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.1  1994/02/24  20:06:49  stuart
+ * Initial revision
+ *
  */
 
 #include "cisam.h"
@@ -35,15 +38,36 @@ int isindexinfo(int fd,struct keydesc *k,int idx) {
   return iserr(0);
 }
 
+static int isfix(struct cisam *r,struct cisam_key *p,const char *name) {
+  BTCB *c = btopen(name,BTRDWR + BTEXCL,btrlen(p->f));
+  int rlen = btrlen(r->key.f);
+  BTCB *b = r->key.btcb;
+  char *buf;
+  int rc;
+  p->btcb = c;
+  b->klen = 0;
+  b->rlen = rlen;
+  rc = btas(b,BTREADGE + NOKEY);
+  buf = alloca(rlen);
+  while (rc == 0) {
+    b2urec(r->key.f->f,buf,rlen,b->lbuf,b->rlen);
+    u2brec(p->f->f,buf,rlen,c,p->klen);
+    btas(c,BTWRITE);		/* should be no dupkeys */
+    b->klen = b->rlen;
+    b->rlen = rlen;
+    rc = btas(b,BTREADGT + NOKEY);
+  }
+  return 0;
+}
+
 int isaddindex(int fd,const struct keydesc *k) {
   int idx, rc, rlen;
   struct cisam *r;
   struct cisam_key *p;
   struct keydesc kn;
   struct btflds *fp;
-  BTCB *b, *c, *savdir = btasdir;
+  BTCB *c, *savdir = btasdir;
   char *name;
-  char *buf;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
   c = r->idx;		/* we don't auto-create .idx yet */
@@ -86,35 +110,19 @@ int isaddindex(int fd,const struct keydesc *k) {
   p->next = r->key.next;
   r->key.next = p;
   p->f = fp;
+  ldchar(c->lbuf,MAXKEYNAME,name = p->name);
   btasdir = r->dir;
-  rc = btcreate(c->lbuf,p->f,0666);		/* create new index file */
+  rc = btcreate(name,p->f,0666);		/* create new index file */
   if (rc) {
     (void)btas(c,BTDELETE);			/* couldn't create */
     errpost(rc);
   }
-  name = c->lbuf;
   p->k = *k;
   if (kn.k_flags & ISDUPS)
     p->klen = btrlen(p->f);
   else
     p->klen = kn.k_len;
-  p->btcb = btopen(c->lbuf,BTRDWR + BTEXCL,btrlen(p->f));
-  c = p->btcb;
-  rlen = btrlen(r->key.f);
-  b = r->key.btcb;
-  b->klen = 0;
-  b->rlen = rlen;
-  rc = btas(b,BTREADGE + NOKEY);
-  buf = alloca(rlen);
-  while (rc == 0) {
-    b2urec(r->key.f->f,buf,rlen,b->lbuf,b->rlen);
-    u2brec(p->f->f,buf,rlen,c,p->klen);
-    btas(c,BTWRITE);		/* should be no dupkeys */
-    b->klen = b->rlen;
-    b->rlen = rlen;
-    rc = btas(b,BTREADGT + NOKEY);
-  }
-  rc = 0;
+  rc = isfix(r,p,name);
   enverr
     /* cleanup after error */
     if (p) {
@@ -124,6 +132,36 @@ int isaddindex(int fd,const struct keydesc *k) {
     }
     if (name) btkill(name);
   envend
+  btasdir = savdir;
+  return ismaperr(rc);
+}
+
+int isfixindex(int fd,const struct keydesc *k) {
+  struct cisam *r;
+  struct cisam_key *p;
+  struct keydesc kn;
+  BTCB *savdir;
+  int rc;
+  r = ischkfd(fd);
+  if (r == 0) return iserr(ENOTOPEN);
+  if (r->f == 0 || r->idx == 0) return iserr(ENOTEXCL);
+  kn = *k; iskeynorm(&kn);
+  for (p = &r->key; p; p = p->next) {
+    struct keydesc km;
+    km = p->k; iskeynorm(&km);
+    if (iskeycomp(&kn,&km) == 0) break;
+  }
+  if (!p) return iserr(EBADKEY);
+  if (p == &r->key) return iserr(EPRIMKEY);
+  (void)btclose(p->btcb);
+  savdir = btasdir;
+  btasdir = r->dir;
+  rc = btclear(p->name);
+  if (rc == 0) {
+    catch(rc)
+      rc = isfix(r,p,p->name);
+    envend
+  }
   btasdir = savdir;
   return ismaperr(rc);
 }
