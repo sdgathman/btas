@@ -1,59 +1,64 @@
 #include <stdio.h>
-#include "btree.h"
 #include "hash.h"
-
-static BLOCK *mru;
 
 /* allocate hash table, and initialize chain */
 
-int begbuf(pool,nsize,size)
-  char *pool;
-{
-  mru = (BLOCK *)pool;
-  fprintf(stderr,"Buffers = %d\n",size);
-  while (--size > 0)
-    putbuf((BLOCK *)(pool += nsize));
+int begbuf(char *pool,int nsize,int size) {
+  stat.bufs = size;
+  while (size-- > 0) {
+    BLOCK *bp = (BLOCK *)pool;
+    bp->lru = mru;
+    mru = bp;
+    pool += nsize;
+  }
   return 0;
 }
 
-static long searches, probes;
-
 void endbuf() {
-  fprintf(stderr,"Linear search:\tsearches = %ld, probes = %ld\n",
-	      searches,probes);
+  mru = 0;
 }
 
-/* perhaps btget should be the interface here */
+static BLOCK *inuse[MAXBUF];
+static int lastcnt = 0;
+int curcnt = 0;
 
-void putbuf(bp)
-  BLOCK *bp;
-{
-  bp->lru = mru;
-  mru = bp;
+void btget(int cnt) {
+  while (lastcnt > 0) {
+    register BLOCK *bp = inuse[--lastcnt];
+    /* assume chain is never empty */
+    bp->lru = mru;
+    mru = bp;
+  }
+  curcnt = cnt;
 }
 
-BLOCK *getbuf(blk,mid)
-  t_block blk;
-  int mid;
-{
+BLOCK *getbuf(t_block blk,short mid) {
   register BLOCK *bp, **pp;
-  ++searches;
+  ++stat.searches;
   for (pp = &mru;;pp = &bp->lru) {
     bp = *pp;
-    ++probes;
-    if (bp->lru == 0 || bp->blk == blk && bp->mid == mid) {
-      *pp = bp->lru;	/* remove from chain */
-      return bp;
+    ++stat.probes;
+    if (bp->blk == blk && bp->mid == mid)
+      break;
+    if (bp->lru == 0) {
+      if (bp->flags & BLK_MOD)
+	writebuf(bp);
+      bp->blk = 0;
+      bp->mid = mid;
+      break;
     }
   }
+  *pp = bp->lru;
+  return inuse[lastcnt++] = bp;
 }
 
-void swapbuf(np,bp)
-  BLOCK *np, *bp;
-{
-  long blk;
-  blk = np->blk;
+/* swap block contents - mid and node types must be the same! */
+
+void swapbuf(BLOCK *np,BLOCK *bp) {
+  short flag = np->flags;
+  long blk = np->blk;
   np->blk = bp->blk;
+  np->flags = bp->flags;
+  bp->flags = flag;
   bp->blk = blk;
-  /* mid must be same! */
 }
