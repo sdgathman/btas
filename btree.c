@@ -8,8 +8,9 @@ static char what[] = "@(#)btree.c	1.17";
 #include <stdio.h>
 #include <assert.h>
 
-int getkey(/**/ BLOCK *, BLOCK *, char *, t_block * /**/);
-int insert(/**/ BLOCK *, BLOCK *, short, char *, short, struct btlevel * /**/);
+static int getkey(/**/ BLOCK *, BLOCK *, char *, t_block * /**/);
+static int insert(/**/ BLOCK *, BLOCK *,
+		int, char *, int, struct btlevel * /**/);
 
 /*	the level stack records the path followed when
 	locating a record.  bttrace() follows the tree
@@ -334,7 +335,7 @@ void btdel()
   }
 }
 
-STATIC int insert(bp,np,idx,urec,ulen,lp)
+static int insert(bp,np,idx,urec,ulen,lp)
   BLOCK *bp,*np;
   short idx;
   char *urec;
@@ -390,6 +391,7 @@ static int getkey(bp,np,urec,blkp)
     size = node_size(np->np,1);
     ulen = node_size(bp->np,i);
     if (ulen > size) ulen = size;
+    if (ulen > MAXKEY) ulen = MAXKEY;
     node_copy(np,1,urec,ulen);
     p = rptr(bp->np,i) + 1;
     ulen = blkcmp(p,(unsigned char *)urec,ulen);
@@ -398,7 +400,7 @@ static int getkey(bp,np,urec,blkp)
       ++ulen;
     }
   }
-  /* assert(ulen <= MAXKEY); */
+  assert(ulen <= MAXKEY);
   (void)memcpy(urec+ulen,(char *)blkp,sizeof *blkp);
   ulen += sizeof *blkp;		/* add block pointer to complete record */
   return ulen;
