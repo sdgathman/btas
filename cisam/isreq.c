@@ -116,6 +116,10 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
 	  break;
 	}
 	i = isread(rfd,p1buf,mode);
+	if (i) {
+	  *p1lenp = 0;
+	  break;
+	}
 	if (fxn == ISREADREC) {
 	  stlong(isrecnum,p1buf + p1len);
 	  p1len += 4;
