@@ -53,6 +53,9 @@ static const char what[] =
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 2.2  1997/06/23  15:30:00  stuart
+ * implement btfile object
+ *
  * Revision 2.1  1996/12/17  16:46:23  stuart
  * C++ node interface
  *
@@ -253,14 +256,16 @@ void btfile::closefile(BTCB *b) {
     if (bp->buf.r.stat.opens == -1) {
       bp->buf.r.stat.opens = 0;
       bp->flags |= BLK_MOD;
+      --devtbl[b->mid].mcnt;
     }
     else if (bp->buf.r.stat.opens) {
       --bp->buf.r.stat.opens;
       bp->flags |= BLK_MOD;
-    }
-    if (bp->flags & BLK_MOD)
-#endif
       --devtbl[b->mid].mcnt;
+    }
+#else
+    --devtbl[b->mid].mcnt;
+#endif
     b->flags = 0;
   }
 }
