@@ -6,9 +6,10 @@ class Alarm {
   int limit;
   static int ticks, fatal, interval;
   static void handler(int);
+  static void handleFatal(int);
 public:
   Alarm();
-  bool check();				// should we shutdown? (msgrcv err)
+  bool check(class btserve *);		// should we shutdown? (msgrcv err)
   void enable(int t);			// make sure alarm is ticking
   ~Alarm();
 };
