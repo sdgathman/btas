@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <btflds.h>
+#include <block.h>
 #include "ebcdic.h"
 
 /*
@@ -115,10 +116,10 @@ void e2brec(p,urec,ulen,btcb,klen)
 	if (blen) {	/* leading blank compression */
 	  if (blen > ' ')
 	    blen = ' ';	/* max leading blank count */
-	  *buf++ = ' ' - blen + 1;
+	  *buf++ = (char)(' ' - blen + 1);
 	  if (klen) {
 	    if (klen <= blen) {
-	      btcb->klen = buf - btcb->lbuf;
+	      btcb->klen = (short)(buf - btcb->lbuf);
 	      klen = 0;
 	    }
 	    else
@@ -138,9 +139,10 @@ void e2brec(p,urec,ulen,btcb,klen)
       urec += flen - nblen;
       if (klen) {
 	if (klen <= flen) {
-	  btcb->klen = buf - btcb->lbuf; /* entire field including null */
+	  /* entire field including null */
+	  btcb->klen = (short)(buf - btcb->lbuf);
 	  if (klen <= nblen) {
-	    btcb->klen -= nblen - klen;	/* partial field */
+	    btcb->klen -= (short)(nblen - klen);	/* partial field */
 	    if (nblen < p[1] - blen) --btcb->klen;
 	  }
 	  klen = 0;
@@ -153,7 +155,7 @@ void e2brec(p,urec,ulen,btcb,klen)
       farmove((char far *)buf,(char far *)urec,flen);
       if (klen) {
 	if (klen <= flen) {
-	  btcb->klen = buf - btcb->lbuf + klen;
+	  btcb->klen = (short)(buf - btcb->lbuf + klen);
 	  klen = 0;
 	}
 	else
@@ -164,7 +166,7 @@ void e2brec(p,urec,ulen,btcb,klen)
     }
   }
   /* final record length */
-  btcb->rlen = farblkfntl((char far *)buf,0,buf-btcb->lbuf);
+  btcb->rlen = (short)farblkfntl((char far *)buf,0,buf-btcb->lbuf);
   if (btcb->rlen < btcb->klen) btcb->rlen = btcb->klen;
 }
 
