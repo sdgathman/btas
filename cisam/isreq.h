@@ -2,18 +2,14 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.1  1994/02/13  20:38:25  stuart
+ * Initial revision
+ *
  */
-
-enum {
-  MAXFD	 = 63,	/* maximum user file descriptors */
-  MAXPROC= 7,	/* maximum request pipes */
-  MAXRLEN= 1024,/* maximum record length supported */
-  MAXNAME= 128	/* maximum file name supported */
-};
 
 #if 0	/* old format - recoded in BMS file/network format */
 
-/* #define ISRECNUM	/* emulate isrecnum */
+#define ISRECNUM	/* emulate isrecnum */
 
 typedef unsigned short ushort;
 
@@ -62,6 +58,11 @@ struct ISRES {
   char isstat2;
 };
 
+int stkeydesc(const struct keydesc *k,char *buf);
+void ldkeydesc(struct keydesc *k,const char *p);
+int stdictinfo(const struct dictinfo *d,char *p);
+void lddictinfo(struct dictinfo *d,const char *p);
+
 #endif
 
 enum isreqOp {
@@ -86,7 +87,18 @@ enum isreqOp {
   ISUNLOCK,
   ISRELEASE,
   ISRENAME,
-  ISREWREC
+  ISREWREC,
+  ISSTARTN,
+  ISDELREC
+};
+
+#ifndef __cplusplus
+enum {
+  MAXFD	 = 63,	/* maximum user file descriptors */
+  MAXPROC= 7,	/* maximum request pipes */
+  MAXRLEN= 1024,/* maximum record length supported */
+  MAXNAME= 128	/* maximum file name supported */
 };
 
 int isreq(int fd,enum isreqOp,int l1,int l2,char *,char *,int mode,int len);
+#endif
