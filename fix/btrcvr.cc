@@ -4,6 +4,9 @@
 	Recover a list of files while BTAS/X is running.
 
 $Log$
+Revision 2.4  2001/02/28 22:46:38  stuart
+use new.h
+
  * Revision 2.3  1999/05/10  22:41:19  stuart
  * *** empty log message ***
  *
@@ -38,13 +41,11 @@ $Log$
 
 */
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <new.h>
 #include <time.h>
-#pragma implementation "VHMap.cc"
-#pragma implementation "Map.cc"
-#include <VHMap.cc>
-#include <Map.cc>
+#include <hash_map>
 
 extern "C" {
 #include <btas.h>
@@ -61,14 +62,12 @@ static char *fsname(int);
 
 // files to be recovered from one filesystem
 
-inline unsigned hash(const t_block &t) { return t; }
-
-template class VHMap<t_block,rcvr *>;
-template class Map<t_block,rcvr *>;
+template class hash_map<t_block,rcvr *>;
+typedef hash_map<t_block,rcvr *>::iterator Pix;
 
 class rcvrlist {
   rcvrlist *next;
-  VHMap<t_block,rcvr *> list;
+  hash_map<t_block,rcvr *> list;
   const char *imagefile;// image backup file or NULL for in place
   bool test,interactive;
   friend class rcvrall;
@@ -142,7 +141,6 @@ rcvrall::~rcvrall() {
 }
 
 rcvrlist::rcvrlist(bool t,bool interact,const char *name):
-  list((rcvr *)0,100),
   test(t), interactive(interact)
 {
   next = 0;
@@ -151,22 +149,22 @@ rcvrlist::rcvrlist(bool t,bool interact,const char *name):
 
 const char *rcvrlist::name() {
   if (imagefile) return imagefile;
-  Pix i = list.first();
-  if (!i) return 0;
-  return fsname(list.contents(i)->mid());
+  Pix i = list.begin();
+  if (i == list.end()) return 0;
+  return fsname(i->second->mid());
 }
 
 rcvrlist::~rcvrlist() {
-  for (Pix i = list.first(); i; list.next(i))
-    delete list.contents(i);
+  for (Pix i = list.begin(); i != list.end(); ++i)
+    delete i->second;
 }
 
 bool rcvrlist::add(rcvr *p,const char *image) {
   if (imagefile && strcmp(image,imagefile))
     return true;	// can't recover from different source images
   if (p) {
-    Pix i = list.first();
-    if (!imagefile && i && p->mid() != list.contents(i)->mid())
+    Pix i = list.begin();
+    if (!imagefile && i != list.end() && p->mid() != i->second->mid())
       return true;	// can't recover in place on different fs
     list[p->rootid()] = p;
     return false;
@@ -179,23 +177,23 @@ bool rcvrlist::add(rcvr *p,const char *image) {
 void rcvrlist::display() {
   printf("%16s %8s %8s %s\n","OS file","Old root","Path");
   const char *devname;
-  Pix i = list.first();
-  if (!i) return;
+  Pix i = list.begin();
+  if (i == list.end()) return;
   if (imagefile)
     devname = imagefile;
   else
-    devname = fsname(list.contents(i)->mid());
-  while (i) {
-    const rcvr *p = list.contents(i);
+    devname = fsname(i->second->mid());
+  while (i != list.end()) {
+    const rcvr *p = i->second;
     printf("%16s%9lx %s\n",devname,p->rootid(),p->path());
     devname="";		/* list each fs only once */
-    list.next(i);
+    ++i;
   }
 }
 
 rcvr *rcvrlist::get(t_block root) {
-  Pix i = list.seek(root);
-  if (i) return list.contents(i);
+  Pix i = list.find(root);
+  if (i != list.end()) return i->second;
   return 0;
 }
 
@@ -248,13 +246,13 @@ void rcvrlist::recover() {
 }
 
 void rcvrlist::summary() {
-  Pix i = list.first();
-  if (!i) return;
+  Pix i = list.begin();
+  if (i == list.end()) return;
   printf("\nSummary for filesystem %s:\n",name());
   rcvr::summaryHeader();
-  while (i) {
-    list.contents(i)->summary();
-    list.next(i);
+  while (i != list.end()) {
+    i->second->summary();
+    ++i;
   }
 }
 

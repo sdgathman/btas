@@ -22,7 +22,7 @@ $F:	$F(getblock.o)	\
 #	$F(s1tar.o)
 
 btrcvr:	btrcvr.o $F
-	g++ $(LDFLAGS) btrcvr.o $F $L -lg++ -lbms -o btrcvr
+	g++ $(LDFLAGS) btrcvr.o $F $L -lbms -o btrcvr
 
 btreload: btreload.o  $F
 	g++ $(LDFLAGS) btreload.o  $F $L -lbms -o btreload
