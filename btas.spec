@@ -1,13 +1,13 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.10.6
+%define version 2.10.7
 Version: %{version}
 Release: 1
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
 BuildRoot: /var/tmp/%{name}-root
-BuildRequires: libbms-devel >= 1.1.5
+BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
 
 %description
 The BTAS filesystem is a hierarchical filesystem where each file and
@@ -160,6 +160,11 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
+* Sat Sep 13 2003 Stuart Gathman <stuart@bmsi.com> 2.10.7
+- fix iserase of open files
+* Wed Aug 06 2003 Stuart Gathman <stuart@bmsi.com>
+- fix sql -f with negative numbers
+- add sql -e for alternate quote char
 * Tue Jul 29 2003 Stuart Gathman <stuart@bmsi.com>
 - auto expand fd array for cisam emulator
 - isfdlimit call for cisam emulator
