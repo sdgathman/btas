@@ -1,6 +1,9 @@
 /*
 	Basic BTAS/2 utility
  * $Log$
+ * Revision 1.3  1993/05/26  18:07:34  stuart
+ * shorten di/t format
+ *
  * Revision 1.2  1993/05/18  15:02:29  stuart
  * make symbolic links work
  *
@@ -32,7 +35,6 @@ extern unsigned short getuid(), getgid();
 #endif
 
 static void docmd(char *);
-static char *permstr(short);
 int btsync(void);
 static void cdecl handler(int);
 char prompt[] = "COMMAND(?): ";
@@ -74,7 +76,7 @@ struct cmdlist {
   "DU", dump, 0,
   "HE", help, 0,
   "LC", dir, 0,
-  "LN", link, 0,
+  "LN", linkbtfile, 0,
   "LO", load, 1,
   "LS", dir, 0,
   "MO", mountfs, 0,
@@ -108,10 +110,10 @@ static void docmd(char *line) {
   if (!cmd) cmd = "";
   if (switch_char = strchr(cmd,'/')) *switch_char++ = 0;
   else switch_char = "";
-  if (strncmp(strupr(cmd),"EN",2) == 0) exit(0);
+  if (strncasecmp(cmd,"EN",2) == 0) exit(0);
   strlwr(switch_char);
   for (p = cmdlist; p->name; ++p) {
-    if (strncmp(cmd,p->name,strlen(p->name)) == 0) {
+    if (strncasecmp(cmd,p->name,strlen(p->name)) == 0) {
       void cdecl (* saveint)(/**/ int /**/) = signal(SIGINT,handler);
 #ifndef __MSDOS__
       void cdecl (* savehup)(/**/ int /**/) = signal(SIGHUP,handler);
@@ -149,25 +151,6 @@ static void docmd(char *line) {
     }
   }
   puts("For help, type HELP.");
-}
-
-static char *permstr(short mode) {
-  static char pstr[11];
-  static struct {
-    short mask;
-    char  disp[2];
-  } perm[10] = {
-    BT_DIR, "-d",
-    0400, "-r", 0200, "-w", 0100, "-x",
-    0040, "-r", 0020, "-w", 0010, "-x",
-    0004, "-r", 0002, "-w", 0001, "-x",
-  };
-  register int i;
-
-  (void)memset(pstr,'-',10);
-  for (i = 0; i < 10; ++i)
-    pstr[i] = perm[i].disp[(mode&perm[i].mask)!=0];
-  return pstr;
 }
 
 /* print a long directory entry */
@@ -259,15 +242,21 @@ int dir() {
 	    btrlen(&f),f.f[f.klen].pos,f.rlen,f.klen,st.links,ff.b->lbuf);
       }
       else {
-	char *perm = permstr(st.id.mode);
+	const char *perm = permstr(st.id.mode);
 	char buf1[18], buf2[18];
 #ifndef __MSDOS__
 	static struct passwd *pw;
 	static struct group *gr;
 	if (!pw || pw->pw_uid != st.id.user) pw = getpwuid(st.id.user);
 	if (!gr || gr->gr_gid != st.id.group) gr = getgrgid(st.id.group);
-	strcpy(buf1, pw ? pw->pw_name : itoa(st.id.user,buf1,10));
-	strcpy(buf2, gr ? gr->gr_name : itoa(st.id.group,buf2,10));
+	if (pw)
+	  strcpy(buf1,pw->pw_name);
+	else
+	  sprintf(buf1,"%d",st.id.user);
+	if (gr)
+	  strcpy(buf2,gr->gr_name);
+	else
+	  sprintf(buf2,"%d",st.id.group);
 #else
 	itoa(st.id.user,buf1,10);
 	itoa(st.id.group,buf2,10);
@@ -296,7 +285,7 @@ int dir() {
 	  break;
 	default:
 	  printf("%s %8s %8s %4d %8ld %8ld %s\n",
-	    perm,buf1,buf2, st.opens-1, st.rcnt,st.bcnt, ff.b->lbuf);
+	    perm,buf1,buf2, st.opens, st.rcnt,st.bcnt, ff.b->lbuf);
 	}
       }
     } while (cancel == 0 && findnext(&ff) == 0);
