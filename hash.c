@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.2  1993/12/09  19:20:50  stuart
+ * failsafe/improved modified buffer handling
+ *
  */
 #include <stdio.h>
 #include <assert.h>
@@ -52,6 +55,17 @@ void endbuf() {
   }
 }
 
+#ifdef btget
+#undef btget
+static const char *curfile;
+static int curline;
+void btget_deb(int cnt,const char *file,int line) {
+  curfile = file;
+  curline = line;
+  btget(cnt);
+}
+#endif
+
 /* reserve cnt buffers */
 void btget(int cnt) {
   while (lastcnt > 0) {
@@ -79,10 +93,12 @@ BLOCK *getbuf(t_block blk,short mid) {
   register int h;
   if (lastcnt >= curcnt) {
     char buf[64];
-    sprintf(buf,"lastcnt(%d) < curcnt(%d), %s, line %d",lastcnt,curcnt);
-    ASSERTFCN(buf,__FILE__,__LINE__);
+    sprintf(buf,"lastcnt(%d) < curcnt(%d)",lastcnt,curcnt);
+    if (curcnt >= MAXBUF)
+      ASSERTFCN(buf,curfile,curline);
+    fprintf(stderr,"%s, %s, line %d\n",buf,curfile,curline);
+    ++curcnt;
   }
-
   assert(lastcnt < curcnt);
   hval = hash(blk+mid);
   ++stat.searches;
