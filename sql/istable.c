@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <string.h>
+#include <btflds.h>
 #include <isamx.h>
 #include "cursor.h"
 #include "object.h"
 #include "coldate.h"
-#include "cisam.h"	/* just so we can get BTAS fld table */
 
 typedef struct Isam/*:public Cursor*/ {
   struct Cursor_class *_class;
@@ -20,6 +20,7 @@ typedef struct Isam/*:public Cursor*/ {
   int fd;	/* C-isam file descriptor */
   int rlen;	/* size of ubuf (for debugging) */
   struct keydesc kd;
+  char rdonly;
 } Isam;
 
 static void Isam_free(Cursor *);
@@ -60,7 +61,8 @@ Cursor *Table_init(const char *name,int rdonly) {
   t->cnt = 0;
   t->fd = fd;
   t->ubuf = 0;
-  f = isamfd[fd]->key.f;
+  t->rdonly = rdonly;
+  f = isflds(fd);
   if (isindexinfo(t->fd,&t->kd,1))	/* save primary keydesc */
     t->kd.k_nparts = 0;
   isindexinfo(fd,(struct keydesc *)&d,0);
@@ -251,14 +253,14 @@ static void isrstkey(const struct keydesc *kp,char *dst,const char *src) {
 
 static int Isam_update(Cursor *c) {
   Isam *thistab = (Isam *)c;
-  if (isamfd[thistab->fd]->key.btcb->flags & BT_UPDATE)
+  if (!thistab->rdonly)
     return isrewcurr(thistab->fd,thistab->ubuf);
   return -1;
 }
 
 static int Isam_delete(Cursor *c) {
   Isam *thistab = (Isam *)c;
-  if (isamfd[thistab->fd]->key.btcb->flags & BT_UPDATE)
+  if (!thistab->rdonly)
     return isdelcurr(thistab->fd);
   return -1;
 }

@@ -13,6 +13,9 @@ OBJS = parse.o exec.o vwsel.o vwopt.o join.o version.o cursor.o	\
 sql:	main.o $(OBJS)
 	$(CC) $(LDFLAGS) main.o $(OBJS) $(LIBS) -o sql
 
+clean:
+	rm *.o sql parse.c core
+
 sqltype.o : sqltype.c sql.h
 values.o : values.c cursor.h
 vwsel.o : vwsel.c object.h vwopt.h sql.h obmem.h sql.def cursor.h column.h 
@@ -29,16 +32,13 @@ parse.o : parse.c sql.h obmem.h sql.def
 func.o : func.c sql.h obmem.h sql.def 
 lit.o : lit.c sql.h obmem.h sql.def 
 istable.o : istable.c cursor.h column.h sql.h obmem.h sql.def object.h \
-	coldate.h cisam.h 
+	coldate.h 
 column.o : column.c config.h cursor.h column.h sql.h obmem.h sql.def \
 	coldate.h object.h 
 coldate.o : coldate.c config.h column.h sql.h obmem.h sql.def coldate.h \
 	object.h 
 cursor.o : cursor.c config.h object.h cursor.h column.h sql.h obmem.h \
 	sql.def coldate.h 
-
-cisam.h:
-	@echo You must find and link "cisam.h" into this directory.; exit 1
 
 parse.c:	parse.y
 	yacc -vl parse.y
