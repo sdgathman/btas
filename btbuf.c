@@ -5,6 +5,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+ * Revision 1.3  1993/12/09  19:30:56  stuart
+ * ANSI formatting, rough in checkpoint logic
+ *
  * Revision 1.2  1993/02/23  18:49:33  stuart
  * fix assertion failure following 201 error
  *
@@ -445,8 +448,12 @@ BLOCK *btnew(short flag) {
 	BLOCK *dp;
 	++curcnt;
 	dp = btread(bp->buf.s.root);	/* get root node */
-	if (dp->buf.r.root)		/* verify that it's deleted */
+	if (dp->buf.r.root) {		/* verify that it's deleted */
+	  dev->free = 0; dev->space = 0;
+	  fprintf(stderr,"free root = %08lX, %08lX\n",
+		bp->buf.s.root,dp->buf.r.root);
 	  btpost(BTERFREE);
+	}
 	dev->droot = bp->buf.s.root;	/* new droot */
       }
       dev->free = bp->buf.s.lbro;
