@@ -1,11 +1,15 @@
-static char id[] = "@(#)isserve.c 1.9 2/9/94";
+static char id[] = "@(#)isserve.c 1.9 1/5/87";
 
+#define TRACE
 #include <isam.h>
+#include <fcntl.h>
+#include <stdlib.h>
 #include "isreq.h"
 
 main()
 {
   register int i;
+  int trace = -1, trout = -1;
   REQ r;			/* request header */
   RES res;			/* result header */
   union { struct keydesc desc;
@@ -18,6 +22,17 @@ main()
 	} p2;		/* parameter 2 */
 
   for (i=2;i<20;) close(i++);	/* close parent's files */
+#ifdef TRACE
+  {
+    char name[64], *p;
+    if (p = getenv("ISTRACE")) {
+      sprintf(name,"%s/isin.%d",p,getpid());
+      trace = open(name,O_WRONLY+O_CREAT+O_TRUNC,0666);
+      sprintf(name,"%s/isout.%d",p,getpid());
+      trout = open(name,O_WRONLY+O_CREAT+O_TRUNC,0666);
+    }
+  }
+#endif
   while (read(0,(char *)&r,sizeof r) == sizeof r) {
     if (r.p1) {
       while (r.p1 > MAXRLEN) { read(0,p1.buf,MAXRLEN); r.p1 -= MAXRLEN; }
@@ -28,6 +43,11 @@ main()
       while (r.p2 > MAXNAME) { read(0,p2.buf,MAXNAME); r.p2 -= MAXNAME; }
       read(0,p2.buf,r.p2);
       p2.buf[r.p2]=0;
+    }
+    if (trace > 0) {
+      write(trace,(char *)&r,sizeof r);
+      if (r.p1) write(trace,p1.buf,r.p1);
+      if (r.p2) write(trace,p2.buf,r.p2);
     }
       
     res.p1  = 0;
@@ -108,9 +128,13 @@ main()
     res.iserrno = iserrno;
     res.isstat1 = isstat1;
     res.isstat2 = isstat2;
+    if (trout > 0) {
+      write(trout,(char *)&res,sizeof res);
+      if (res.p1) write(trout,p1.buf,res.p1);
+    }
     write(1,(char *)&res,sizeof res);
     if (res.p1) write(1,p1.buf,res.p1);
   }
-  for (i=0;i<9;) isclose(i++);	/* close all files */
+  for (i=0;isclose(i++) == 0;);	/* close all files */
   return 0;
 }
