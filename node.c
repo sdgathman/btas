@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 2.2  1996/12/17  17:00:57  stuart
+ * fix comment syntax
+ *
  * Revision 2.1  1996/12/17  16:40:32  stuart
  * C++ node interface
  *
@@ -19,6 +22,17 @@
 #include <string.h>
 #include <assert.h>
 #include "node.h"
+
+BLOCK::BLOCK() {
+  flags = 0;
+  blk = 0;
+  mid = 0;
+  np = (union node *)buf.l.data;
+}
+
+void BLOCK::setblksize(unsigned blksz) {
+  np->setsize(buf.data + blksz);
+}
 
 short BLOCK::size(int i) const { return np->size(i) + *np->rptr(i) - 1; }
 
@@ -89,12 +103,13 @@ short BLOCK::move(BLOCK *bp2,int from,int to,int cnt) const {
   int i, dup;
 
   dup = 0;		/* init compress count for copy */
+  char *workrec = (char *)alloca(maxrec());
   for (i = 0; i < cnt && from <= scnt; ++i,++to,++from) {
     int rlen = size(from);
     dup = copy(from,workrec,rlen,dup);
     if (bp2->insert(to,workrec,rlen)) break;
   }
-  /* node_insert() sets bp2->flags |= BLK_MOD */
+  /* bp2->insert() sets bp2->flags |= BLK_MOD */
   return i;
 }
 
