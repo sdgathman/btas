@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
-#include "btbuf.h"
+#include "btserve.h"
 
 int Alarm::ticks = 0;
 int Alarm::fatal = 0;
@@ -29,7 +29,7 @@ void Alarm::handler(int sig) {	/* ignore signals (but terminate system call) */
   if (ticks) {
     ++ticks;
     alarm(interval);
-    time(&curtime);
+    time(&btserve::curtime);
   }
 }
 
@@ -40,8 +40,10 @@ void Alarm::handler(int sig) {	/* ignore signals (but terminate system call) */
  */
 void Alarm::enable(int secs) {
   limit = secs / interval;
-  if (ticks == 0)
+  if (ticks == 0) {
+    ticks = 1;
     handler(SIGALRM);
+  }
   else
     ticks = 1;
 }
@@ -50,13 +52,11 @@ void Alarm::enable(int secs) {
    fails - usually because msgrcv() is interrupted by SIGALRM.  
    Return true if the server should shutdown.
  */
-bool Alarm::check() {
+bool Alarm::check(btserve *server) {
   if (errno != EINTR || fatal) return true;
   if (ticks > limit) {
-#if TRACE > 1
-    fputs("Autoflush\n",stderr);
-#endif
-    if (btflush() == 0)
+    //fputs("Autoflush\n",stderr);
+    if (server->flush() == 0)
       ticks = 0;		/* turn off timer if complete */
   }
   limit = 1;	// flush rapidly while no activity
