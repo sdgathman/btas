@@ -1,6 +1,6 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.10.4
+%define version 2.10.6
 Version: %{version}
 Release: 1
 Copyright: Commercial
@@ -160,7 +160,12 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
-* Fri Apr  4 2004 Stuart Gathman <stuart@bmsi.com>
+* Tue Jul 29 2003 Stuart Gathman <stuart@bmsi.com>
+- auto expand fd array for cisam emulator
+- isfdlimit call for cisam emulator
+* Mon May 19 2003 Stuart Gathman <stuart@bmsi.com>
+- fix ebtconv.c and copy.c
+* Fri Apr  4 2003 Stuart Gathman <stuart@bmsi.com>
 - fix isaddindex bug
 * Tue Mar  4 2003 Stuart Gathman <stuart@bmsi.com>
 - finish converting to STL and test
