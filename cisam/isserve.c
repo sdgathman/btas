@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.10  1998/06/24  16:38:48  stuart
+ * simplify socket setup
+ *
  * Revision 2.9  1998/04/15  19:14:58  stuart
  * support ISINDEXNAME
  *
@@ -194,21 +197,23 @@ static int server() {
 	  p1len -= 4;
 	  isrecnum = ldlong(p1.buf + p1len);
 	}
-	if (mode == ISLESS) {
+	switch (mode) {
+	case ISLESS:
 	  mode = ISPREV;
 	  i = isread(r.fd,p1.buf,ISGTEQ);
 	  if (i) {
 	    if (iserrno != ENOREC) break;
 	    mode = ISLAST;
 	  }
-	}
-	if (mode == ISLTEQ) {
+	  break;
+	case ISLTEQ:
 	  mode = ISPREV;
 	  i = isread(r.fd,p1.buf,ISGREAT);
 	  if (i) {
 	    if (iserrno != ENOREC) break;
 	    mode = ISLAST;
 	  }
+	  break;
 	}
 	i = isread(r.fd,p1.buf,mode);
 	if (r.fxn == ISREADREC) {
@@ -217,7 +222,7 @@ static int server() {
 	}
 	stshort(p1len,res.p1);
 	if (i == 0 && len > 0) {
-	  switch (mode) {
+	  switch (mode & 255) {
 	  case ISLESS: case ISLTEQ: case ISPREV: case ISLAST:
 	    mode = ISPREV; break;
 	  case ISGREAT: case ISGTEQ: case ISNEXT: case ISFIRST:
