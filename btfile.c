@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "%W%";
+static char what[] = "$Id$";
 #endif
 /*
 	BTAS/2 directory operations
@@ -52,6 +52,9 @@ static char what[] = "%W%";
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 1.2  1993/05/14  16:19:23  stuart
+ * make symbolic link really work after testing
+ *
  */
 
 #include <string.h>
