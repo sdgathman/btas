@@ -15,16 +15,26 @@
 	maybe we'll add the feature.)  Anyway, we aren't using locked
 	records in EDX anymore either!
  * $Log$
+ * Revision 1.5  1994/02/10  19:51:13  stuart
+ * replace control chars when compressing BT_CHAR fields
+ *
  */
-
-#include "btasedx.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <btflds.h>
 #include <block.h>
-#include "ebcdic.h"
-#include "farmem.h"
+#include <ebcdic.h>
+
+#define BIGREC		/* for ues with btasedx.h */
+
+/* abominations from x86, should probably define in block.h, but hopefully
+ * segmented x86 WIN16 is dead now.  We need mixed model for HBX
+ * implementation of BTAS/1 emulator. */
+#define _fmemset memset
+#define _fmemcpy memcpy
+#define farblkfntr blkfntr
+#define farblkfntl blkfntr
 
 static unsigned short e2brec_rlen = ~0;
 BYTE e2brec_skip = 0;
@@ -124,8 +134,10 @@ void b2erec(const BYTE *p,BYTE far *urec,int ulen,const char *buf,int len) {
     }
     urec += flen;
   }
+#if 0	/* BTAS/1 did not do this */
   if (pos < ulen)
     _fmemset(urec, 0, ulen - pos);
+#endif
 }
 
 unsigned e2brec(
@@ -230,8 +242,9 @@ unsigned e2brec(
 	pos += flen;
 	skip += flen;
       }
-      else {		/* no compression for non-character types */
+      else		/* no compression for non-character types */
 #endif
+      {
 	_fmemcpy(buf,urec,flen);
 	buf += flen;
       }
@@ -245,7 +258,7 @@ unsigned e2brec(
   return pos;
 }
 
-#ifdef LOCKING
+#if 0 // LOCKING
 int islocked(const BTCB *b) {
   return (b->rlen > b->klen && b->lbuf[b->rlen - 1] == 0);
 }
