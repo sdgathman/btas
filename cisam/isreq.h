@@ -2,6 +2,9 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.2  1997/04/30  19:31:24  stuart
+ * add missing ops
+ *
  * Revision 1.1  1994/02/13  20:38:25  stuart
  * Initial revision
  *
@@ -45,7 +48,7 @@ struct ISREQ {
   FSHORT mode;	/* mode parameter */
   FSHORT p1;	/* first buffer length */
   FSHORT p2;	/* second buffer length */
-  char fd;	/* file descriptor */
+  unsigned char fd;	/* file descriptor */
   char fxn;	/* request code */
 };
 
@@ -89,7 +92,12 @@ enum isreqOp {
   ISRENAME,
   ISREWREC,
   ISSTARTN,
-  ISDELREC
+  ISDELREC,
+  ISSETRANGE,
+  ISADDFLDS,
+  ISGETFLDS,
+  ISREADREC,
+  ISINDEXNAME
 };
 
 #ifndef __cplusplus
