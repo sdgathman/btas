@@ -1,3 +1,5 @@
+all:	btbr btflded
+
 browsebt.o: browse.c
 	$(CC) $(CFLAGS) -DBTASX -c browse.c -o browsebt.o
 

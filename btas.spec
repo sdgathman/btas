@@ -2,7 +2,7 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.10.1
 Version: %{version}
-Release: 2
+Release: 4
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -52,6 +52,8 @@ cd ../sql
 LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make
 cd ../fix
 LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make
+cd ../btbr
+LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make
 
 %install
 mkdir -p $RPM_BUILD_ROOT/bms/bin
@@ -64,7 +66,8 @@ mkdir -p $RPM_BUILD_ROOT/bms/lib
 %ifos aix4.1
 mkdir -p $RPM_BUILD_ROOT/bms/slib
 cp lib/libbtas.a $RPM_BUILD_ROOT/bms/slib
-cp lib/libbtas.so $RPM_BUILD_ROOT/bms/lib/libbtas.a
+cp lib/libbtas.so btas.so
+ar rv $RPM_BUILD_ROOT/bms/lib/libbtas.a btas.so
 %else
 cp lib/libbtas.a $RPM_BUILD_ROOT/bms/lib
 cp lib/libbtas.so $RPM_BUILD_ROOT/bms/lib
@@ -78,11 +81,13 @@ cp sql/btlc.sh $RPM_BUILD_ROOT/bms/bin/btlc
 cp sql/sql $RPM_BUILD_ROOT/bms/bin
 cp cisam/isserve cisam/bcheck cisam/addindex cisam/indexinfo	\
 	$RPM_BUILD_ROOT/bms/bin
+cp btbr/btbr btbr/btflded $RPM_BUILD_ROOT/bms/bin
 
 { cd $RPM_BUILD_ROOT/bms/bin
   strip btserve btinit btstop || true
   strip btsave btddir btreload btfree btrcvr btrest || true
   strip btutil btar btdu btpwd sql || true
+  strip btbr btflded || true
   strip isserve bcheck || true
   ln addindex delindex
 }
@@ -107,20 +112,20 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/bin/btinit
 /bms/bin/btpwd
 /bms/bin/btreload
-%attr(6755,bms,bms)/bms/bin/btserve
-%attr(6755,bms,bms)/bms/bin/btstop
-%attr(6755,bms,bms)/bms/bin/btstat
-%attr(2755,bms,bms)/bms/bin/btutil
+%attr(6755,btas,bms)/bms/bin/btserve
+%attr(6755,btas,bms)/bms/bin/btstop
+%attr(6755,btas,bms)/bms/bin/btstat
+%attr(2755,btas,bms)/bms/bin/btutil
 /bms/bin/btsave
 /bms/bin/btrest
-%attr(2755,bms,bms)/bms/bin/sql
+%attr(2755,btas,bms)/bms/bin/sql
 /bms/bin/btl
 /bms/bin/btlc
 /bms/bin/bcheck
 /bms/bin/addindex
 /bms/bin/delindex
 /bms/bin/indexinfo
-%attr(2755,bms,bms)/bms/bin/isserve
+%attr(2755,btas,bms)/bms/bin/isserve
 %dir /bms/lib
 /bms/lib/libbtas.a
 %dir /bms/fbin
@@ -132,6 +137,9 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
+* Wed Oct 17 2001 Stuart Gathman <stuart@bmsi.com>
+- fix dyn lib packaging for AIX
+- auto add btas user
 * Wed Feb 28 2001 Stuart Gathman <stuart@bmsi.com>
 - move to CVS
 * Fri Sep  8 2000 Stuart Gathman <stuart@bmsi.com>
