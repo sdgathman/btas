@@ -6,8 +6,6 @@ extern "C" {
 #define FIX
 #include "../btree.h"
 
-enum { SECT_SIZE = 512 };
-
 static inline int blk_dev(t_block b) { return (unsigned char)(b >> 24); }
 static inline long blk_off(t_block b) { return b & 0xFFFFFFL; }
 static inline t_block mk_blk(short i,long offset) { return (i<<24L)|offset; }
@@ -44,7 +42,6 @@ struct fstbl {
 enum { FS_RDONLY = 1, FS_BGND = 2 };
 
 enum blk_type { BLKERR, BLKDEL = 1, BLKROOT = 2, BLKSTEM = 4, BLKLEAF = 8,
-  /* enhanced block type flags apply to BLKROOT only */
       BLKCOMPAT =	0x0F,	/* mask for compatible types */
       BLKDIR	=	0x40,	/* block belongs to a directory */
       BLKDATA	=	0x80	/* block contains data (not index) */
@@ -79,22 +76,6 @@ int blktypex(struct fstbl *, t_block);
 #define buftype(buf,blk)	(buftypex(buf,blk)&BLKCOMPAT)
 #define blktype(fs,blk)		(blktypex(fs,blk)&BLKCOMPAT)
 
-/* logdir.c */
-void logroot(t_block, const struct btstat *);
-void logdir(t_block, const char *, int, t_block);
-void logrecs(t_block, int);
-void logprint(t_block);
-
-struct root_n {
-  long root;
-  struct dir_n *dir, *last;
-  char *path;	/* non zero after first listing */
-  struct btstat st;
-  long bcnt, rcnt;	/* actual blocks & records that we count */
-  short links;		/* actual links we see */
-};
-
-void doroot(struct root_n *);
 #ifdef __cplusplus
 }
 #endif
