@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <io.h>
 #include <Obstack.h>
 extern "C" {
 #include <tsearch.h>
@@ -75,8 +74,12 @@ void logdir(t_block root,const char *buf,int len,t_block blk) {
   n->rlen = len;
   memcpy(n->buf,buf,len);
   n->buf[len] = 0;
-  n->file = addroot(blk,0);
-  ++n->file->links;
+  if (blk != 0) {
+    n->file = addroot(blk,0);
+    ++n->file->links;
+  }
+  else
+    n->file = 0;
   if (r->last && strcmp(r->last->buf,n->buf) < 0)
     p = &r->last->next;
   else
@@ -132,7 +135,10 @@ static long printroot(struct root_n *r,int lev,const char *name) {
   doroot(r);
   cnt = r->bcnt;
   for (d = r->dir; d; d = d->next) {
-    cnt += printroot(d->file,lev,d->buf);
+    if (d->file)
+      cnt += printroot(d->file,lev,d->buf);
+    else
+      printf("%s --> %s\n",d->buf,d->buf + strlen(d->buf) + 1);
   }
   return cnt;
 }
