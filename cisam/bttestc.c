@@ -121,6 +121,13 @@ int main(argc, argv)
   cnt = atol(argv[i]);
   if (cnt <= 0) cnt = 1000L;
 
+  printf("Options in effect: EXACT: %c, COMPRESS: %c, KEEP: %c\n",
+    (opt.exact) ? 'Y' : 'N',
+    (opt.compress) ? 'Y' : 'N',
+    (opt.keep) ? 'Y' : 'N'
+  );
+
+#ifndef NOCOMPRESS
   if (opt.compress) {
     struct btflds *fcb;
     if (opt.exact)
@@ -135,6 +142,7 @@ int main(argc, argv)
     free((PTR)fcb);
   }
   else
+#endif
     fd = isbuild(filename,sizeof t,&Ktest,ISINOUT + ISEXCLLOCK);
   if (fd == -1) {
     (void)printf("isbuild failed, rc = %d\n",iserrno);
@@ -170,6 +178,7 @@ int main(argc, argv)
   chk(isaddindex(fd,&Ktxt),0);
   stop_timer(cnt + cnt);
 
+#ifndef NOCOMPRESS
   start_timer("Sequential read with rewrec");
   idx = 0L;
   rc = chk(isread(fd,(char *)&t,ISFIRST),ISEOF);
@@ -187,6 +196,7 @@ int main(argc, argv)
   }
   stop_timer(idx);
   (void)printf("%ld records read.\n",idx);
+#endif
 
   start_timer("Random read with isstart by primary key");
   errs = 0;
@@ -240,6 +250,35 @@ int main(argc, argv)
     }
     stop_timer(cnt);
     (void)printf("%d nokeys.\n",errs);
+  }
+
+  (void)printf("Partial key read by primary key with rewrite of secondary.\n");
+  for (i = 0; i < 10; ++i) {
+    long seq = rand() % cnt;
+    int cnt1, cnt2;
+    (void)printf("Partial key = %ld\n",seq);
+    stlong(seq,t.seq);
+    isstart(fd,&Ktest,4,(PTR)&t,ISGTEQ);
+    cnt1 = 0;
+    while (chk(isread(fd,(PTR)&t,ISNEXT),ISEOF) == 0 && ldlong(t.seq) == seq) {
+      ++cnt1;
+      verrec(&t);
+      if (opt.exact) {
+	int j;
+	for (j = 0; j < sizeof t.txt; ++j)
+	  t.txt[j] = toupper(t.txt[j]);
+	isrewrite(fd,(PTR)&t);
+      }
+    }
+    stlong(seq,t.seq);
+    isstart(fd,&Ktest,4,(PTR)&t,ISGTEQ);
+    cnt2 = 0;
+    while (chk(isread(fd,(PTR)&t,ISNEXT),ISEOF) == 0 && ldlong(t.seq) == seq) {
+      ++cnt2;
+      verrec(&t);
+    }
+    if (cnt1 != cnt2)
+      printf("Count mismatch! %d != %d\n",cnt1,cnt2);
   }
 
   isstart(fd,&Ktxt,0,(PTR)&t,ISFIRST);
