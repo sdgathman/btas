@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.3  1994/03/28  20:14:55  stuart
+ * improve error logging
+ *
  * Revision 1.2  1993/05/14  16:21:08  stuart
  * return key information on NOKEY so that symlink works
  *
@@ -192,10 +195,10 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
     register int len, op;
     long cnt = iocnt;
 
-    iocnt = stat.preads + stat.pwrites;
+    iocnt = serverstats.preads + serverstats.pwrites;
     cnt = iocnt - cnt;
-    stat.sum2 += cnt * cnt;
-    ++stat.trans;
+    serverstats.sum2 += cnt * cnt;
+    ++serverstats.trans;
     rc = msgrcv(btasreq,(struct msgbuf *)reqp,
 		reqsiz - sizeof reqp->msgident, 0L, MSG_NOERROR);
     if (rc == -1) {
@@ -260,6 +263,14 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
       if (errno != EAGAIN) break;
       cleanq(btasres,len + 4);	/* remove dead messages from queue */
       if (msgsnd(btasres,(struct msgbuf *)reqp,len,0) == -1) break;
+    }
+    /* suspend operations */
+    if ((reqp->op & 255) == 214 && (op & 31) == BTFLUSH) {
+      fprintf(stderr,"BTAS/X frozen at %s", ctime(&curtime));
+      while (validpid(reqp->msgident))
+	sleep(10);
+      (void)time(&curtime);
+      fprintf(stderr,"BTAS/X unfrozen at %s", ctime(&curtime));
     }
   }
   /* shutdown */
