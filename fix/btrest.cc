@@ -3,6 +3,9 @@
 	Copyright 1991 Business Management Systems, Inc.
 */
 // $Log$
+// Revision 1.5  2000/10/31  20:22:27  stuart
+// change checkpoint size while restoring
+//
 // Revision 1.4  1995/11/25  02:32:57  stuart
 // support converting to checkpoint format
 //
@@ -23,15 +26,22 @@
 int main(int argc,char **argv) {
   bool convert68k = false;	// convert from 68k format
   unsigned chk = 0;		// checkpoint size
+  long size = 0;
   int i;
   for (i = 1; i < argc; ++i) {
     if (strcmp(argv[i],"-6") == 0)
       convert68k = true;
-    else if (strncmp(argv[i],"-c",2) == 0) {
+    else if (strncmp(argv[i],"-c",2) == 0) {	// checkpoint size
       if (argv[i][2])
 	chk = atoi(argv[i] + 2);
       else
 	chk = atoi(argv[++i]);
+    }
+    else if (strncmp(argv[i],"-s",2) == 0) {	// partition size
+      if (argv[i][2])
+	size = atol(argv[i] + 2);
+      else
+	size = atol(argv[++i]);
     }
     else
       break;
@@ -41,6 +51,7 @@ int main(int argc,char **argv) {
 Usage:	btrest [-6] [-cchksize] osfile <archive\n\
 	-6	convert root nodes from 68k to RISC format (add padding)\n\
 	-c	specify checkpoint size to reserve\n\
+	-s	specify partition size to adjust free space\n\
 	osfile	filesystem to overwrite, - for stdout\n",
 	stderr);
     return 1;
@@ -106,6 +117,17 @@ Usage:	btrest [-6] [-cchksize] osfile <archive\n\
     if (f.hdr.root % blksects)
       f.hdr.root += blksects - f.hdr.root % blksects;
     long rootpos = f.hdr.root * SECT_SIZE;
+    long eof = f.dtbl[0].eof;
+    if (size > 0 && eof > 0) {
+      long totblocks = (size - f.hdr.root) / blksects;
+      long inc = totblocks - eof;
+      f.hdr.space += inc;
+      f.dtbl[0].eof = totblocks;
+      fprintf(stderr,"BTAS free space %s by %ld blocks.\n",
+      	(inc < 0) ? "decreased" : "increased",
+	(inc < 0) ? -inc : inc
+      );
+    }
     f.hdr.magic = BTMAGIC;
     if (fwrite(buf,sizeof buf,1,outf) != 1) {
       perror(outputname);
