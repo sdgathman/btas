@@ -10,6 +10,9 @@ that is needed by btar and btutil.  Please review the proposed command
 line options for btar and send your comments.
  *
  * $Log$
+ * Revision 1.3  1997/09/10  21:41:40  stuart
+ * reduce non-verbose output
+ *
  * Revision 1.2  1996/01/05  01:37:40  stuart
  * fix many bugs
  *
@@ -51,14 +54,17 @@ static void *xmalloc(unsigned size) {
 struct namelist {
   struct namelist *next;
   const char *name;
+  int flags;
 };
 
 static struct obstack h;
-static struct namelist *filelist = 0, *dirlist = 0;
+static struct namelist *filelist = 0;
+static int flags = FLAG_EXPAND|FLAG_FIELDS;
 
-static struct namelist *add_list(struct namelist *p,const char *n) {
+static struct namelist *add_list(struct namelist *p,const char *n,int flags) {
   struct namelist *q = obstack_alloc(&h,sizeof *p);
   q->name = n;
+  q->flags = flags;
   if (!p)
     p = q;
   else
@@ -67,7 +73,8 @@ static struct namelist *add_list(struct namelist *p,const char *n) {
   return q;
 }
 
-static struct namelist *read_listfile(struct namelist *p,const char *n) {
+static struct namelist *
+read_listfile(struct namelist *p,const char *n,int flags) {
   FILE *f = fopen(n,"r");
   if (!f) {
     perror(n);
@@ -78,14 +85,14 @@ static struct namelist *read_listfile(struct namelist *p,const char *n) {
     if (c == EOF) {
       if (obstack_object_size(&h)) {
 	obstack_1grow(&h,0);
-	p = add_list(p,obstack_finish(&h));
+	p = add_list(p,obstack_finish(&h),flags);
       }
       break;
     }
     if (c == '\n') {
       if (obstack_object_size(&h)) {
 	obstack_1grow(&h,0);
-	p = add_list(p,obstack_finish(&h));
+	p = add_list(p,obstack_finish(&h),flags);
       }
     }
     else
@@ -95,9 +102,9 @@ static struct namelist *read_listfile(struct namelist *p,const char *n) {
   return p;
 }
 
-static bool matchname(const char *dir,const char *name) {
+static int matchname(const char *dir,const char *name) {
   struct namelist *s;
-  if (!filelist && !dirlist) return true;	// always match if no list
+  if (!filelist) return flags|FLAG_FOUND;	// always match if no list
   if (*dir) {
     int len = strlen(dir);
     char *buf = alloca(len + strlen(name) + 2);
@@ -108,21 +115,17 @@ static bool matchname(const char *dir,const char *name) {
   }
   for (s = filelist; s; ) {
     s = s->next;
-    if (match(name,s->name)) return true;
+    if (match(name,s->name)) return s->flags|FLAG_FOUND;
     if (s == filelist) break;
   }
-  for (s = dirlist; s; ) {
-    s = s->next;
-    if (match(name,s->name)) return true;
-    if (s == dirlist) break;
-  }
-  return false;
+  return 0;
 }
 
 static int ldf(const char *dir,const char *r,int ln,const struct btstat *st) {
-  if (matchname(dir,r)) {
+  int f = matchname(dir,r);
+  if (f) {
     fprintf(stderr,"%s: ",r);
-    btar_extract(dir,r,ln,st);
+    btar_extractx(dir,r,ln,st,f);
   }
   else {
     long recs;
@@ -175,10 +178,19 @@ Usage:	btar {-x,-c,-t} [-vsd] [-f archive] [ [-e] [pattern] [-T file] ... ]\n\
 	-d	do not expand subdirectories\n\
 	-D	expand subdirectories (default)\n\
 	-v	show more info in listings, tell what we are doing\n\
-	-f	name archive file.  Default is stdin/stdout\n\
-	-T	file contains BTAS pathnames, one per line\n\
+	-f file	name archive file.  Default is stdin/stdout\n\
+	-T file	file contains BTAS pathnames, one per line\n\
 	-s	archive is on sequential media (i.e. tape),\n\
 		do not use random access links.\n\
+	-r	replace files/records when extracting\n\
+	-R	do not replace files when extracting (default)\n\
+	-k	use fieldtable when extracting records (default)\n\
+	-K	do not use fieldtable when extracting records\n\
+	Examples:\n\
+	-rk	rewrite records\n\
+	-rK	replace files (careful!)\n\
+	-Rk	ignore dupkeys (default)\n\
+	-RK	merge records\n\
 ",stderr);
   exit(1);
 }
@@ -188,9 +200,7 @@ enum btarCmd { BTAR_NONE, BTAR_EXTRACT, BTAR_LIST, BTAR_CREATE };
 int main(int argc,char **argv) {
   enum btarCmd cmd = BTAR_NONE;
   const char *arfile = 0;
-  bool dironly = false;
   bool seekable = true;
-  bool expand_dir = true;
   int i,j;
   int rc = 0;
   obstack_specify_allocation(&h,0,4,xmalloc,free);
@@ -218,16 +228,28 @@ int main(int argc,char **argv) {
 	  seekable = false;
 	  continue;
 	case 'e':
-	  dironly = true;
+	  flags |= FLAG_DIRONLY;
 	  continue;
 	case 'E':
-	  dironly = false;
+	  flags &= ~FLAG_DIRONLY;
 	  continue;
 	case 'd':
-	  expand_dir = false;
+	  flags &= ~FLAG_EXPAND;
 	  continue;
 	case 'D':
-	  expand_dir = true;
+	  flags |= FLAG_EXPAND;
+	  continue;
+	case 'k':
+	  flags |= FLAG_FIELDS;
+	  continue;
+	case 'K':
+	  flags &= ~FLAG_FIELDS;
+	  continue;
+	case 'r':
+	  flags |= FLAG_REPLACE;
+	  continue;
+	case 'R':
+	  flags &= ~FLAG_REPLACE;
 	  continue;
 	case 'f':
 	  if (arfile) usage();
@@ -243,10 +265,7 @@ int main(int argc,char **argv) {
 	      listfile = argv[i] + j;
 	    else
 	      listfile = argv[++i];
-	    if (dironly)
-	      dirlist = read_listfile(dirlist,listfile);
-	    else
-	      filelist = read_listfile(filelist,listfile);
+	    filelist = read_listfile(filelist,listfile,flags);
 	  }
 	  break;
 	default:
@@ -256,10 +275,7 @@ int main(int argc,char **argv) {
       }
       continue;
     }
-    if (dironly)
-      dirlist = add_list(dirlist,argv[i]);
-    else
-      filelist = add_list(filelist,argv[i]);
+    filelist = add_list(filelist,argv[i],flags);
   }
   switch (cmd) {
     struct namelist *s;
@@ -271,19 +287,17 @@ int main(int argc,char **argv) {
     break;
   case BTAR_CREATE:
     if (btar_opennew(arfile,seekable)) return 1;
-    for (s = dirlist; s && !cancel; ) {
-      s = s->next;
-      if (verbose)
-	fprintf(stderr,"%s%s%s\n","EMPTY ",expand_dir ? "EXPAND " : "",s->name);
-      if (btar_add(s->name,true,expand_dir))
-	rc = 1;
-      if (s == dirlist) break;
-    }
     for (s = filelist; s && !cancel; ) {
       s = s->next;
-      if (verbose)
-	fprintf(stderr,"%s%s\n",expand_dir ? "EXPAND " : "",s->name);
-      if (btar_add(s->name,false,expand_dir))
+      if (verbose) {
+	if (s->flags&FLAG_DIRONLY)
+	  fprintf(stderr,"%s%s%s\n",
+		  "EMPTY ",(s->flags&FLAG_EXPAND) ? "EXPAND " : "",s->name);
+	else
+	  fprintf(stderr,"%s%s\n",
+		  (s->flags&FLAG_EXPAND) ? "EXPAND " : "",s->name);
+      }
+      if (btar_add(s->name,s->flags&FLAG_DIRONLY,s->flags&FLAG_EXPAND))
 	rc = 1;
       if (s == filelist) break;
     }
