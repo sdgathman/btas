@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.13";
+static char what[] = "@(#)btree.c	1.14";
 #endif
 
 #include "btbuf.h"
@@ -18,7 +18,7 @@ int insert(/**/ BLOCK *, BLOCK *, short, char *, short, struct btlevel * /**/);
 	nodes.
 */
 
-static struct btlevel stack[MAXLEV];	/* level stack */
+struct btlevel stack[MAXLEV];	/* level stack */
 struct btlevel *sp;		/* stack pointer */
 
 /*
