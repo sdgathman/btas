@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.7  2003/04/05 04:40:59  stuart
+ * Sanity check keydesc.  Initialize kp->k.k_len in isaddindex().
+ *
  * Revision 1.6  2001/02/28 23:16:55  stuart
  * isindexname support
  *
@@ -186,6 +189,7 @@ int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
   r->key.next = p;
   p->f = fp;
   isldkey(p->name,&p->k,&f);
+  p->k.k_len = kn.k_len;
   rc = btcreate(p->name,p->f,0666);		/* create new index file */
   if (rc) errpost(rc);
   idxname = 0;		/* DUPKEYs no longer translated to EKEXISTS */
