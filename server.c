@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.8  1997/06/23  15:30:35  stuart
+ * use btserve object
+ *
  * Revision 1.7  1996/09/12  22:17:16  stuart
  * improved auto-flush logic
  *
@@ -98,6 +101,7 @@ int main(int argc,char **argv) {
   int reqsiz,i;			/* max size of request block */
   int flushtime = 30;
   bool safe_eof = true;
+  const char *startup = 0;
 
   time(&btserve::curtime);
   fprintf(stderr,"%s%s",ctime(&btserve::curtime),version);
@@ -119,7 +123,6 @@ int main(int argc,char **argv) {
       continue;
     case 'd':		/* debugging mode */
       debug = 1;
-      flushtime = 0;
       continue;
     case 'f':		/* noflush mode */
       if (argv[i][2])
@@ -128,6 +131,12 @@ int main(int argc,char **argv) {
 	flushtime = (int)atol(argv[++i]);
       else
 	flushtime = 0;
+      continue;
+    case 's':		/* startup script */
+      if (argv[i][2])
+	startup = argv[i]+2;
+      else
+	startup = argv[++i];
       continue;
     case 'e':		/* fast (but unsafe) OS eof processing */
       safe_eof = 0;
@@ -142,12 +151,13 @@ syntax:
 "\
 Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
 	-b ddd	maximum blocksize in bytes\n\
-	-d	debugging flag, do not run in background, disable flush\n\
+	-d	daemon/debugging flag, do not run in background\n\
 	-e	disable safe EOF processing for OS files\n\
 	-f	disable auto-flush\n\
 	-f ddd	auto-flush every ddd seconds while active (default 30)\n\
 		auto-flush every 3 seconds while no activity\n\
-	-s ddd	cache memory size in bytes\n\
+	-c ddd	cache memory size in bytes\n\
+	-s fnm	run startup script/program after mounting drives\n\
 	--	stop interpreting flag arguments\n\
 ",
 	stderr);
@@ -200,6 +210,17 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
   if (!debug)
     if (fork()) return 0;		/* run in background */
 
+  if (startup) {
+    switch (fork()) {
+    case 0:
+      execl(startup,startup,(char *)0);
+    case -1:
+      perror(startup);
+    default:
+      break;
+    }
+  }
+
   /* process requests */
 
   plock(DATLOCK);
@@ -237,7 +258,7 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
       int i, n;
       switch (rc) {
       /* cases we don't care about */
-      case 223: case 214: case 212: case 217: case 210:
+      case 223: case 214: case 212: case 217: case 210: case 221:
 #if TRACE < 2
 	break;
 #endif
