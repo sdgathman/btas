@@ -52,6 +52,9 @@ static char what[] = "$Id$";
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 1.3  1993/12/09  19:32:23  stuart
+ * use RCS Id
+ *
  * Revision 1.2  1993/05/14  16:19:23  stuart
  * make symbolic link really work after testing
  *
@@ -60,8 +63,8 @@ static char what[] = "$Id$";
 #include <string.h>
 #include "btbuf.h"
 #include "node.h"
-#include "btas.h"
-#include "bterr.h"
+#include <btas.h>
+#include <bterr.h>
 #include "btfile.h"
 #include "btkey.h"
 
@@ -124,10 +127,10 @@ static int check_perm(struct btperm *st,struct btperm *ut,short mode) {
 #include <stdio.h>
 #endif
 
-int openfile(BTCB *b) {
-  register BLOCK *bp;
-  register int len;
-  register char *p;
+int openfile(BTCB *b,int stat) {
+  BLOCK *bp;
+  int len, rlen = b->rlen;
+  char *p;
   struct btperm id;
 
   char name[MAXKEY+1];		/* max path element */
@@ -193,6 +196,15 @@ int openfile(BTCB *b) {
   btget(1);
   bp = btbuf(b->root);
 
+  if (bp->buf.r.stat.atime < devtbl[b->mid].mount_time)
+    bp->buf.r.stat.opens = 0;			/* reset stale lock */
+
+  if (stat) {
+    if (rlen < sizeof (struct btstat)) return BTERKLEN;
+    (void)memcpy(b->lbuf,(PTR)&bp->buf.r.stat,sizeof (struct btstat));
+    b->rlen = sizeof (struct btstat);
+    return 0;
+  }
   /* check read/write security */
   if (check_perm(&bp->buf.r.stat.id,&id,id.mode) == 0)
     return BTERPERM;
@@ -205,9 +217,6 @@ int openfile(BTCB *b) {
   /* check file locking */
 
 #ifndef SINGLE
-  if (bp->buf.r.stat.atime < devtbl[b->mid].mount_time)
-    bp->buf.r.stat.opens = 0;			/* reset stale lock */
-
   if (b->op & BTEXCL) {
     if (bp->buf.r.stat.opens)
       return BTERLOCK;
