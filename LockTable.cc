@@ -1,3 +1,4 @@
+// $Log$
 #pragma implementation "Set.h"
 #include <Set.h>
 #include <Set.cc>
@@ -12,7 +13,9 @@
 #include <VHMap.cc>
 #pragma implementation "LockTable.h"
 #include "LockTable.h"
+#include <errno.h>
 #include <btas.h>
+#include <signal.h>
 
 static inline unsigned int hash(const long &x) { return x; }
 static inline unsigned int hash(const LockEntry::Ref &r) { return r.hash(); }
@@ -84,7 +87,6 @@ LockEntry::string LockEntry::toString() const {
     sprintf(buf+len," %02X",key[i]);
     len += strlen(buf + len);
   }
-  buf[len++] = 0;
   return string(buf,len);
 }
 
@@ -108,7 +110,11 @@ bool LockEntry::operator==(const LockEntry &r) const {
 }
 
 bool LockEntry::isValid() {
+#ifdef errno
+  return ::kill((int)pid,0) == 0 || errno != ESRCH;
+#else
   return ::kill((int)pid,0) == 0 || ::errno != ESRCH;
+#endif
 }
 
 template class Set<LockEntry::Ref>;
@@ -136,7 +142,7 @@ bool LockTable::addLock(const BTCB *b) {
   LockEntry *&first = pidtbl[newentry->pid];
   newentry->next = first;
   first = newentry;
-  fprintf(stderr,"Locked %s\n",newentry->toString().c_str());
+  //fprintf(stderr,"Locked %s\n",newentry->toString().c_str());
   return true;
 }
 
@@ -147,8 +153,14 @@ void LockTable::delLock(long pid) {
   while (p) {
     LockEntry *n = p->next;
     tbl.del(p);		// remove reference from lock set
-    fprintf(stderr,"UnLock %s\n",p->toString().c_str());
+    //fprintf(stderr,"UnLock %s\n",p->toString().c_str());
     delete p;		// remove lock entry
     p = n;
   }
 }
+
+static void error(const char *mod,const char *msg) {
+  fprintf(stderr,"%s: %s\n",mod,msg);
+}
+
+void (*lib_error_handler)(const char *mod,const char *msg) = error;
