@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.2  1998/04/23  03:13:08  stuart
+ * support key range checking
+ *
  */
 #include <malloc.h>
 #include <errenv.h>
@@ -6,17 +9,19 @@
 #include <bterr.h>
 
 int isread(int fd,void *rec,int mode) {
-  register struct cisam *r;
   register struct cisam_key *kp;
   BTCB *b;
   enum btop op;
   int rc;
+  int btmode;
   char *buf;
-  r = ischkfd(fd);
+  char locking = (mode & ISLOCK) != 0;
+  struct cisam *r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
   buf = alloca(r->rlen);
   kp = r->curidx;
   b = kp->btcb;
+  mode &= ~ISLOCK;
 
   /* interpret special isstart() braindamage */
 
@@ -78,7 +83,7 @@ int isread(int fd,void *rec,int mode) {
        the last record read seems silly to me.) */
     if (kp != r->recidx) {
       if (b->op) return iserr(ENOCURR);
-      if (kp != &r->key) {
+      if (kp != &r->key || locking) {
 	b2urec(kp->f->f,buf,r->rlen,b->lbuf,b->rlen);
 	kp = &r->key;
 	b = kp->btcb;
@@ -113,8 +118,11 @@ int isread(int fd,void *rec,int mode) {
   b->rlen = btrlen(kp->f);	/* max record length */
   if (b->klen > b->rlen)
     b->klen = b->rlen;
+  btmode = NOKEY;
+  if (locking && kp == &r->key)
+    btmode |= LOCK;
   catch(rc)
-  rc = btas(b,(int)op + NOKEY);	/* read btas (possibly key) record */
+  rc = btas(b,(int)op + btmode);	/* read btas (possibly key) record */
   if (rc == 0)
     rc = isCheckRange(r,buf,op);
   if (rc == 0) {
@@ -124,7 +132,9 @@ int isread(int fd,void *rec,int mode) {
       b = kp->btcb;
       u2brec(kp->f->f,buf,r->rlen,b,kp->klen);
       b->rlen = btrlen(kp->f);
-      rc = btas(b,BTREADEQ + NOKEY);
+      if (locking)
+	btmode |= LOCK;
+      rc = btas(b,BTREADEQ + btmode);
     }
     if (rc == 0)
       b2urec(kp->f->f,rec,r->rlen,b->lbuf,b->rlen);
@@ -145,4 +155,14 @@ int isread(int fd,void *rec,int mode) {
   }
   envend
   return ismaperr(rc);
+}
+
+int isrelease(int fd) {
+  BTCB bt;
+  struct cisam *r = ischkfd(fd);
+  if (r == 0) return iserr(ENOTOPEN);
+  memcpy(&bt,r->key.btcb,sizeof bt - sizeof bt.lbuf);
+  bt.klen = 0;
+  bt.rlen = 0;
+  return ismaperr(btas(&bt,BTRELEASE));
 }
