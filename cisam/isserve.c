@@ -1,4 +1,4 @@
-static char id[] = "@(#)isserve.c 1.4 2/9/94";
+static char id[] = "@(#)isserve.c 1.5 2/9/94";
 
 #include <isam.h>
 #include "isreq.h"
@@ -59,6 +59,12 @@ main()
 	res.res = isrewrite(r.fd,p1.buf); break;
     case ISWRCURR:
 	res.res = iswrcurr(r.fd,p1.buf); break;
+    case ISREWCURR:
+	res.res = isrewcurr(r.fd,p1.buf); break;
+    case ISDELETE:
+	res.res = isdelete(r.fd,p1.buf); break;
+    case ISDELCURR:
+	res.res = isdelcurr(r.fd); break;
     case ISUNIQUEID:
 	res.p1 = sizeof p1.id;
 	res.res = isuniqueid(r.fd,&p1.id); break;
@@ -68,6 +74,8 @@ main()
 	  res.p1 = sizeof p1.desc;
 	}
 	res.res = isindexinfo(r.fd,&p1.desc,r.mode); break;
+    case ISAUDIT:
+	res.res = isaudit(r.fd,p1.buf,r.mode); break;
     case ISERASE:
 	res.res = iserase(p1.buf); break;
     case ISLOCK:
