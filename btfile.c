@@ -53,6 +53,9 @@ static const char what[] =
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 2.4  1999/01/25 18:01:50  stuart
+ * return enough info for library to implement symlinks
+ *
  * Revision 2.3  1999/01/22  22:40:09  stuart
  * fix opencnt updating
  *
@@ -88,6 +91,10 @@ static const char what[] =
 
 struct btfile::joinrec {
   t_block root;
+  /* We don't store roota, because we don't currently allow clients
+   * general access to the join table.  Since the root directory is 
+   * currently always node 1, roota is always 1. 
+   */
   short mid, mida;
 };
 
@@ -171,6 +178,17 @@ int btfile::openfile(BTCB *b,int stat) {
 
   t_block newroot = b->root;
   for (p = name; len > 0; len -= b->klen, p += b->klen) {
+    // check for .. from join table target
+    if (!strcmp(p,"..") && b->root == 1L) {	
+      for (int i = 0; i < joincnt; ++i) {
+	if (jointbl[i].mida == b->mid /* && jointbl[i].roota == b->root */) {
+	  b->mid = jointbl[i].mid;
+	  b->root = jointbl[i].root;
+	  bufpool->btroot(b->root,b->mid);		/* new root */
+	  break;
+	}
+      }
+    }
     btget(1);
     bp = btbuf(b->root);
     if ((bp->buf.r.stat.id.mode & BT_DIR) == 0)
