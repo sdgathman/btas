@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.6  1997/08/13  15:23:07  stuart
+ * SETRANGE and fieldtable
+ *
  * Revision 2.5  1997/04/30  19:30:28  stuart
  * a few missing ops
  *
@@ -22,6 +25,8 @@ static const char id[] = "$Id$";
 
 #define TRACE
 #include <stdio.h>
+#include <ctype.h>
+#include <string.h>
 #include <unistd.h>
 #include <isamx.h>
 #include <fcntl.h>
@@ -29,7 +34,7 @@ static const char id[] = "$Id$";
 #include <btflds.h>
 #include "isreq.h"
 
-int readFully(int fd,char *buf,int len) {
+static int readFully(int fd,char *buf,int len) {
   int cnt = 0;
   while (cnt < len) {
     int n = read(fd,buf + cnt,len - cnt);
@@ -39,29 +44,43 @@ int readFully(int fd,char *buf,int len) {
   return cnt;
 }
 
-int addflds(int fd,const char *buf,int len) {
+static int addflds(int fd,const char *buf,int len) {
   int n = len/2;
   int i;
-  struct btfrec *f = alloca(len / 2);
+  struct btfrec *f = alloca(sizeof *f * n);
   for (i = 0; i < n; ++i) {
-    f->type = *buf++;
-    f->len = *buf++;
+    f[i].type = *buf++;
+    f[i].len = *buf++;
   }
   return isaddflds(fd,f,n);
 }
 
-int getflds(int fd,char *buf) {
+static int cmprec(const void *a,const void *b) {
+  const struct btfrec *fa = a;
+  const struct btfrec *fb = b;
+  return fa->pos - fb->pos;
+}
+
+static int getflds(int fd,char *buf) {
   struct btflds *f = isflds(fd);
+  int i, n;
+  struct btfrec *fa;
   if (!f) return 0;
-  for (i = 0; i < f->rlen; ++i) {
-    *buf++ = f->f[i].type;
-    *buf++ = f->f[i].len;
+  // sort by position, first copy 
+  n = f->rlen;
+  fa = alloca(sizeof *fa * n);
+  for (i = 0; i < n; ++i)
+    fa[i] = f->f[i];
+  qsort(fa,n,sizeof *fa,cmprec);
+  for (i = 0; i < n; ++i) {
+    *buf++ = fa[i].type;
+    *buf++ = fa[i].len;
   }
   return i * 2;
 }
 
-int server() {
-  int i, trace = -1, trout = -1;
+static int server() {
+  int i, trace = -1;
   char *auxbuf = 0;
   int auxmax = 0;
   struct ISREQ r;			/* request header */
@@ -79,10 +98,8 @@ int server() {
     char name[64];
     char *p = getenv("ISTRACE");
     if (p) {
-      sprintf(name,"%s/isin.%d",p,getpid());
+      sprintf(name,"%s/istrace.%d",p,getpid());
       trace = open(name,O_WRONLY+O_CREAT+O_TRUNC,0666);
-      sprintf(name,"%s/isout.%d",p,getpid());
-      trout = open(name,O_WRONLY+O_CREAT+O_TRUNC,0666);
     }
   }
 #endif
@@ -100,7 +117,7 @@ int server() {
       p1.buf[p1len]=0;
     }
     if (p2len) {
-      while (p2len > MAXNAME) { read(0,p2.buf,MAXNAME); p2len -= MAXNAME; }
+      while (p2len > MAXRLEN) { read(0,p2.buf,MAXRLEN); p2len -= MAXRLEN; }
       read(0,p2.buf,p2len);
       p2.buf[p2len]=0;
     }
@@ -117,7 +134,10 @@ int server() {
       } d;
     case ISBUILD:
 	ldkeydesc(&d.desc,p2.buf);
-	i = isbuild(p1.buf,len,&d.desc,ldshort(r.mode));
+	if (len == 0)
+	  i = isbuildx(p1.buf,len,&d.desc,ldshort(r.mode),0);
+	else
+	  i = isbuild(p1.buf,len,&d.desc,ldshort(r.mode));
 	break;
     case ISOPEN:
 	i = isopen(p1.buf,ldshort(r.mode));
@@ -131,7 +151,7 @@ int server() {
 	break;
     case ISADDINDEX:
 	ldkeydesc(&d.desc,p1.buf);
-	i = isaddindex(r.fd,&d.desc);
+	i = isaddindexn(r.fd,&d.desc,(p2len == 0) ? 0 : p2.buf);
 	break;
     case ISDELINDEX:
 	ldkeydesc(&d.desc,p1.buf);
@@ -145,6 +165,8 @@ int server() {
 	i = isstartn(r.fd,p2.buf,len,p1.buf,ldshort(r.mode));
 	break;
     case ISREAD:
+	if (p1len == 0)
+	  p1len = isreclen(r.fd);
 	stshort(p1len,res.p1);
 	if (ldshort(r.mode) == ISLESS) {
 	  stshort(ISPREV,r.mode);
@@ -256,10 +278,10 @@ int server() {
     stshort(iserrno,res.iserrno);
     res.isstat1 = isstat1;
     res.isstat2 = isstat2;
-    if (trout > 0) {
-      write(trout,(char *)&res,sizeof res);
-      if (ldshort(res.p1)) write(trout,p1.buf,ldshort(res.p1));
-      if (auxlen > 0) write(trout,auxbuf,auxlen);
+    if (trace > 0) {
+      write(trace,(char *)&res,sizeof res);
+      if (ldshort(res.p1)) write(trace,p1.buf,ldshort(res.p1));
+      if (auxlen > 0) write(trace,auxbuf,auxlen);
     }
     write(0,(char *)&res,sizeof res);
     if (ldshort(res.p1)) write(0,p1.buf,ldshort(res.p1));
@@ -290,10 +312,20 @@ int main(int argc,char **argv) {
   int fd;
   int nodelay = 1;
   struct sockaddr_in saddr;
-  if (argc > 1) {
-    port = atoi(argv[1]);
-    if (port < 1) {
-      fputs("$Id$\nUsage:	isserve [tcpport]\n",stderr);
+  int i;
+  for (i = 1; i < argc; ++i) {
+    if (strncmp(argv[i],"-f",2) == 0) {
+      const char *trfile = argv[i][2] ? argv[i] + 2 : argv[++i];
+      static const char trkey[] = "ISTRACE";
+      char *ebuf = malloc(strlen(trfile) + sizeof trkey + 1);
+      sprintf(ebuf,"%s=%s",trkey,trfile);
+      putenv(ebuf);
+    }
+    else if (isdigit(*argv[i]))
+      port = atoi(argv[i]);
+    else {
+      fputs("$Id$\n\
+Usage:	isserve [-ftracedir] [tcpport]\n",stderr);
       return 1;
     }
   }
