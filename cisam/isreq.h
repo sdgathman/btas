@@ -2,6 +2,9 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.3  2001/02/28 23:09:27  stuart
+ * new ops
+ *
  * Revision 1.2  1997/04/30  19:31:24  stuart
  * add missing ops
  *
@@ -97,7 +100,8 @@ enum isreqOp {
   ISADDFLDS,
   ISGETFLDS,
   ISREADREC,
-  ISINDEXNAME
+  ISINDEXNAME,
+  ISMKDIR
 };
 
 #ifndef __cplusplus

@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.14  2001/10/16 19:26:28  stuart
+ * send key only on ISREAD in isserve.c, minor release
+ *
  * Revision 2.13  2000/09/27 19:50:58  stuart
  * Add timing info to trace output
  * clear range on isstart
@@ -349,6 +352,16 @@ static int server() {
 	stshort(i,res.p1);
 	i = 0;
 	break;
+    case ISMKDIR:
+      if (mode < 0)
+        i = btrmdir(p1.buf);
+      else
+        i = btmkdir(p1.buf,mode);
+      if (i) {
+        iserrno = i;
+	i = -1;
+      }
+      break;
     default:
 	i = -1;
 	iserrno = 118;

@@ -7,7 +7,7 @@ OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
 L = lib/libbtas.a
 CC=g++
 CXXFLAGS=$(CFLAGS)
-BMSLIB=/bms/lib/libbms.a
+BMSLIB=/bms/lib/libbms.a	# static libbms
 
 make:	btserve btstop btstat btinit $L
 

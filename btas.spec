@@ -2,7 +2,7 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.10.2
 Version: %{version}
-Release: 1
+Release: 2
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -30,7 +30,12 @@ Headers and libraries needed to develop BTAS applications.
 %setup -q
 
 %build
-CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make
+%ifos aix4.1
+L="BMSLIB=/bms/slib/libbms.a"
+%else
+L=""
+%endif
+CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make $L
 CC=gcc; export CC
 %ifos aix4.1
 ln lib/libbtas.a lib/PIClibbtas.a
@@ -41,7 +46,7 @@ M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" \
 %endif
 mkdir lib/pic; cd lib/pic; ar xv ../PIClibbtas.a; cd -
 cd lib; gcc -shared -o libbtas.so pic/*.o -L/bms/lib -lbms; cd -
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C cisam isserve bcheck addindex indexinfo
+LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C cisam isserve bcheck addindex indexinfo istrace
 LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C util
 LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C sql
 LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C fix
@@ -71,7 +76,7 @@ cp util/btcd.sh $RPM_BUILD_ROOT/bms/fbin/btcd
 cp sql/btl.sh $RPM_BUILD_ROOT/bms/bin/btl
 cp sql/btlc.sh $RPM_BUILD_ROOT/bms/bin/btlc
 cp sql/sql $RPM_BUILD_ROOT/bms/bin
-cp cisam/isserve cisam/bcheck cisam/addindex cisam/indexinfo	\
+cp cisam/istrace cisam/isserve cisam/bcheck cisam/addindex cisam/indexinfo \
 	$RPM_BUILD_ROOT/bms/bin
 cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
 
@@ -80,7 +85,7 @@ cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
   strip btsave btddir btreload btfree btrcvr btrest || true
   strip btutil btar btdu btpwd sql || true
   strip btbr btflded || true
-  strip isserve bcheck || true
+  strip istrace isserve bcheck || true
   ln addindex delindex
 }
 
@@ -100,6 +105,7 @@ mkuser -a id=711 pgrp=bms home=/bms \
 %defattr(-,btas,bms)
 %dir /bms/bin
 %config /bms/bin/btstart
+/usr/share/btas/btutil.help
 /bms/bin/btar
 /bms/bin/btddir
 /bms/bin/btdu
@@ -119,6 +125,7 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/bin/bcheck
 /bms/bin/addindex
 /bms/bin/delindex
+/bms/bin/istrace
 /bms/bin/indexinfo
 /bms/bin/btbr
 /bms/bin/btflded
