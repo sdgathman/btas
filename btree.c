@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.16";
+static char what[] = "@(#)btree.c	1.17";
 #endif
 
 #include "btbuf.h"
@@ -367,6 +367,8 @@ STATIC int insert(bp,np,idx,urec,ulen,lp)
   return rc;
 }
 
+/* compute the unique key record to distinquish two nodes */
+
 static int getkey(bp,np,urec,blkp)
   BLOCK *bp, *np;
   char *urec;
@@ -376,14 +378,14 @@ static int getkey(bp,np,urec,blkp)
   node_dup = 0;
   i = node_count(bp);
   if (np->flags & BLK_STEM) {
-    assert(i>1);
+    assert(i>1);		/* use & remove implied key for stem nodes */
     ulen = node_size(bp->np,i) - sizeof *blkp;
     node_ldptr(bp,i,&np->buf.s.son);
     np->flags |= BLK_MOD;
     node_copy(bp,i,urec,ulen);
     node_delete(bp,i,1);
   }
-  else {
+  else {			/* contruct unique key for leaf nodes */
     short size; unsigned char *p;
     size = node_size(np->np,1);
     ulen = node_size(bp->np,i);
@@ -396,7 +398,8 @@ static int getkey(bp,np,urec,blkp)
       ++ulen;
     }
   }
+  /* assert(ulen <= MAXKEY); */
   (void)memcpy(urec+ulen,(char *)blkp,sizeof *blkp);
-  ulen += sizeof *blkp;
+  ulen += sizeof *blkp;		/* add block pointer to complete record */
   return ulen;
 }
