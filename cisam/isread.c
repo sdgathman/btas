@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.3  1998/05/26  18:20:09  stuart
+ * record locking implemented
+ *
  * Revision 1.2  1998/04/23  03:13:08  stuart
  * support key range checking
  *
@@ -15,13 +18,13 @@ int isread(int fd,void *rec,int mode) {
   int rc;
   int btmode;
   char *buf;
-  char locking = (mode & ISLOCK) != 0;
+  int flags = mode;
   struct cisam *r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
   buf = alloca(r->rlen);
   kp = r->curidx;
   b = kp->btcb;
-  mode &= ~ISLOCK;
+  mode &= 0xFF;
 
   /* interpret special isstart() braindamage */
 
@@ -30,8 +33,8 @@ int isread(int fd,void *rec,int mode) {
     switch (mode) {
     case ISPREV: return iserr(EENDFILE);
     case ISCURR:
-      if (kp != r->recidx) return iserr(ENOCURR);
-      /* fall through */
+      b->op = 0;
+      break;
     case ISNEXT: mode = ISFIRST;
     }
     break;
@@ -39,8 +42,8 @@ int isread(int fd,void *rec,int mode) {
     switch (mode) {
     case ISNEXT: return iserr(EENDFILE);
     case ISCURR:
-      if (kp != r->recidx) return iserr(ENOCURR);
-      /* fall through */
+      b->op = 0;
+      break;
     case ISPREV: mode = ISLAST;
     }
   case ISCURR:
@@ -83,7 +86,7 @@ int isread(int fd,void *rec,int mode) {
        the last record read seems silly to me.) */
     if (kp != r->recidx) {
       if (b->op) return iserr(ENOCURR);
-      if (kp != &r->key || locking) {
+      if (kp != &r->key || (flags & ISLOCK)) {
 	b2urec(kp->f->f,buf,r->rlen,b->lbuf,b->rlen);
 	kp = &r->key;
 	b = kp->btcb;
@@ -119,7 +122,7 @@ int isread(int fd,void *rec,int mode) {
   if (b->klen > b->rlen)
     b->klen = b->rlen;
   btmode = NOKEY;
-  if (locking && kp == &r->key)
+  if ((flags & ISLOCK) && kp == &r->key)
     btmode |= LOCK;
   catch(rc)
   rc = btas(b,(int)op + btmode);	/* read btas (possibly key) record */
@@ -132,7 +135,7 @@ int isread(int fd,void *rec,int mode) {
       b = kp->btcb;
       u2brec(kp->f->f,buf,r->rlen,b,kp->klen);
       b->rlen = btrlen(kp->f);
-      if (locking)
+      if (flags & ISLOCK)
 	btmode |= LOCK;
       rc = btas(b,BTREADEQ + btmode);
     }
