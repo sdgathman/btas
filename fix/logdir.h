@@ -1,4 +1,7 @@
-// $Log$
+/* $Log$
+ * Revision 1.2  2000/10/31  22:01:05  stuart
+ * Make an object
+ */
 
 #pragma interface
 #include <bttype.h>
@@ -23,6 +26,7 @@ public:
   void logrecs(t_block root, int recs);
   /** Print the directory tree starting with a given root. */
   void logprint(t_block root);
+  virtual ~Logdir();
 protected:
   struct root_n {
     long root;
@@ -33,7 +37,6 @@ protected:
     short links;	/* actual links we've seen */
   };
   virtual void doroot(root_n *);
-  ~Logdir();
 private:
   root_n *addroot(long blk, const struct btstat *st);
   long printroot(root_n *r,int lev,const char *name);
