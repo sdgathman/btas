@@ -5,6 +5,10 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.5  1998/02/02  20:01:55  stuart
+ * Auto create key files
+ * support min/max records
+ *
  * Revision 1.4  1997/05/01  19:13:39  stuart
  * save index names for use by isstartn
  *
@@ -89,193 +93,205 @@ int isopen(const char *name,int mode) {
   return isopenx(name,mode,MAXCISAMREC);	/* no recsize protection */
 }
 
-int isopenx(const char *name,int mode,int rlen) {
+static int isnewfd() {
   int fd;
-
   /* find free descriptor */
   for (fd = 0; fd < MAXFILES; ++fd) {
-    if (isamfd[fd] == 0) {
-      static char installed = 0;
-      struct cisam *cp;
-      char ctl_name[128];
-      char *np;
-      int len, rc;
-      int bmode = mode & 3;	/* BTAS data file mode */
-      int cmode = (bmode == BTWRONLY) ? BTRDWR : bmode;
-
-      if (mode & ISEXCLLOCK) bmode |= BTEXCL;
-      cp = (struct cisam *)malloc(sizeof *cp);
-      if (!cp) {
-	return iserr(EBADMEM);
-      }
-      catch(rc)
-
-      /* init malloced pointers to 0 so that isclose() can clean up
-	 after any errors.  This lets us errpost() at any time. */
-
-      cp->key.next = 0;
-      cp->key.f = 0;
-      cp->key.btcb = 0;
-      cp->recidx = 0;
-      cp->idx = 0;
-      cp->dir = 0;
-      cp->f = 0;
-      cp->start = ISFIRST;
-      cp->curidx = &cp->key;	/* default to primary key */
-      cp->min = 0;
-      cp->max = 0;
-      isamfd[fd] = cp;
-      len = strlen(name);
-      if (len > sizeof ctl_name - sizeof CTL_EXT)
-	errpost(EFNAME);			/* name too long */
-      strcpy(ctl_name,name);
-      strcat(ctl_name+len,CTL_EXT);
-      cp->idx = btopen(ctl_name,cmode + NOKEY,sizeof (struct fisam));
-      np = strrchr(ctl_name,'/');
-      if (np)
-	++np;
-      else
-	np = ctl_name;
-      if (cp->idx->flags) {	/* generate keydesc's from idx file */
-	struct cisam_key *kp = 0;
-	cp->f = ldflds((struct btflds *)0, cp->idx->lbuf, cp->idx->rlen);
-	if (cp->f == 0) errpost(EBADMEM);
-	cp->idx->klen = 1;
-	cp->idx->rlen =  sizeof (struct fisam);
-	cp->idx->lbuf[0] = 0;	/* skip isunique record */
-	while (btas(cp->idx,BTREADGT + NOKEY) == 0) {
-	  struct fisam f;		/* fisam record */
-	  b2urec(cp->f->f,(char *)&f,sizeof f,cp->idx->lbuf,cp->idx->rlen);
-	  if (kp) {
-	    struct cisam_key *p = (struct cisam_key *)malloc(sizeof *p);
-	    if (p == 0) errpost(EBADMEM);
-	    if (kp == cp->recidx)	/* make recidx last or first */
-	      kp = &cp->key;
-	    if (f.flag & ISCLUSTER) {
-	      *p = cp->key;
-	      kp = &cp->key;
-	      kp->next = p;
-	    }
-	    else {
-	      p->next = kp->next;	/* add to chain */
-	      kp->next = p;
-	      kp = p;
-	    }
-	  }
-	  else
-	    kp = &cp->key;
-	  kp->btcb = 0;
-	  kp->f = 0;
-	  isldkey(kp->name,&kp->k,&f);
-
-	  if (kp->k.k_nparts == 0) {
-	    cp->recidx = kp;
-	    c_recno(cp) = 0L;
-	  }
-
-	  cp->idx->klen = cp->idx->rlen;	/* set to read next record */
-	  cp->idx->rlen = sizeof f;
-	}
-
-	for (kp = &cp->key; kp; kp = kp->next) {
-	  struct keydesc kn;
-	  kn = kp->k;
-	  iskeynorm(&kn);
-	  kp->k.k_len = kn.k_len;
-	  strcpy(np,kp->name);
-
-	  if (kp == &cp->key) {
-	    /* the master records may be permuted to match the 
-	       C-isam structure */
-	    struct btflds *fp;
-	    struct btfrec *p;
-	    short pos;
-	    kp->btcb = btopen(ctl_name,bmode,MAXREC);
-	    kp->f = ldflds((struct btflds *)0,kp->btcb->lbuf,kp->btcb->rlen);
-	    if (kp->f == 0) errpost(EBADMEM);
-	    /* permute field table to match user record */
-	    kp->f->klen = kp->f->rlen;		/* convert entire table */
-	    fp = isconvkey(kp->f,&kn,-1);
-	    if (fp == 0) errpost(EBADMEM);
-	    /* compute positions in user record */
-	    for (pos = 0,p = fp->f; p->pos = pos,p->type; pos += p->len,++p);
-            free((char *)kp->f);
-	    fp->klen = fp->rlen;
-	    /* permute field table back to btas record order */
-	    kp->f = isconvkey(fp,&kn,1);
-	    free((char *)fp);			/* with user positions */
-	    kp->btcb = (BTCB *)realloc(kp->btcb,
-				  sizeof *kp->btcb
-				- sizeof kp->btcb->lbuf
-				+ btrlen(kp->f));
-	  }
-	  else {
-	    kp->f = isconvkey(cp->key.f,&kn,1);
-	    if (kp->f == 0) errpost(EBADMEM);
-	    kp->btcb = btopen(ctl_name, bmode | NOKEY, btrlen(kp->f));
-	    /* create any missing key fiels as empty */
-	    if (kp->btcb->flags == 0) {
-	      btclose(kp->btcb);
-	      kp->btcb = 0;
-	      (void)btcreate(ctl_name,kp->f,0666);
-	      kp->btcb = btopen(ctl_name, bmode, btrlen(kp->f));
-	    }
-	  }
-	  if (kn.k_flags&ISDUPS)
-	    kp->klen = btrlen(kp->f);
-	  else
-	    kp->klen = kn.k_len;		/* cisam key length */
-	  {
-	    char *p = strrchr(kp->name,'.');
-	    if (p && strcmp(p,".1") == 0)
-	      cp->curidx = kp;			/* default to C-isam primary */
-	  }
-	}
-
-	if (!(bmode&BTEXCL)) {
-	  free((char *)cp->f);
-	  cp->f = 0;
-	}
-      }
-      else {		/* no idx - use master field table */
-	(void)btclose(cp->idx);
-	cp->idx = 0;	/* isunique not possible */
-	cp->key.btcb = btopen(name,bmode+NOKEY,rlen);
-	if (cp->key.btcb->flags == 0)
-	  errpost(BTERKEY);	/* post here to avoid errdesc in btopen */
-	cp->key.f = ldflds((struct btflds *)0,
-			  cp->key.btcb->lbuf,cp->key.btcb->rlen);
-	if (cp->key.f == 0) errpost(EBADMEM);
-	/* should check for BT_RECNO . . . */
-	cp->key.k.k_flags = 0;		/* no dups on primary */
-	cp->key.k.k_nparts = 1;		/* primary key normalized */
-	cp->key.k.k_start = 0;
-	cp->key.k.k_leng = cp->key.f->f[cp->key.f->klen].pos;
-	cp->key.k.k_len = cp->key.klen = cp->key.k.k_leng;
-	cp->key.k.k_type = CHARTYPE;
-	strncpy(cp->key.name,name,MAXKEYNAME)[MAXKEYNAME] = 0;
-      }
-      enverr
-	(void)isclose(fd);	/* close frees all control blocks */
-	return ismaperr(rc);
-      envend
-      if (bmode&BTEXCL) {
-	np[0] = 0;
-	cp->dir = btopen(ctl_name,BTWRONLY+4,0);
-      }
-      cp->rlen = isrlen(cp->key.f);
-      if (rlen < cp->rlen)
-	cp->rlen = rlen;		/* check users record size */
-      cp->klen = cp->key.k.k_len;
-      iserrno = 0;
-      if (!installed) {
-	atexit(iscloseall);
-	installed = 1;
-      }
+    if (isamfd[fd] == 0) 
       return fd;
-    }
   }
   return iserr(ETOOMANY);
+}
+
+int isopenx(const char *name,int mode,int rlen) {
+  static char installed = 0;
+  struct cisam *cp;
+  char ctl_name[128];
+  char *np;
+  int len, rc;
+  int bmode = mode & 3;	/* BTAS data file mode */
+  int cmode = (bmode == BTWRONLY) ? BTRDWR : bmode;
+  int fd = isnewfd();
+
+  if (fd < 0) return fd;
+
+  if (mode & ISEXCLLOCK) bmode |= BTEXCL;
+  cp = (struct cisam *)malloc(sizeof *cp);
+  if (!cp) {
+    return iserr(EBADMEM);
+  }
+  catch(rc)
+
+  /* init malloced pointers to 0 so that isclose() can clean up
+     after any errors.  This lets us errpost() at any time. */
+
+  cp->key.next = 0;
+  cp->key.f = 0;
+  cp->key.btcb = 0;
+  cp->recidx = 0;
+  cp->idx = 0;
+  cp->dir = 0;
+  cp->f = 0;
+  cp->start = ISFIRST;
+  cp->curidx = &cp->key;	/* default to primary key */
+  cp->min = 0;
+  cp->max = 0;
+  isamfd[fd] = cp;
+  len = strlen(name);
+  if (len > sizeof ctl_name - sizeof CTL_EXT)
+    errpost(EFNAME);			/* name too long */
+  strcpy(ctl_name,name);
+  strcat(ctl_name+len,CTL_EXT);
+  cp->idx = btopen(ctl_name,cmode + NOKEY,sizeof (struct fisam));
+  np = strrchr(ctl_name,'/');
+  if (np)
+    ++np;
+  else
+    np = ctl_name;
+  if (cp->idx->flags) {	/* generate keydesc's from idx file */
+    struct cisam_key *kp = 0;
+    cp->f = ldflds((struct btflds *)0, cp->idx->lbuf, cp->idx->rlen);
+    if (cp->f == 0) errpost(EBADMEM);
+    cp->idx->klen = 1;
+    cp->idx->rlen =  sizeof (struct fisam);
+    cp->idx->lbuf[0] = 0;	/* skip isunique record */
+    while (btas(cp->idx,BTREADGT + NOKEY) == 0) {
+      struct fisam f;		/* fisam record */
+      b2urec(cp->f->f,(char *)&f,sizeof f,cp->idx->lbuf,cp->idx->rlen);
+      if (kp) {
+	struct cisam_key *p = (struct cisam_key *)malloc(sizeof *p);
+	if (p == 0) errpost(EBADMEM);
+	if (kp == cp->recidx)	/* make recidx last or first */
+	  kp = &cp->key;
+	if (f.flag & ISCLUSTER) {
+	  *p = cp->key;
+	  kp = &cp->key;
+	  kp->next = p;
+	}
+	else {
+	  p->next = kp->next;	/* add to chain */
+	  kp->next = p;
+	  kp = p;
+	}
+      }
+      else
+	kp = &cp->key;
+      kp->btcb = 0;
+      kp->f = 0;
+      isldkey(kp->name,&kp->k,&f);
+
+      if (kp->k.k_nparts == 0) {
+	cp->recidx = kp;
+	c_recno(cp) = 0L;
+      }
+
+      cp->idx->klen = cp->idx->rlen;	/* set to read next record */
+      cp->idx->rlen = sizeof f;
+    }
+
+    for (kp = &cp->key; kp; kp = kp->next) {
+      struct keydesc kn;
+      kn = kp->k;
+      iskeynorm(&kn);
+      kp->k.k_len = kn.k_len;
+      strcpy(np,kp->name);
+
+      if (kp == &cp->key) {
+	/* the master records may be permuted to match the 
+	   C-isam structure */
+	struct btflds *fp;
+	struct btfrec *p;
+	short pos;
+	kp->btcb = btopen(ctl_name,bmode,MAXREC);
+	kp->f = ldflds((struct btflds *)0,kp->btcb->lbuf,kp->btcb->rlen);
+	if (kp->f == 0) errpost(EBADMEM);
+	/* permute field table to match user record */
+	kp->f->klen = kp->f->rlen;		/* convert entire table */
+	fp = isconvkey(kp->f,&kn,-1);
+	if (fp == 0) errpost(EBADMEM);
+	/* compute positions in user record */
+	for (pos = 0,p = fp->f; p->pos = pos,p->type; pos += p->len,++p);
+	free((char *)kp->f);
+	fp->klen = fp->rlen;
+	/* permute field table back to btas record order */
+	kp->f = isconvkey(fp,&kn,1);
+	free((char *)fp);			/* with user positions */
+	kp->btcb = (BTCB *)realloc(kp->btcb,
+			      sizeof *kp->btcb
+			    - sizeof kp->btcb->lbuf
+			    + btrlen(kp->f));
+      }
+      else {
+	kp->f = isconvkey(cp->key.f,&kn,1);
+	if (kp->f == 0) errpost(EBADMEM);
+	kp->btcb = btopen(ctl_name, bmode | NOKEY, btrlen(kp->f));
+	/* create any missing key fiels as empty */
+	if (kp->btcb->flags == 0) {
+	  btclose(kp->btcb);
+	  kp->btcb = 0;
+	  (void)btcreate(ctl_name,kp->f,0666);
+	  kp->btcb = btopen(ctl_name, bmode, btrlen(kp->f));
+	}
+      }
+      if (kn.k_flags&ISDUPS)
+	kp->klen = btrlen(kp->f);
+      else
+	kp->klen = kn.k_len;		/* cisam key length */
+      {
+	char *p = strrchr(kp->name,'.');
+	if (p && strcmp(p,".1") == 0)
+	  cp->curidx = kp;			/* default to C-isam primary */
+      }
+    }
+
+    if (!(bmode&BTEXCL)) {
+      free((char *)cp->f);
+      cp->f = 0;
+    }
+  }
+  else {		/* no idx - use master field table */
+    (void)btclose(cp->idx);
+    cp->idx = 0;	/* isunique not possible */
+    cp->key.btcb = btopen(name,bmode+NOKEY+BTDIROK,rlen);
+    if (cp->key.btcb->flags == 0)
+      errpost(BTERKEY);	/* post here to avoid errdesc in btopen */
+    if (cp->key.btcb->flags & BT_DIR) {
+      const static char dirflds[] =
+	{ 0, 1, BT_CHAR, 40, BT_NUM, 1, BT_BIN, 255 };
+      cp->key.f = ldflds((struct btflds *)0,dirflds,sizeof dirflds);
+    }
+    else
+      cp->key.f = ldflds((struct btflds *)0,
+		      cp->key.btcb->lbuf,cp->key.btcb->rlen);
+    if (cp->key.f == 0) errpost(EBADMEM);
+    /* should check for BT_RECNO . . . */
+    cp->key.k.k_flags = 0;		/* no dups on primary */
+    cp->key.k.k_nparts = 1;		/* primary key normalized */
+    cp->key.k.k_start = 0;
+    cp->key.k.k_leng = cp->key.f->f[cp->key.f->klen].pos;
+    cp->key.k.k_len = cp->key.klen = cp->key.k.k_leng;
+    cp->key.k.k_type = CHARTYPE;
+    ctl_name[len] = 0;
+    strncpy(cp->key.name,np,MAXKEYNAME)[MAXKEYNAME] = 0;
+  }
+  enverr
+    (void)isclose(fd);	/* close frees all control blocks */
+    return ismaperr(rc);
+  envend
+  if (bmode&BTEXCL) {
+    np[0] = 0;
+    cp->dir = btopen(ctl_name,BTWRONLY+4,0);
+  }
+  cp->rlen = isrlen(cp->key.f);
+  if (rlen < cp->rlen)
+    cp->rlen = rlen;		/* check users record size */
+  cp->klen = cp->key.k.k_len;
+  iserrno = 0;
+  if (!installed) {
+    atexit(iscloseall);
+    installed = 1;
+  }
+  return fd;
 }
 
 /* normalize keydesc */
