@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.15";
+static char what[] = "@(#)btree.c	1.16";
 #endif
 
 #include "btbuf.h"
@@ -37,7 +37,7 @@ void btadd(urec,ulen)
   struct btlevel *savstk;
   short idx,i,limit,acnt,cnt;
   int rc;
-  char insrec[MAXKEY+sizeof t_block];
+  char insrec[MAXKEY+sizeof (t_block)];
 
   /* assume caller has already attempted node_insert */
 
@@ -245,7 +245,7 @@ void btdel()
   register BLOCK *np, *bp, *dp;
   register short i;
   short nfree,bfree,totfree,cnt,ulen,bcnt;
-  char keyrec[MAXKEY+sizeof t_block];
+  char keyrec[MAXKEY+sizeof (t_block)];
 
   for (;;) {
     if (sp == stack) return;	/* short root node OK */
