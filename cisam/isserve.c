@@ -1,4 +1,4 @@
-static char id[] = "@(#)isserve.c 1.5 2/9/94";
+static char id[] = "@(#)isserve.c 1.6 2/9/94";
 
 #include <isam.h>
 #include "isreq.h"
@@ -17,7 +17,7 @@ main()
 	} p2;		/* holds miscellany */
 
 
-  while (read(0,&r,sizeof r) == sizeof r) {
+  while (read(0,(char *)&r,sizeof r) == sizeof r) {
     if (r.p1) {
       while (r.p1 > MAXRLEN) { read(0,p1.buf,MAXRLEN); r.p1 -= MAXRLEN; }
       read(0,p1.buf,r.p1);
@@ -38,7 +38,7 @@ main()
     case ISOPEN:
 	res.res = isopen(p1.buf,r.mode);
 	if (res.res >= 0) {
-	  isindexinfo(res.res,&p1.dict,0);
+	  isindexinfo(res.res,&p1.desc,0);
 	  iserrno = p1.dict.di_recsize;
 	} break;
     case ISCLOSE:
@@ -93,7 +93,7 @@ main()
     res.iserrno = iserrno;
     res.isstat1 = isstat1;
     res.isstat2 = isstat2;
-    write(1,&res,sizeof res);
+    write(1,(char *)&res,sizeof res);
     if (res.p1) write(1,p1.buf,res.p1);
   }
 }
