@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.11";
+static char what[] = "@(#)btree.c	1.12";
 #endif
 
 #include "btbuf.h"
@@ -9,7 +9,7 @@ static char what[] = "@(#)btree.c	1.11";
 #include <assert.h>
 
 int getkey(/**/ BLOCK *, BLOCK *, char *, t_block * /**/);
-int insert(/**/ BLOCK *, BLOCK *, short, char *, short, struct level * /**/);
+int insert(/**/ BLOCK *, BLOCK *, short, char *, short, struct btlevel * /**/);
 
 /*	the level stack records the path followed when
 	locating a record.  bttrace() follows the tree
@@ -18,8 +18,8 @@ int insert(/**/ BLOCK *, BLOCK *, short, char *, short, struct level * /**/);
 	nodes.
 */
 
-static struct level stack[MAXLEV];	/* level stack */
-struct level *sp;		/* stack pointer */
+static struct btlevel stack[MAXLEV];	/* level stack */
+struct btlevel *sp;		/* stack pointer */
 
 /*
 	btadd() - may be called from btwrite or btrewrite when more space
@@ -31,10 +31,10 @@ struct level *sp;		/* stack pointer */
 
 void btadd(urec,ulen)
   char *urec;
-  short ulen;
+  int ulen;
 {
   register BLOCK *bp,*np,*dp,*ap;
-  struct level *savstk;
+  struct btlevel *savstk;
   short idx,i,limit,acnt,cnt;
   int rc;
   char insrec[MAXREC];
@@ -339,7 +339,7 @@ STATIC int insert(bp,np,idx,urec,ulen,lp)
   short idx;
   char *urec;
   short ulen;
-  struct level *lp;
+  struct btlevel *lp;
 {
   int rc;
 
