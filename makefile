@@ -39,7 +39,7 @@ tar:
 
 rpm:	tar
 	mv btas-$(VERS).src.tar.gz /bms/rpm/SOURCES
-	rpm -ba btas-2.9.spec
+	rpm -ba btas.spec
 
 depend::
 	gcc -MM $(CFLAGS) *.cc *.c >depend
