@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.2  1994/02/23  22:07:18  stuart
+ * isflds entry
+ *
  * Revision 1.1  1993/09/14  17:22:09  stuart
  * Initial revision
  *
@@ -131,30 +134,45 @@ int isopenx(const char *name,int mode,int rlen) {
 	cp->idx->rlen =  sizeof (struct fisam);
 	cp->idx->lbuf[0] = 0;	/* skip isunique record */
 	while (btas(cp->idx,BTREADGT + NOKEY) == 0) {
-	  struct keydesc kn;
 	  struct fisam f;		/* fisam record */
 	  b2urec(cp->f->f,(char *)&f,sizeof f,cp->idx->lbuf,cp->idx->rlen);
-	  isldkey(np,&kn,&f);
 	  if (kp) {
 	    struct cisam_key *p = (struct cisam_key *)malloc(sizeof *p);
 	    if (p == 0) errpost(EBADMEM);
 	    if (kp == cp->recidx)	/* make recidx last or first */
 	      kp = &cp->key;
-	    p->btcb = 0;
-	    p->next = kp->next;	/* add to chain */
-	    kp->next = p;
-	    kp = p;
+	    if (f.flag & ISCLUSTER) {
+	      *p = cp->key;
+	      kp = &cp->key;
+	      kp->next = p;
+	    }
+	    else {
+	      p->next = kp->next;	/* add to chain */
+	      kp->next = p;
+	      kp = p;
+	    }
 	  }
-	  else kp = &cp->key;
+	  else
+	    kp = &cp->key;
+	  kp->btcb = 0;
+	  kp->f = 0;
+	  isldkey(kp->name,&kp->k,&f);
 
-	  kp->k = kn;
-	  iskeynorm(&kn);
-	  kp->k.k_len = kn.k_len;
-
-	  if (kn.k_nparts == 0) {
+	  if (kp->k.k_nparts == 0) {
 	    cp->recidx = kp;
 	    c_recno(cp) = 0L;
 	  }
+
+	  cp->idx->klen = cp->idx->rlen;	/* set to read next record */
+	  cp->idx->rlen = sizeof f;
+	}
+
+	for (kp = &cp->key; kp; kp = kp->next) {
+	  struct keydesc kn;
+	  kn = kp->k;
+	  iskeynorm(&kn);
+	  kp->k.k_len = kn.k_len;
+	  strcpy(np,kp->name);
 
 	  if (kp == &cp->key) {
 	    /* the master records may be permuted to match the 
@@ -191,13 +209,12 @@ int isopenx(const char *name,int mode,int rlen) {
 	  else
 	    kp->klen = kn.k_len;		/* cisam key length */
 	  {
-	    char *p = strrchr(cp->idx->lbuf,'.');
+	    char *p = strrchr(kp->name,'.');
 	    if (p && strcmp(p,".1") == 0)
 	      cp->curidx = kp;			/* default to C-isam primary */
 	  }
-	  cp->idx->klen = cp->idx->rlen;	/* set to read next record */
-	  cp->idx->rlen = sizeof f;
 	}
+
 	if (bmode&BTEXCL) {
 	  np[0] = 0;
 	  cp->dir = btopen(ctl_name,BTWRONLY+4,0);
