@@ -7,15 +7,6 @@ btree:	bttrace()		find record in tree
 	btadd()			insert record when node is full
 	btdel()			call when node is less than half full
 
-node:	node_insert()		insert record in node
-	node_delete()		delete record from node
-	node_copy()		extract record from node
-	node_free()		return free bytes in node
-	node_size()		return size of record
-	node_comp()		compare user record to record in node
-	node_count()		return number of records in node
-	rptr()			return pointer to record in node
-
 btbuf:	btget()			reserve buffers
 	btbuf()			get node in buffer
 	btread()		get node from another file (no root check)
@@ -29,6 +20,9 @@ btkey:	verify()		locate record with a given key.
 	addrec()		add user record, check for DUPKEY
 	delrec()		delete user record, caller locates first
  * $Log$
+ * Revision 1.6  1995/01/13  23:48:31  stuart
+ * stupid typo
+ *
  * Revision 1.5  1994/07/06  15:52:13  stuart
  * don't return old node with record
  *
@@ -42,11 +36,12 @@ btkey:	verify()		locate record with a given key.
  * isolated partial key searches to btfirst(), btlast()
  *
  */
+#ifndef __MSDOS__
+static const char what[] =
+  "$Id$";
+#endif
 
-static const char what[] = "$Id$";
-
-#include "btbuf.h"
-#include "node.h"
+#include "hash.h"
 #include "btas.h"
 #include "btkey.h"
 #include "bterr.h"
@@ -59,16 +54,16 @@ BLOCK *btfirst(BTCB *b) {
     b->u.cache.node = bp->buf.l.lbro;
     btget(1);
     bp = btbuf(b->u.cache.node);
-    b->u.cache.slot = node_count(bp);
-    node_dup = node_comp(bp,b->u.cache.slot,b->lbuf,b->klen);
+    b->u.cache.slot = bp->cnt();
+    BLOCK::dup = bp->comp(b->u.cache.slot,b->lbuf,b->klen);
   }
-  if (node_dup < b->klen) return 0;
+  if (BLOCK::dup < b->klen) return 0;
   return bp;
 }
 
 BLOCK *btlast(BTCB *b) {
   BLOCK *bp = bttrace(b,b->klen,-1);
-  if (sp->slot == node_count(bp)) {
+  if (sp->slot == bp->cnt()) {
     if ((bp->flags & BLK_ROOT) || bp->buf.l.rbro == 0L) return 0;
     b->u.cache.node = bp->buf.l.rbro;
     btget(1);
@@ -77,7 +72,7 @@ BLOCK *btlast(BTCB *b) {
   }
   else
     ++sp->slot;
-  if (node_comp(bp,++b->u.cache.slot,b->lbuf,b->klen) < b->klen) return 0;
+  if (bp->comp(++b->u.cache.slot,b->lbuf,b->klen) < b->klen) return 0;
   return bp;
 }
 
@@ -90,12 +85,12 @@ BLOCK *uniquekey(BTCB *b) {
   */
   BLOCK *dp;
   BLOCK *bp = bttrace(b,b->klen,1);
-  if (sp->slot == 0 || node_dup < b->klen) btpost(BTERKEY); /* not found */
+  if (sp->slot == 0 || BLOCK::dup < b->klen) btpost(BTERKEY); /* not found */
 
   /* check for unique key */
 
-  if (b->u.cache.slot < node_count(bp)) { 	/* check following record */
-    if (*rptr(bp->np,b->u.cache.slot) >= b->klen) btpost(BTERDUP);
+  if (b->u.cache.slot < bp->cnt()) { 	/* check following record */
+    if (*bp->np->rptr(b->u.cache.slot) >= b->klen) btpost(BTERDUP);
     return bp;
   }
   if (bp->flags & BLK_ROOT) return bp;
@@ -107,10 +102,10 @@ BLOCK *uniquekey(BTCB *b) {
   btget(3);
   --sp;
   dp = btbuf(sp->node);
-  if (sp->slot >= node_count(dp)	/* if last record in dad */
-    || node_comp(dp,sp->slot + 1,b->lbuf,b->klen) >= b->klen) {
+  if (sp->slot >= dp->cnt()	/* if last record in dad */
+    || dp->comp(sp->slot + 1,b->lbuf,b->klen) >= b->klen) {
     bp = btbuf(rbro);
-    if (node_comp(bp,1,b->lbuf,b->klen) >= b->klen)
+    if (bp->comp(1,b->lbuf,b->klen) >= b->klen)
       btpost(BTERDUP);
   }
   ++sp;
@@ -126,10 +121,10 @@ BLOCK *verify(BTCB *b) {
     bp = btread(b->u.cache.node);
     if (bp->buf.r.root == b->root			   /* root node OK */
       && (bp->flags & BLK_STEM) == 0			   /* leaf node */
-      && b->u.cache.slot <= node_count(bp)		   /* slot OK */
-      && node_comp(bp,b->u.cache.slot,b->lbuf,b->klen) == b->klen)
+      && b->u.cache.slot <= bp->cnt()		   /* slot OK */
+      && bp->comp(b->u.cache.slot,b->lbuf,b->klen) == b->klen)
     {
-      node_dup = b->klen;
+      BLOCK::dup = b->klen;
       return bp;
     }
   }
@@ -139,11 +134,11 @@ BLOCK *verify(BTCB *b) {
 int addrec(BTCB *b) {
   BLOCK *bp;
   bp = bttrace(b,b->klen,1);
-  if (node_dup == b->klen) {
+  if (BLOCK::dup == b->klen) {
     return BTERDUP;	/* duplicate */
   }
   newcnt = 0;
-  if (node_insert(bp,sp->slot,b->lbuf,b->rlen)) {
+  if (bp->insert(sp->slot,b->lbuf,b->rlen)) {
     btspace();		/* check for enough free space */
     btadd(b->lbuf,b->rlen);
     b->u.cache.slot = 0;		/* didn't keep track of slot */
@@ -160,22 +155,22 @@ int addrec(BTCB *b) {
 }
 
 void delrec(BTCB *b,BLOCK *bp) {
-  int rlen = node_size(bp->np,b->u.cache.slot);
-  if ((b->flags & BT_DIR) && rlen >= PTRLEN) {
+  int rlen = bp->size(b->u.cache.slot);
+  if ((b->flags & BT_DIR) && rlen >= node::PTRLEN) {
     t_block root;
-    int rc;
-    node_ldptr(bp,b->u.cache.slot,&root);
-    if (rc = delfile(b,root)) btpost(rc);
+    root = bp->ldptr(b->u.cache.slot);
+    int rc = delfile(b,root);
+    if (rc) btpost(rc);
     btget(1);
     bp = btbuf(b->u.cache.node);
-    rlen -= PTRLEN;
+    rlen -= node::PTRLEN;
   }
   /* save the record we are about to delete */
-  node_copy(bp,b->u.cache.slot,b->lbuf,b->rlen = rlen,b->klen);
+  bp->copy(b->u.cache.slot,b->lbuf,b->rlen = rlen,b->klen);
   /* delete the record */
-  node_delete(bp,b->u.cache.slot,1);
+  bp->del(b->u.cache.slot);
   newcnt = 0;
-  if (node_free(bp->np,node_count(bp)) >= node_free(bp->np,0)/2) {
+  if (bp->np->free(bp->cnt()) >= bp->np->free(0)/2) {
     if (sp->slot == 0)	/* need to trace location */
       bttrace(b,b->rlen,1);
     btdel();			/* adjust tree */

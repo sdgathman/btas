@@ -1,5 +1,6 @@
-#if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "$Id$";
+#ifndef __MSDOS__
+static const char what[] =
+  "$Id$";
 #endif
 /*
 	BTAS/2 directory operations
@@ -52,6 +53,9 @@ static char what[] = "$Id$";
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 1.5  1995/08/25  18:46:10  stuart
+ * some prototypes
+ *
  * Revision 1.4  1994/03/28  20:13:55  stuart
  * support BTSTAT with pathname
  *
@@ -65,7 +69,6 @@ static char what[] = "$Id$";
 
 #include <string.h>
 #include "hash.h"
-#include "node.h"
 #include <btas.h>
 #include <bterr.h>
 #include "btfile.h"
@@ -100,7 +103,7 @@ int btunjoin(BTCB *b) {
   register int i,mid = b->mid;
   closefile(b);
   for (i = 0; i < joincnt; ++i)
-    if (join[i].mida == mid && devtbl[mid].root == b->root) {
+    if (join[i].mida == mid && b->root == 1L) {
       if (devtbl[mid].mcnt > 1) return BTERBUSY;
       b->root = join[i].root;
       b->mid  = join[i].mid;
@@ -150,7 +153,7 @@ int openfile(BTCB *b,int stat) {
 #endif
 
   if (b->root == 0L) {		/* find root of filesystem */
-    b->root = devtbl[b->mid].root;
+    b->root = 1L;
     btroot(b->root,b->mid);
   }
 
@@ -171,7 +174,7 @@ int openfile(BTCB *b,int stat) {
     (void)strcpy(b->lbuf,p);
     b->u.cache.slot = 0;		/* invalidate cache */
     bp = uniquekey(b);		/* lookup name, errors return failing name */
-    node_ldptr(bp,sp->slot,&b->root);
+    b->root = bp->ldptr(sp->slot);
 
     /* check for null link (i.e. symbolic link) */
     if (b->root == 0L) break;
@@ -180,7 +183,7 @@ int openfile(BTCB *b,int stat) {
     for (i = 0; i < joincnt; ++i) {
       if (join[i].mid == b->mid && join[i].root == b->root) {
 	b->mid = join[i].mida;
-	b->root = devtbl[b->mid].root;
+	b->root = 1L;
 	break;
       }
     }
@@ -189,9 +192,9 @@ int openfile(BTCB *b,int stat) {
 
   b->rlen = 0;
   if (b->klen) {			/* if filename */
-    b->rlen = node_size(bp->np,sp->slot) - sizeof b->root;
+    b->rlen = bp->size(sp->slot) - sizeof b->root;
     /* give user dir record */
-    node_copy(bp,sp->slot,b->lbuf,b->rlen,node_dup);
+    bp->copy(sp->slot,b->lbuf,b->rlen,BLOCK::dup);
   }
   if (b->root == 0L)
     return BTERLINK;
@@ -240,25 +243,28 @@ int openfile(BTCB *b,int stat) {
 }
 
 void closefile(BTCB *b) {
-  register BLOCK *bp;
   if (b->flags) {
 #ifndef SINGLE
     btget(1);
-    bp = btbuf(b->root);
-    if (bp->buf.r.stat.opens == -1)
+    BLOCK *bp = btbuf(b->root);
+    if (bp->buf.r.stat.opens == -1) {
       bp->buf.r.stat.opens = 0;
-    if (bp->buf.r.stat.opens)
+      bp->flags |= BLK_MOD;
+    }
+    else if (bp->buf.r.stat.opens) {
       --bp->buf.r.stat.opens;
-    bp->flags |= BLK_MOD;
+      bp->flags |= BLK_MOD;
+    }
+    if (bp->flags & BLK_MOD)
 #endif
+      --devtbl[b->mid].mcnt;
     b->flags = 0;
-    --devtbl[b->mid].mcnt;
   }
 }
 
 t_block creatfile(BTCB *b) {
   BLOCK *bp;
-  if (b->rlen + PTRLEN > maxrec) btpost(BTERKLEN);
+  if (b->rlen + node::PTRLEN > maxrec) btpost(BTERKLEN);
   btget(2);
   bp = btnew(BLK_ROOT);
 #ifdef TRACE
@@ -271,8 +277,7 @@ t_block creatfile(BTCB *b) {
   bp->buf.r.stat.id = b->u.id;
   ++bp->buf.r.stat.links;
   bp->flags |= BLK_MOD;
-  stptr(bp->buf.r.root,b->lbuf + b->rlen);
-  b->rlen += PTRLEN;
+  b->rlen += stptr(bp->buf.r.root,b->lbuf + b->rlen);
   /* caller writes directory record */
   return bp->buf.r.root;
 }
@@ -330,7 +335,6 @@ t_block linkfile(BTCB *b) {
     }
     bp->flags |= BLK_MOD;
   }
-  stptr(b->u.cache.node,b->lbuf + b->rlen);
-  b->rlen += PTRLEN;
+  b->rlen += stptr(b->u.cache.node,b->lbuf + b->rlen);
   return b->u.cache.node;
 }
