@@ -23,6 +23,17 @@
 #include <btflds.h>
 #include <block.h>
 #include "ebcdic.h"
+#include "farmem.h"
+
+static unsigned short e2brec_rlen = ~0;
+BYTE e2brec_skip = 0;
+
+void e2brec_begin(rlen)
+  unsigned rlen;		/* large record length */
+{
+  e2brec_rlen = rlen;
+  e2brec_skip = 0;
+}
 
 /*
 	convert BTAS/X record to EDL
@@ -38,7 +49,11 @@ void b2erec(p,urec,ulen,buf,len)
   for (++p; *p; p += 2) {
     register int flen;
 
-    if (pos >= ulen) break;	/* field outside user buffer */
+    if (pos >= ulen) {
+      e2brec_rlen = ~0;	/* disable large record code until next e2brec_begin */
+      e2brec_skip = 0;
+      break;	/* field outside user buffer */
+    }
     flen = p[1];		/* uncompressed field length */
 
     if (*p == BT_CHAR) {
@@ -54,7 +69,7 @@ void b2erec(p,urec,ulen,buf,len)
 	  int blen = ' ' - *buf++ + 1;
 	  --len;
 	  if (blen > flen) blen = flen;
-	  farmemset((char far *)urec,0x40,blen); /* add leading blanks */
+	  _fmemset(urec,0x40,blen); /* add leading blanks */
 	  urec += blen;
 	  flen -= blen;
 	}
@@ -70,12 +85,24 @@ void b2erec(p,urec,ulen,buf,len)
 	len -= i;
 	flen -= i;
       }
-      farmemset((char far *)urec,0x40,flen);	/* add trailing blanks */
+      _fmemset(urec,0x40,flen);	/* add trailing blanks */
     }
+#ifdef BIGREC
+    else if (*p == BT_SEQ) {
+      int skip;		/* number of fields to skip */
+      buf += flen;
+      len -= flen;
+      /* use low order byte only */
+      e2brec_skip = skip = (unsigned char)buf[-1];	
+      /* add up uncompressed bytes to skip */
+      for (flen = 0; skip-- && p[2]; p += 2,flen += p[1]);
+      pos += flen;
+    }
+#endif
 #if 0
     else if (*p == BT_RLOCK) {
       if (buf[len - 1] == 0)
-	*urec = 0x40;
+	*urec = 0xff;
       else
 	*urec = 0x00;
       ++pos;
@@ -85,6 +112,9 @@ void b2erec(p,urec,ulen,buf,len)
       int mlen;
       /* optimize by combining adjacent binary fields */
       while (p[2] && p[2] != BT_CHAR) {
+#ifdef BIGREC
+	if (p[2] == BT_SEQ) break;
+#endif
 	p += 2; flen += p[1];
       }
       if (pos + flen > ulen)
@@ -92,36 +122,48 @@ void b2erec(p,urec,ulen,buf,len)
       pos += flen;
       mlen = flen;
       if (mlen > len) {
-	farmemset((char far *)urec + len, 0, mlen - len);
+	_fmemset(urec + len, 0, mlen - len);
 	mlen = len;
       }
-      farmove((char far *)urec,buf,mlen);
+      _fmemcpy(urec,buf,mlen);
       buf += mlen;
       len -= mlen;
     }
     urec += flen;
   }
   if (pos < ulen)
-    farmemset((char far *)urec, 0, ulen - pos);
+    _fmemset(urec, 0, ulen - pos);
 }
 
-void e2brec(p,urec,ulen,btcb,klen)
+unsigned e2brec(p,urec,ulen,btcb,klen)
   const BYTE *p;	/* field table */
   const BYTE far *urec;	/* unpacked user record */
-  int ulen;		/* size of user record */
+  unsigned ulen;		/* size of user record */
   BTCB *btcb;		/* btcb->klen, btcb->rlen, btcb->lbuf modified */
   int klen;		/* unpacked key length */
 {
-  register char *buf = btcb->lbuf;
-  register int pos = 0;
-
-  btcb->klen = 0;
-  for (++p; *p; ++p, pos += *p++) {
-    register int flen = p[1];
-    if (pos >= ulen)
-      flen = 0;
-    else if (pos + flen > ulen)
-      flen = ulen - pos;
+  const BYTE *sav = p;
+  char *buf = btcb->lbuf;	/* compressed buffer pointer */
+  unsigned pos = 0;	/* position in user buffer */
+  int skip = 0;		/* adjustment to pos to give position in segment */
+  btcb->klen = 0;	/* compress key length */
+  for (++p;; p += 2) {
+    int flen;		/* uncompressed size of current field */
+    if (*p == 0) {
+      e2brec_rlen = ~0;	/* reset until e2brec_begin */
+      e2brec_skip = 0;
+      break;
+    }
+    flen = p[1];
+    pos += flen;
+    if ((unsigned)(pos - skip) > e2brec_rlen) {
+      e2brec_skip = (p - sav) / 2 - *sav;
+      pos -= flen;
+      break;
+    }
+    if (pos > ulen)
+      flen -= pos - ulen;
+    if (flen <= 0) continue;
     if (*p == BT_CHAR) {
       register int blen;		/* leading blank count */
       register int nblen;		/* non-blank count */
@@ -155,7 +197,6 @@ void e2brec(p,urec,ulen,btcb,klen)
 	if (nblen < p[1] - blen)
 	  *buf++ = 0;
       }
-      urec += flen - nblen;
       if (klen) {
 	if (klen <= flen) {
 	  /* entire field including null */
@@ -169,9 +210,9 @@ void e2brec(p,urec,ulen,btcb,klen)
 	else
 	  klen -= flen;
       }
+      flen -= nblen;
     }
-    else {		/* no compression for non-character types */
-      farmove((char far *)buf,(char far *)urec,flen);
+    else {
       if (klen) {
 	if (klen <= flen) {
 	  btcb->klen = (short)(buf - btcb->lbuf + klen);
@@ -180,29 +221,70 @@ void e2brec(p,urec,ulen,btcb,klen)
 	else
 	  klen -= flen;
       }
-      buf += flen;
-      urec += flen;
+#ifdef BIGREC
+      if (*p == BT_SEQ) {
+	skip -= flen;	/* BT_SEQ counts in the segment length, */
+	pos  -= flen;	/* but not the user record position */
+	while (flen-- > 1)
+	  *buf++ = 0;
+	*buf++ = e2brec_skip;	/* use low order byte only */
+	/* add up uncompressed bytes to skip */
+	for (flen = 0; e2brec_skip-- && p[2]; p += 2,flen += p[1]);
+	e2brec_skip = 0;
+	pos += flen;
+	skip += flen;
+      }
+      else {		/* no compression for non-character types */
+#endif
+	_fmemcpy(buf,urec,flen);
+	buf += flen;
+      }
     }
+    urec += flen;
   }
   /* final record length */
-  btcb->rlen = (short)farblkfntl((char far *)buf,0,buf-btcb->lbuf);
-  if (btcb->rlen < btcb->klen) btcb->rlen = btcb->klen;
+  btcb->rlen = (short)farblkfntl((char far *)buf,0,buf - btcb->lbuf);
+  if (btcb->rlen < btcb->klen)
+    btcb->rlen = btcb->klen;
+  return pos;
 }
 
 #ifdef LOCKING
-int islocked(const BTCB *b)
-{
+int islocked(const BTCB *b) {
   return (b->rlen > b->klen && b->lbuf[b->rlen - 1] == 0);
 }
 
-void lockrec(BTCB *b)
-{
+void lockrec(BTCB *b) {
   if (!islocked(b))
     b->lbuf[b->rlen++] = 0;
 }
 
-void unlockrec(BTCB *b)
-{
+void unlockrec(BTCB *b) {
   if (islocked(b)) --b->rlen;
 }
 #endif
+
+/* convert record segment to stand alone field table */
+int e2brec_conv(BYTE *dst,const BYTE *src,int maxlen,int skip) {
+  int rlen = 0;
+  int pos = 0;
+  int klen = *src++;
+  for (*dst++ = klen; *src; src += 2) {
+    rlen += src[1];
+    if (rlen > maxlen) break;
+    *dst++ = *src;
+    *dst++ = src[1];
+    if (klen) {
+      pos += src[1];
+      --klen;
+    }
+    if (*src == BT_SEQ) {
+      dst[-2] = BT_BIN;
+      pos = rlen - src[1];
+      while (skip-- && src[2])
+	src += 2, pos += src[1];
+    }
+  }
+  *dst = 0;	/* terminate output table */
+  return pos;	/* return user position of non-key portion */
+}
