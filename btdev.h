@@ -27,13 +27,14 @@ struct DEV: btfhdr {
   short mid;		/* index into fstbl */
   virtual int open(const char *osname,bool rdonly = false);
   virtual int write(t_block blk,const char *buf);
-  int read(t_block blk,char *buf);
-  virtual int sync();
+  virtual int read(t_block blk,char *buf);
+  virtual int sync(long &chkpntCnt);
   virtual int wait();	// wait for sync
-  int chkspace(int needed);
+  int chkspace(int needed,bool safe_eof = true);
   int gethdr(char *buf,int len) const;
   t_block newblk();
   bool isopen() const { return blksize > 0; }
+  bool isclean() const { return flag == 0; }
   virtual int close();
   static unsigned short maxblksize;
   static char index;	// server index
@@ -61,7 +62,7 @@ struct PipeDEV: DEV {
   PipeDEV();
   int open(const char *osname,bool rdonly = false);
   int write(t_block blk,const char *buf);
-  int sync();
+  int sync(long &);
   int wait();
   int close();
   ~PipeDEV();
@@ -75,8 +76,10 @@ struct FDEV: DEV {
   FDEV();
   int open(const char *osname,bool rdonly = false);
   int write(t_block blk,const char *buf);
-  int sync();
+  int read(t_block blk,char *buf);
+  int sync(long &);
   int wait();
+  int max() const { return maxblks; }
   ~FDEV();
 private:
   enum { blkmax = SECT_SIZE / sizeof (long) };
