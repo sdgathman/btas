@@ -3,6 +3,10 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.5  1997/05/08  16:02:10  stuart
+ * autocreate .idx file
+ * support isstartn
+ *
  * Revision 1.4  1995/04/07  18:46:23  stuart
  * repair DUPKEYs in isfixindex
  *
@@ -17,27 +21,43 @@
  *
  */
 #include <malloc.h>
+#include <bterr.h>
 #include "cisam.h"
 #include <stdio.h>
 #include <errenv.h>
 #include <string.h>
 
-int isindexinfo(int fd,struct keydesc *k,int idx) {
-  struct cisam *r;
-  struct cisam_key *kp;
-  r = ischkfd(fd);
+int isindexname(int fd,char *buf,int idx) {
+  struct cisam *r = ischkfd(fd);
+  const struct cisam_key *kp;
   if (r == 0) return iserr(ENOTOPEN);
+  if (idx <= 0) return iserr(EBADARG);
   kp = &r->key;
+  while (--idx > 0) {
+    kp = kp->next;
+    if (kp == 0) return iserr(EBADARG);
+  }
+  strcpy(buf,kp->name);
+  return iserr(0);
+}
+
+int isindexinfo(int fd,struct keydesc *k,int idx) {
+  struct cisam *r = ischkfd(fd);
+  if (r == 0) return iserr(ENOTOPEN);
   if (idx == 0) {		/* dictinfo */
     struct dictinfo *d = (struct dictinfo *)k;
+    struct cisam_key *kp = &r->key;
     struct btstat st;
     btfstat(kp->btcb,&st);
     d->di_recsize = isrlen(kp->f);
     d->di_idxsize = BLKSIZE;
-    for (d->di_nkeys = 1; kp = kp->next; ++d->di_nkeys);
+    for (d->di_nkeys = 1; (kp = kp->next) != 0; ++d->di_nkeys);
     d->di_nrecords = st.rcnt;
   }
+  else if (idx < 0)
+    *k = r->curidx->k;
   else {
+    struct cisam_key *kp = &r->key;
     while (--idx > 0) {
       kp = kp->next;
       if (kp == 0) return iserr(EBADARG);
@@ -64,6 +84,8 @@ static long isfix(struct cisam *r,struct cisam_key *p,const char *name,int e) {
     u2brec(p->f->f,buf,rlen,c,p->klen);
     rc = btas(c,BTWRITE + e);
     b->klen = b->rlen;
+    if (b->klen > rlen)
+      b->klen = rlen;
     if (rc) {
       struct cisam_key *kp = &r->key;
       int i;
@@ -87,6 +109,10 @@ static long isfix(struct cisam *r,struct cisam_key *p,const char *name,int e) {
 }
 
 int isaddindex(int fd,const struct keydesc *k) {
+  return isaddindexn(fd,k,0);
+}
+
+int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
   int idx, rc;
   struct cisam *r;
   struct cisam_key *p;
@@ -126,20 +152,29 @@ int isaddindex(int fd,const struct keydesc *k) {
     r->idx = c;
   }
   name = 0;
-  c->klen = 0; c->rlen = sizeof (struct fisam);
-  (void)btas(c,BTREADLE);		/* get last name */
-  idx = 0;
-  if (name = strrchr(c->lbuf,'.')) {
-    *name++ = 0;
-    idx = atoi(name);
-  }
-  name = 0;
-  do {
+  if (idxname) {
     struct fisam f;
-    (void)sprintf(f.name,"%s.%02d",c->lbuf,++idx);	/* new index name */
-    isstkey(f.name,k,&f);
+    isstkey(idxname,k,&f);
     u2brec(r->f->f,(char *)&f,sizeof f,c,sizeof f.name);
-  } while (btas(c,BTWRITE + DUPKEY));	/* create idx record */
+    btas(c,BTWRITE + DUPKEY);	/* create idx record */
+  }
+  else {
+    c->klen = 0; c->rlen = sizeof (struct fisam);
+    btas(c,BTREADLE);		/* get last name */
+    idx = 0;
+    name = strrchr(c->lbuf,'.');
+    if (name) {
+      *name++ = 0;
+      idx = atoi(name);
+    }
+    name = 0;
+    do {
+      struct fisam f;
+      sprintf(f.name,"%s.%02d",c->lbuf,++idx);	/* new index name */
+      isstkey(f.name,k,&f);
+      u2brec(r->f->f,(char *)&f,sizeof f,c,sizeof f.name);
+    } while (btas(c,BTWRITE + DUPKEY));	/* create idx record */
+  }
 
   /* add cisam_key to list */
   p = (struct cisam_key *)malloc(sizeof *p);
@@ -151,6 +186,7 @@ int isaddindex(int fd,const struct keydesc *k) {
   ldchar(c->lbuf,MAXKEYNAME,p->name);
   rc = btcreate(p->name,p->f,0666);		/* create new index file */
   if (rc) errpost(rc);
+  idxname = 0;		/* DUPKEYs no longer translated to EKEXISTS */
   name = p->name;	/* tell enverr to delete key file on error */
   p->k = *k;
   if (kn.k_flags & ISDUPS)
@@ -174,6 +210,8 @@ int isaddindex(int fd,const struct keydesc *k) {
   btasdir = savdir;
   if (r->f == 0 || c == 0)
     return iserr(ENOTEXCL);
+  if (rc == BTERDUP && idxname)
+    return iserr(EKEXISTS);
   return ismaperr(rc);
 }
 
