@@ -1,3 +1,5 @@
+/* $Log$
+ */
 #include <stdio.h>
 #include <assert.h>
 #include "btbuf.h"
@@ -9,14 +11,19 @@
 #define hash(v)	((v) * 781316125L >> hshift & hmask)
 
 static BLOCK *mru, **hashtbl;
+static BLOCK *inuse[MAXBUF];
+#ifdef FAILSAFE
+static BLOCK *touched[MAXBUF];
+static int numtouch = 0;
+#endif
+static int lastcnt = 0;
+
 static int hshift, hmask;
-static void hdel(int);
+int curcnt = 0;
 
 /* allocate hash table, and initialize chain */
 
-int begbuf(pool,nsize,size)
-  char *pool;
-{
+int begbuf(char *pool,int nsize,int size) {
   int hsize;
   endbuf();
   hsize = size * 3 / 2;
@@ -45,15 +52,17 @@ void endbuf() {
   }
 }
 
-static BLOCK *inuse[MAXBUF];
-static int lastcnt = 0;
-int curcnt = 0;
-
-void btget(cnt)
-  int cnt;		/* reserve cnt buffers */
-{
+/* reserve cnt buffers */
+void btget(int cnt) {
   while (lastcnt > 0) {
     register BLOCK *bp = inuse[--lastcnt];
+#ifdef FAILSAFE
+    /* block is modified but not checkpointed or already touched */
+    if ((bp->flags & (BLK_MOD | BLK_CHK | BLK_TOUCH)) == BLK_MOD) {
+      touched[numtouch++] = bp;
+      bp->flags |= BLK_TOUCH;
+    }
+#endif
     /* assume chain is never empty */
     bp->mru = mru->mru;
     mru->mru->lru = bp;
@@ -64,16 +73,13 @@ void btget(cnt)
   curcnt = cnt;
 }
 
-BLOCK *getbuf(blk,mid)
-  t_block blk;
-  int mid;
-{
+BLOCK *getbuf(t_block blk,short mid) {
   register BLOCK *bp;
   int hval;
   register int h;
   if (lastcnt >= curcnt) {
     char buf[64];
-    sprintf(buf,"lastcnt(%d) < curcnt(%d)",lastcnt,curcnt);
+    sprintf(buf,"lastcnt(%d) < curcnt(%d), %s, line %d",lastcnt,curcnt);
     ASSERTFCN(buf,__FILE__,__LINE__);
   }
 
@@ -92,13 +98,24 @@ BLOCK *getbuf(blk,mid)
     if (--hval < 0) hval = hmask;
   }
 
-  /* remove from chain and install new hash entry */
-  hashtbl[hval] = bp = mru->mru;
-  mru = bp->mru->lru = bp->lru;
-  bp->lru->mru = bp->mru;
-
+  bp = mru->mru;
+#ifdef FAILSAFE
+  while (bp->flags & BLK_MOD) {
+    if (bp->flags & BLK_CHK) {
+      writebuf(bp);	/* OK to update if checkpointed */
+      break;
+    }
+    assert(bp != mru);
+    bp = bp->mru;
+  }
+#else
   if (bp->flags & BLK_MOD)
     writebuf(bp);
+#endif
+  /* remove from chain and install new hash entry */
+  hashtbl[hval] = bp;
+  mru = bp->mru->lru = bp->lru;
+  bp->lru->mru = bp->mru;
 
   h = hash(bp->blk+bp->mid);		/* compute old hash value */
   bp->blk = blk;	/* set new key so hash delete works */
@@ -129,10 +146,9 @@ BLOCK *getbuf(blk,mid)
 }
 
 /* effectively swap contents of two blocks by just swapping pointers */
+/* NOTE: mid must be same! */
 
-void swapbuf(np,bp)
-  BLOCK *np, *bp;
-{
+void swapbuf(BLOCK *np,BLOCK *bp) {
   int hval;
   long blk;
   hval = hash(np->blk+np->mid);
@@ -146,5 +162,4 @@ void swapbuf(np,bp)
   blk = np->blk;
   np->blk = bp->blk;
   bp->blk = blk;
-  /* mid must be same! */
 }
