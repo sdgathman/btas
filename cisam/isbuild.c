@@ -1,4 +1,9 @@
 /* $Log$
+ * Revision 1.3  1998/12/17  23:56:12  stuart
+ * build with rlen == 0 in any directory (bug fix)
+ * try to make isopen get correct klen for rlen == 0,
+ * probably better fixed in isaddflds()
+ *
  * Revision 1.2  1998/12/04  22:30:39  stuart
  * Mark primary key in .idx
  *
@@ -77,7 +82,7 @@ int isbuildx(
   needrecnum = (kd.k_nparts > 0 && f && isrlen(f) != btrlen(f));
 
   /* create .idx file if needed */
-  if (needrecnum || kd.k_nparts != 1 || kd.k_start > 0) {
+  if (needrecnum || kd.k_nparts != 1 || kd.k_start > 0 || mode == 0) {
     static const char idxf[] = { 0, 1,		/* idxname, klen */
       BT_CHAR, 32, BT_NUM, 1, BT_NUM,  1,	/* name, ISDUPS, k_nparts */
       BT_NUM, 2, BT_NUM, 2, BT_NUM, 2,		/* pos, len, type */
@@ -117,7 +122,11 @@ int isbuildx(
     if (rc) return iserr(rc);
   }
 
-  /* create default field table if needed */
+  /* create default field table if needed.  Use logical key length when
+     rlen == 0 so that isopen will get a reasonably correct primary key.
+     A better solution might be to patch in the users original
+     keydesc after the call to isopenx() at the end.
+   */
   if (!f) f = makeflds(k,rlen ? rlen : kd.k_len,!k->k_nparts?4:0);
 
   /* create files */
