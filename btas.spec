@@ -2,12 +2,12 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.10.1
 Version: %{version}
-Release: 4
+Release: 6
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
 BuildRoot: /var/tmp/%{name}-root
-BuildRequires: libbms-devel >= 1.1.3
+BuildRequires: libbms-devel >= 1.1.4
 
 %description
 The BTAS filesystem is a hierarchical filesystem where each file and
@@ -92,6 +92,9 @@ rm -rf $RPM_BUILD_ROOT
 mkuser -a id=711 pgrp=bms home=/bms \
 	gecos="BTAS/X File System" btas 2>/dev/null || true
 %endif
+%ifos linux
+/usr/sbin/useradd -u 711 -d /bms -M -c "BTAS/X File System" -g bms btas || true
+%endif
 
 %files
 %defattr(-,btas,bms)
@@ -122,13 +125,21 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/bin/btflded.scr
 %attr(2755,btas,bms)/bms/bin/isserve
 %dir /bms/lib
+%ifos aix4.1
 /bms/lib/libbtas.a
+%else
+/bms/lib/libbtas.so
+%endif
 %dir /bms/fbin
 /bms/fbin/btcd
 
 %files devel
 %defattr(-,btas,bms)
+%ifos aix4.1
 /bms/slib/libbtas.a
+%else
+/bms/lib/libbtas.a
+%endif
 /bms/include/*.h
 
 %changelog
