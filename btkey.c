@@ -29,6 +29,9 @@ btkey:	verify()		locate record with a given key.
 	addrec()		add user record, check for DUPKEY
 	delrec()		delete user record, caller locates first
  * $Log$
+ * Revision 1.4  1993/12/09  19:33:53  stuart
+ * RCS Id
+ *
  * Revision 1.3  1993/08/25  22:53:06  stuart
  * fix partial key bug, new bttrace interface
  *
@@ -154,17 +157,18 @@ int addrec(BTCB *b) {
 }
 
 void delrec(BTCB *b,BLOCK *bp) {
-  if (b->flags & BT_DIR) {
+  int rlen = node_size(bp->np,b->u.cache.slot);
+  if ((b->flags & BT_DIR) && rlen >= PTRLEN) {
     t_block root;
     int rc;
     node_ldptr(bp,b->u.cache.slot,&root);
     if (rc = delfile(b,root)) btpost(rc);
     btget(1);
     bp = btbuf(b->u.cache.node);
+    rlen -= PTRSIZE;
   }
   /* save the record we are about to delete */
-  b->rlen = node_size(bp->np,b->u.cache.slot);
-  node_copy(bp,b->u.cache.slot,b->lbuf,b->rlen,b->klen);
+  node_copy(bp,b->u.cache.slot,b->lbuf,b->rlen = rlen,b->klen);
   /* delete the record */
   node_delete(bp,b->u.cache.slot,1);
   newcnt = 0;
