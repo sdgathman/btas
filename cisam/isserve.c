@@ -1,5 +1,9 @@
 /*
  * $Log$
+ * Revision 2.8  1997/11/25  20:53:15  stuart
+ * support appending isrecnum to record to simplify browsing
+ * files with no unique key
+ *
  * Revision 2.7  1997/11/21  01:55:39  stuart
  * command line trace file
  * fix field table get/set bugs
@@ -264,6 +268,10 @@ static int server() {
 	  stshort(stkeydesc(&d.desc,p1.buf),res.p1);
 	else
 	  stshort(stdictinfo(&d.dict,p1.buf),res.p1);
+	break;
+    case ISINDEXNAME:
+	i = isindexname(r.fd,p1.buf,mode);
+	stshort(strlen(p1.buf),res.p1);
 	break;
     case ISAUDIT:
 	i = isaudit(r.fd,p1.buf,mode);
