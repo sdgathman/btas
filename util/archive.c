@@ -6,6 +6,9 @@
 	not all) errors.
  *
  * $Log$
+ * Revision 1.5  1998/05/13  04:19:16  stuart
+ * compute maxdat with btfsstat
+ *
  * Revision 1.4  1998/04/08  22:03:24  stuart
  * Extended btar_extract options
  *
@@ -27,8 +30,6 @@
 #include "btar.h"
 #include <ftype.h>	/* portable file formats */
 #include <block.h>
-#include <io.h>
-#include <mem.h>
 #include <bterr.h>
 
 extern volatile int cancel;
