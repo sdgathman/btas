@@ -15,6 +15,9 @@
 	maybe we'll add the feature.)  Anyway, we aren't using locked
 	records in EDX anymore either!
  * $Log$
+ * Revision 1.6  2001/02/28 22:25:02  stuart
+ * define away x86 abominations
+ *
  * Revision 1.5  1994/02/10  19:51:13  stuart
  * replace control chars when compressing BT_CHAR fields
  *
@@ -34,7 +37,7 @@
 #define _fmemset memset
 #define _fmemcpy memcpy
 #define farblkfntr blkfntr
-#define farblkfntl blkfntr
+#define farblkfntl blkfntl
 
 static unsigned short e2brec_rlen = ~0;
 BYTE e2brec_skip = 0;
