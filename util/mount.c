@@ -84,19 +84,10 @@ int unmountfs() {
 }
 
 static void stat1(int drive) {
-  BTCB t;
   struct btfs f;
   register int i;
-  t.root = 0;
-  t.flags = 0;
-  t.mid = drive;
-  t.rlen = MAXREC;
-  t.klen = 0;
-  envelope
-    btas(&t,BTSTAT);	/* try to stat drive */
-    if (t.rlen > sizeof f) t.rlen = sizeof f;
-    memcpy((char *)&f,t.lbuf,t.rlen);
-    printf("%c: %8ld %.16s %6d %6d %s\n", t.mid + 'A',
+  if (btfsstat(drive,&f) == 0) {
+    printf("%c: %8ld %.16s %6d %6d %s\n", drive + 'A',
 	f.hdr.space, ctime(&f.hdr.mount_time),
 	f.hdr.blksize, f.hdr.mcnt,
 	(f.hdr.flag == 0xFF) ? "Dirty" : (f.hdr.flag ? "ChkPnt" : "Clean")
@@ -107,7 +98,7 @@ static void stat1(int drive) {
       if (d->eof) printf(" of %ld",d->eof);
       puts(" used");
     }
-  envend
+  }
 }
 
 int fsstat() {		/* report status of mounted file systems */
