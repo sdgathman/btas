@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.3  1994/02/24  20:05:23  stuart
+ * Use last ISCLUSTER file, if any, as master
+ *
  * Revision 1.2  1994/02/23  22:07:18  stuart
  * isflds entry
  *
@@ -91,6 +94,7 @@ int isopenx(const char *name,int mode,int rlen) {
       static char installed = 0;
       struct cisam *cp;
       char ctl_name[128];
+      char *np;
       int len, rc;
       int bmode = mode & 3;	/* BTAS data file mode */
       int cmode = (bmode == BTWRONLY) ? BTRDWR : bmode;
@@ -121,13 +125,12 @@ int isopenx(const char *name,int mode,int rlen) {
       strcpy(ctl_name,name);
       strcat(ctl_name+len,CTL_EXT);
       cp->idx = btopen(ctl_name,cmode + NOKEY,sizeof (struct fisam));
+      if (np = strrchr(ctl_name,'/'))
+	++np;
+      else
+	np = ctl_name;
       if (cp->idx->flags) {	/* generate keydesc's from idx file */
 	struct cisam_key *kp = 0;
-	char *np;
-	if (np = strrchr(ctl_name,'/'))
-	  ++np;
-	else
-	  np = ctl_name;
 	cp->f = ldflds((struct btflds *)0, cp->idx->lbuf, cp->idx->rlen);
 	if (cp->f == 0) errpost(EBADMEM);
 	cp->idx->klen = 1;
@@ -215,11 +218,7 @@ int isopenx(const char *name,int mode,int rlen) {
 	  }
 	}
 
-	if (bmode&BTEXCL) {
-	  np[0] = 0;
-	  cp->dir = btopen(ctl_name,BTWRONLY+4,0);
-	}
-	else {
+	if (!(bmode&BTEXCL)) {
 	  free((char *)cp->f);
 	  cp->f = 0;
 	}
@@ -240,11 +239,16 @@ int isopenx(const char *name,int mode,int rlen) {
 	cp->key.k.k_leng = cp->key.f->f[cp->key.f->klen].pos;
 	cp->key.k.k_len = cp->key.klen = cp->key.k.k_leng;
 	cp->key.k.k_type = CHARTYPE;
+	strncpy(cp->key.name,name,MAXKEYNAME)[MAXKEYNAME] = 0;
       }
       enverr
 	(void)isclose(fd);	/* close frees all control blocks */
 	return ismaperr(rc);
       envend
+      if (bmode&BTEXCL) {
+	np[0] = 0;
+	cp->dir = btopen(ctl_name,BTWRONLY+4,0);
+      }
       cp->rlen = rlen;		/* save users record size */
       cp->klen = cp->key.k.k_len;
       iserrno = 0;
