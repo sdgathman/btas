@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.6  1995/08/18  20:15:53  stuart
+ * a few prototypes, terminate on SIGDANGER
+ *
  * Revision 1.5  1995/05/31  20:57:22  stuart
  * error reporting bug
  *
@@ -16,16 +19,18 @@
  * Flush buffer on timer - SDG 03-19-89
  */
 
-#include "btbuf.h"
-#include "node.def"
+#include "hash.h"
+#include "alarm.h"
+extern "C" {
 #include <btas.h>
+}
 #include <stdio.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
-#include <signal.h>
 #include <errno.h>
 #include <sys/lock.h>
 
@@ -46,27 +51,16 @@ static unsigned char btflags[32] = {
   DUPKEY>>8, NOKEY>>8, NOKEY>>8, LOCK>>8, 8, 0, 0, 8,0,0,0,0,8, NOKEY>>8
 };
 
-static void ignore(int), cleanq(int,int);
-
 static int btasreq, btasres;
-static int ticks = 0, fatal = 0;
 
-static void ignore(int sig) {	/* ignore signals (but terminate system call) */
-  if (sig == SIGALRM) {
-    if (ticks) {
-      ++ticks;
-      (void)signal(SIGALRM,ignore);
-      (void)alarm(2);
-      (void)time(&curtime);
-    }
-  }
-  else fatal = sig;
-}
+static void cleanq(int,int);
 
 /* remove result messages whose receiver has died 
 */
 
-#define validpid(pid) (kill(pid,0) == 0 || errno != ESRCH)
+static inline bool validpid(int pid) {
+  return kill(pid,0) == 0 || errno != ESRCH;
+}
 
 static void cleanq(int qid,int size) {
   struct {
@@ -79,6 +73,7 @@ static void cleanq(int qid,int size) {
     int rc = msgrcv(qid,&msg,sizeof msg.mtext,0L,IPC_NOWAIT+MSG_NOERROR);
     if (rc == -1) break;	/* all gone now . . . */
     if (validpid(msg.mtype)) {	/* put it back if task still around */
+      // FIXME: this can fail on SCO
       msgsnd(qid,&msg,rc,IPC_NOWAIT);
       nap(50L);			/* let applications run awhile */
     }
@@ -89,7 +84,6 @@ static void cleanq(int qid,int size) {
 }
 
 char debug = 0;
-char noflush = 0;
 
 int main(int argc,char **argv) {
   int rc;
@@ -98,9 +92,11 @@ int main(int argc,char **argv) {
   unsigned cache = 50000U;	/* works on 16 bit systems */
   unsigned block = BLKSIZE;	/* good for most systems */
   int reqsiz,i;			/* max size of request block */
+  int flushtime = 30;
   long iocnt = 0;
 
-  (void)fputs(version,stderr);
+  time(&curtime);
+  fprintf(stderr,"%s%s",ctime(&curtime),version);
   if (argc < 2) goto syntax;
   for (i = 1; i < argc && *argv[i] == '-'; ++i) {
     switch (argv[i][1]) {
@@ -119,8 +115,15 @@ int main(int argc,char **argv) {
       continue;
     case 'd':		/* debugging mode */
       debug = 1;
+      flushtime = 0;
+      continue;
     case 'f':		/* noflush mode */
-      noflush = 1;
+      if (argv[i][2])
+	flushtime = (int)atol(argv[i]+2);
+      else if (isdigit(argv[i+1][0]))
+	flushtime = (int)atol(argv[++i]);
+      else
+	flushtime = 0;
       continue;
     case 'e':		/* fast (but unsafe) OS eof processing */
       safe_eof = 0;
@@ -138,6 +141,8 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
 	-d	debugging flag, do not run in background, disable flush\n\
 	-e	disable safe EOF processing for OS files\n\
 	-f	disable auto-flush\n\
+	-f ddd	auto-flush every ddd seconds while active (default 30)\n\
+		auto-flush every 3 seconds while no activity\n\
 	-s ddd	cache memory size in bytes\n\
 	--	stop interpreting flag arguments\n\
 ",
@@ -153,17 +158,14 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
     (void)fputs("No memory\n",stderr);
     return 1;
   }
+  const char *s = getenv("BTSERVE");
+  if (s) DEV::index = *s;
 
   if (!debug)
     (void)setpgrp();			/* disconnect from interrupts */
 
-  signal(SIGTERM,ignore);	/* shutdown on terminate */
-  signal(SIGPWR,ignore);	/* attempt shutdown on powerfail */
-#ifdef SIGDANGER
-  signal(SIGDANGER,ignore);	/* shutdown on SIGDANGER */
-#endif
-
-  btasreq = msgget(BTASKEY,0620+IPC_CREAT+IPC_EXCL);
+  long btaskey = BTASKEY + DEV::index * 2L;
+  btasreq = msgget(btaskey,0620+IPC_CREAT+IPC_EXCL);
   if (btasreq == -1) {
     if (errno == EEXIST)
       fputs("BTAS/X Server already loaded\n",stderr);
@@ -171,7 +173,7 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
       perror(*argv);
     return 1;
   }
-  btasres = msgget(BTASKEY+1,0640+IPC_CREAT+IPC_EXCL);
+  btasres = msgget(btaskey+1,0640+IPC_CREAT+IPC_EXCL);
   if (btasres == -1) {
     perror(*argv);
     msgctl(btasreq,IPC_RMID,&buf);
@@ -197,6 +199,9 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
   /* process requests */
 
   plock(DATLOCK);
+
+  Alarm alarm;
+
   for (;;) {
     register int len, op;
     long cnt = iocnt;
@@ -208,26 +213,13 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
     rc = msgrcv(btasreq,(struct msgbuf *)reqp,
 		reqsiz - sizeof reqp->msgident, 0L, MSG_NOERROR);
     if (rc == -1) {
-      if (errno != EINTR || fatal) break;
-      if (ticks > 2) {
-#if TRACE > 1
-	fputs("Autoflush\n",stderr);
-#endif
-	if (btflush() == 0)
-	  ticks = 0;		/* turn off timer if complete */
-      }
+      if (alarm.check()) break;
       continue;
     }
 #if TRACE > 1
     fprintf(stderr,"rmlen=%d,op=%x,klen=%d,rlen=%d,\n",
 	rc,reqp->op,reqp->klen,reqp->rlen);
 #endif
-    if (ticks == 0 && !noflush) {
-      ticks = 1;	/* enable alarm handler */
-      (void)signal(SIGALRM,ignore);
-      (void)alarm(2);
-      (void)time(&curtime);
-    }
     rc = reqp->op = btas(reqp,op = reqp->op);	/* execute request */
 
     /* add allowed trap flags to error code */
@@ -244,7 +236,8 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
     if (rc && (reqp->op & op & BTERR) == 0) {	/* if fatal error */
       int i, n;
       switch (rc) {
-      case 214: case 212: case 217: case 210:	/* cases we don't care about */
+      /* cases we don't care about */
+      case 223: case 214: case 212: case 217: case 210:
 #if TRACE < 2
 	break;
 #endif
@@ -268,41 +261,33 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
     fprintf(stderr,"smlen=%d\n",len);
 #endif
     rc = msgsnd(btasres,(struct msgbuf *)reqp,len,IPC_NOWAIT);
-    ticks = 1;	/* don't flush during activity */
     if (rc == -1) {
       if (errno != EAGAIN) break;
       cleanq(btasres,len + 4);	/* remove dead messages from queue */
       if (msgsnd(btasres,(struct msgbuf *)reqp,len,0) == -1) break;
     }
+    bufpool->get(0);
     /* suspend operations */
     if ((reqp->op & 255) == 214 && (op & 31) == BTFLUSH) {
       fprintf(stderr,"BTAS/X frozen at %s", ctime(&curtime));
       while (validpid(reqp->msgident))
 	sleep(10);
-      (void)time(&curtime);
+      time(&curtime);
       fprintf(stderr,"BTAS/X unfrozen at %s", ctime(&curtime));
     }
+    if (flushtime)
+      alarm.enable(flushtime);
   }
   /* shutdown */
   rc = errno;
   btend();
-  (void)msgctl(btasreq,IPC_RMID,&buf);
-  (void)msgctl(btasres,IPC_RMID,&buf);
-  if (rc == EINTR) {
-    const char *s = "SIGNAL";
-    switch (fatal) {
-    case SIGTERM: s = "SIGTERM"; break;
-#ifdef SIGDANGER
-    case SIGDANGER: s = "SIGDANGER"; break;
-#endif
-    }
-    fprintf(stderr,"BTAS/X shutdown: %s\n",s);
-    return 0;
-  }
+  msgctl(btasreq,IPC_RMID,&buf);
+  msgctl(btasres,IPC_RMID,&buf);
   if (rc == EIDRM) {
-    (void)fputs("BTAS/X shutdown: btstop\n",stderr);
+    fputs("BTAS/X shutdown: btstop\n",stderr);
     return 0;
   }
-  (void)fprintf(stderr,"BTAS/2 system error %d\n",rc);
+  if (rc == EINTR) return 0;
+  fprintf(stderr,"BTAS/2 system error %d\n",rc);
   return 1;
 }
