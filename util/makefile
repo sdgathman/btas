@@ -52,8 +52,5 @@ dat:	dat.o $L
 idx:	idx.o fcbread.o $L
 	$(CC) $(LDFLAGS) idx.o fcbread.o -lsisam $(LIBS) -o idx
 
-btflded: btflded.o $L
-	$(CC) $(LDFLAGS) btflded.o -lfsp -lfs -lbtas -lbms -lcurses -o btflded
-
 tar:
 	tarx cvfz btutil.tar.Z *.c makefile *.h *.sh *.help
