@@ -1,6 +1,9 @@
 /*
 	Basic BTAS/2 utility
  * $Log$
+ * Revision 1.2  1993/05/18  15:02:29  stuart
+ * make symbolic links work
+ *
  */
 
 #include <stdio.h>
@@ -204,8 +207,8 @@ int dir() {
   if (strchr(switch_char,'s')) sflag = 1;
   switch (lflag) {
   case 't':
-    printf("%-10s %8s %8s %-24s %s\n",
-      "Mode","User","Group","Last Modified Time","Name"
+    printf("%-10s %8s %8s %-12s %s\n",
+      "Mode","User","Group","Modified","Name"
     );
     break;
   case '1':
@@ -272,21 +275,23 @@ int dir() {
 	totfile++;
 	totblks += st.bcnt;
 	switch (lflag) {
+	  char buf3[14];
 	case 't':
+	  timemask(st.mtime,"Nnn DD CCCCC",buf3);
 	  if (sflag) {
 	    struct ls *ls = (struct ls *)malloc(sizeof *ls);
 	    if (!ls) {
 	      puts("*** out of memory ***\n");
 	      cancel = 1;
 	    }
-	    sprintf(ls->txt,"%10.10s %8.8s %8.8s %24.24s %.24s\n",
-	      perm,buf1,buf2,asctime(localtime(&st.mtime)),ff.b->lbuf);
+	    sprintf(ls->txt,"%10.10s %8.8s %8.8s %12.12s %.24s\n",
+	      perm,buf1,buf2,buf3,ff.b->lbuf);
 	    ls->mtime = st.mtime;
 	    tsearch((PTR)ls,&troot,cmpls);
 	  }
 	  else {
-	    printf("%10.10s %8.8s %8.8s %24.24s %s\n",
-	      perm,buf1,buf2,asctime(localtime(&st.mtime)),ff.b->lbuf);
+	    printf("%10.10s %8.8s %8.8s %12.12s %s\n",
+	      perm,buf1,buf2,buf3,ff.b->lbuf);
 	  }
 	  break;
 	default:
