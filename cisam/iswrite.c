@@ -1,11 +1,14 @@
 /* $Log$
+ * Revision 1.2  1998/12/17  23:36:56  stuart
+ * style changes
+ *
 	iswrite.c
 
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
 */
 
-#include <mem.h>
+#include <string.h>
 #include "cisam.h"
 #include <btas.h>
 
