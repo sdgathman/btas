@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.3  1996/09/23  21:51:42  stuart
+ * run from inetd, readFully request headers
+ *
  * Revision 2.2  1994/02/13  21:26:16  stuart
  * convert keydesc and dictinfo parms
  *
@@ -29,6 +32,8 @@ int readFully(int fd,char *buf,int len) {
 
 int server() {
   int i, trace = -1, trout = -1;
+  char *auxbuf = 0;
+  int auxmax = 0;
   struct ISREQ r;			/* request header */
   struct ISRES res;			/* result header */
   /* FIXME: need file formats for these also (and in isstub.c) */
@@ -41,8 +46,9 @@ int server() {
   for (i=3;i<20;) close(i++);	/* close parent's files */
 #ifdef TRACE
   {
-    char name[64], *p;
-    if (p = getenv("ISTRACE")) {
+    char name[64];
+    char *p = getenv("ISTRACE");
+    if (p) {
       sprintf(name,"%s/isin.%d",p,getpid());
       trace = open(name,O_WRONLY+O_CREAT+O_TRUNC,0666);
       sprintf(name,"%s/isout.%d",p,getpid());
@@ -53,6 +59,8 @@ int server() {
   while (readFully(0,(char *)&r,sizeof r) == sizeof r) {
     int p1len = ldshort(r.p1);
     int p2len = ldshort(r.p2);
+    int len = ldshort(r.len);
+    int auxlen = 0;
     if (trace > 0)
       write(trace,(char *)&r,sizeof r);
     if (p1len) {
@@ -78,7 +86,7 @@ int server() {
       } d;
     case ISBUILD:
 	ldkeydesc(&d.desc,p2.buf);
-	i = isbuild(p1.buf,ldshort(r.len),&d.desc,ldshort(r.mode));
+	i = isbuild(p1.buf,len,&d.desc,ldshort(r.mode));
 	break;
     case ISOPEN:
 	i = isopen(p1.buf,ldshort(r.mode));
@@ -101,25 +109,49 @@ int server() {
     case ISSTART:
 	ldkeydesc(&d.desc,p2.buf);
 	stshort(p1len,res.p1);
-	i = isstart(r.fd,&d.desc,ldshort(r.len),p1.buf,ldshort(r.mode));
+	i = isstart(r.fd,&d.desc,len,p1.buf,ldshort(r.mode));
+	break;
+    case ISSTARTN:
+	stshort(p1len,res.p1);
+	i = isstartn(r.fd,p2.buf,len,p1.buf,ldshort(r.mode));
 	break;
     case ISREAD:
 	stshort(p1len,res.p1);
 	if (ldshort(r.mode) == ISLESS) {
 	  stshort(ISPREV,r.mode);
-	  if (i = isread(r.fd,p1.buf,ISGTEQ)) {
+	  i = isread(r.fd,p1.buf,ISGTEQ);
+	  if (i) {
 	    if (iserrno != ENOREC) break;
 	    stshort(ISLAST,r.mode);
 	  }
 	}
 	if (ldshort(r.mode) == ISLTEQ) {
 	  stshort(ISPREV,r.mode);
-	  if (i = isread(r.fd,p1.buf,ISGREAT)) {
+	  i = isread(r.fd,p1.buf,ISGREAT);
+	  if (i) {
 	    if (iserrno != ENOREC) break;
 	    stshort(ISLAST,r.mode);
 	  }
 	}
 	i = isread(r.fd,p1.buf,ldshort(r.mode));
+	if (i == 0 && len > 0) {
+	  int mode;
+	  switch (ldshort(r.mode)) {
+	  case ISLESS: case ISLTEQ: case ISPREV: case ISLAST:
+	    mode = ISPREV; break;
+	  case ISGREAT: case ISGTEQ: case ISNEXT: case ISFIRST:
+	    mode = ISNEXT; break;
+	  }
+	  auxlen = --len * p1len;
+	  if (auxlen > auxmax) {
+	    if (auxbuf) free(auxbuf);
+	    auxmax = auxlen;
+	    auxbuf = malloc(auxlen);
+	  }
+	  for (i = 0; i < len; ++i)
+	    if (isread(r.fd,auxbuf + i * p1len,mode)) break;
+	  auxlen = i++ * p1len;
+	}
 	break;
     case ISWRITE:
 	i = iswrite(r.fd,p1.buf);
@@ -180,15 +212,19 @@ int server() {
     if (trout > 0) {
       write(trout,(char *)&res,sizeof res);
       if (ldshort(res.p1)) write(trout,p1.buf,ldshort(res.p1));
+      if (auxlen > 0) write(trout,auxbuf,auxlen);
     }
     write(0,(char *)&res,sizeof res);
     if (ldshort(res.p1)) write(0,p1.buf,ldshort(res.p1));
+    if (auxlen > 0) write(0,auxbuf,auxlen);
   }
+  if (auxbuf)
+    free(auxbuf);
   iscloseall();
   return 0;
 }
 
-#if 1
+#if 0
 int main() {
   return server();
 }
@@ -197,12 +233,15 @@ int main() {
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#ifndef m88k
 #include <netinet/tcp.h>
+#endif
 #include <netdb.h>
 
 int main(int argc,char **argv) {
   int port = -1;
   int fd;
+  int nodelay = 1;
   struct sockaddr_in saddr;
   if (argc > 1) {
     port = atoi(argv[1]);
@@ -212,7 +251,12 @@ int main(int argc,char **argv) {
     }
   }
 
-  if (port < 1) return server();
+  if (port < 1) {
+  #ifdef TCP_NODELAY
+    setsockopt(0,IPPROTO_TCP,TCP_NODELAY,&nodelay,sizeof nodelay);
+  #endif
+    return server();
+  }
   /* setup socket for listening */
   fd = socket(AF_INET,SOCK_STREAM,0);
   if (fd == -1) {
@@ -234,13 +278,14 @@ int main(int argc,char **argv) {
   /* accept incoming connections */
   for (;;) {
     int s, len = sizeof saddr;
-    int nodelay = 1;
     s = accept(fd,(struct sockaddr *)&saddr,&len);
     if (s < 0) {
       perror("accept");
       continue;
     }
+  #ifdef TCP_NODELAY
     setsockopt(s,IPPROTO_TCP,TCP_NODELAY,&nodelay,sizeof nodelay);
+  #endif
     switch (fork()) {
     case -1:
       perror("fork");
