@@ -1,4 +1,7 @@
-// $Log$
+/* $Log$
+ * Revision 2.1  1996/12/17  16:40:32  stuart
+ * C++ node interface
+ *
 /*
 	implement node functions
 
