@@ -53,6 +53,9 @@ static const char what[] =
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 2.1  1996/12/17  16:46:23  stuart
+ * C++ node interface
+ *
  * Revision 1.5  1995/08/25  18:46:10  stuart
  * some prototypes
  *
@@ -66,31 +69,32 @@ static const char what[] =
  * make symbolic link really work after testing
  *
  */
-
+#pragma implementation
 #include <string.h>
-#include "hash.h"
 #include <btas.h>
 #include <bterr.h>
+#include "btserve.h"
+#include "btbuf.h"
 #include "btfile.h"
-#include "btkey.h"
+#include "btdev.h"
 
 #include <time.h>
 
-struct btjoin {
+struct btfile::joinrec {
   t_block root;
   short mid, mida;
 };
 
-static struct btjoin join[MAXDEV];	/* simple sequential search */
-static int joincnt = 0;
+btfile::btfile(BlockCache *c): bttrace(c) {
+  joincnt = 0;
+  jointbl = new joinrec[MAXDEV];
+}
 
-int btjoin(BTCB *b) {
-  struct btjoin *p;
-  int mid;
+int btfile::join(BTCB *b) {
   if (joincnt >= MAXDEV) return BTERJOIN;
   b->lbuf[b->klen] = 0;
-  mid = btmount(b->lbuf);
-  p = join + joincnt++;
+  int mid = bufpool->mount(b->lbuf);
+  joinrec *p = jointbl + joincnt++;
   p->root = b->root;
   p->mid  = b->mid;
   b->mid = p->mida = mid;
@@ -99,25 +103,25 @@ int btjoin(BTCB *b) {
   return 0;
 }
 
-int btunjoin(BTCB *b) {
-  register int i,mid = b->mid;
+int btfile::unjoin(BTCB *b) {
+  int mid = b->mid;
   closefile(b);
-  for (i = 0; i < joincnt; ++i)
-    if (join[i].mida == mid && b->root == 1L) {
+  for (int i = 0; i < joincnt; ++i)
+    if (jointbl[i].mida == mid && b->root == 1L) {
       if (devtbl[mid].mcnt > 1) return BTERBUSY;
-      b->root = join[i].root;
-      b->mid  = join[i].mid;
-      while (++i < joincnt) join[i-1] = join[i];
+      b->root = jointbl[i].root;
+      b->mid  = jointbl[i].mid;
+      while (++i < joincnt) jointbl[i-1] = jointbl[i];
       --joincnt;
       b->flags = BT_OPEN;
-      btroot(b->root,b->mid);
+      bufpool->btroot(b->root,b->mid);
       closefile(b);	/* close root mounted on */
-      return btumount(mid);
+      return bufpool->unmount(mid);
     }
   return BTERJOIN;	/* not a mounted filesystem */
 }
 
-static int check_perm(struct btperm *st,struct btperm *ut,short mode) {
+static int check_perm(btperm *st,btperm *ut,short mode) {
   mode &= 0777;
   if (ut->user == 0) return 1;		/* check for super user */
   if (ut->user == st->user) {		/* check owner perms */
@@ -133,17 +137,17 @@ static int check_perm(struct btperm *st,struct btperm *ut,short mode) {
 #include <stdio.h>
 #endif
 
-int openfile(BTCB *b,int stat) {
+int btfile::openfile(BTCB *b,int stat) {
   BLOCK *bp;
   int len, rlen = b->rlen;
   char *p;
-  struct btperm id;
+  btperm id;
 
   char name[MAXKEY+1];		/* max path element */
 
   if (b->flags) return BTEROPEN;	/* sanity check */
   len = b->klen;
-  (void)memcpy(name,b->lbuf,len);
+  memcpy(name,b->lbuf,len);
   name[len] = 0;		/* null terminate path */
   id = b->u.id;
 
@@ -154,13 +158,12 @@ int openfile(BTCB *b,int stat) {
 
   if (b->root == 0L) {		/* find root of filesystem */
     b->root = 1L;
-    btroot(b->root,b->mid);
+    bufpool->btroot(b->root,b->mid);
   }
 
   /* follow path */
 
   for (p = name; len > 0; len -= b->klen, p += b->klen) {
-    register int i;
     btget(1);
     bp = btbuf(b->root);
     if ((bp->buf.r.stat.id.mode & BT_DIR) == 0)
@@ -171,7 +174,7 @@ int openfile(BTCB *b,int stat) {
       return BTERPERM;
 
     b->rlen = b->klen = strlen(p) + 1;
-    (void)strcpy(b->lbuf,p);
+    strcpy(b->lbuf,p);
     b->u.cache.slot = 0;		/* invalidate cache */
     bp = uniquekey(b);		/* lookup name, errors return failing name */
     b->root = bp->ldptr(sp->slot);
@@ -180,14 +183,14 @@ int openfile(BTCB *b,int stat) {
     if (b->root == 0L) break;
 
     /* check join table for (b->mid,b->root) - should btroot do it? */
-    for (i = 0; i < joincnt; ++i) {
-      if (join[i].mid == b->mid && join[i].root == b->root) {
-	b->mid = join[i].mida;
+    for (int i = 0; i < joincnt; ++i) {
+      if (jointbl[i].mid == b->mid && jointbl[i].root == b->root) {
+	b->mid = jointbl[i].mida;
 	b->root = 1L;
 	break;
       }
     }
-    btroot(b->root,b->mid);		/* new root */
+    bufpool->btroot(b->root,b->mid);		/* new root */
   }
 
   b->rlen = 0;
@@ -207,7 +210,7 @@ int openfile(BTCB *b,int stat) {
 
   if (stat) {
     if (rlen < sizeof (struct btstat)) return BTERKLEN;
-    (void)memcpy(b->lbuf,(PTR)&bp->buf.r.stat,sizeof (struct btstat));
+    memcpy(b->lbuf,(PTR)&bp->buf.r.stat,sizeof (struct btstat));
     b->rlen = sizeof (struct btstat);
     return 0;
   }
@@ -234,7 +237,7 @@ int openfile(BTCB *b,int stat) {
       return BTERLOCK;
     ++bp->buf.r.stat.opens;
   }
-  curtime = time(&bp->buf.r.stat.atime);		/* new access time */
+  btserve::curtime = time(&bp->buf.r.stat.atime);	// new access time
   bp->flags |= BLK_MOD;
 #endif
   b->flags = id.mode | BT_OPEN;
@@ -242,7 +245,7 @@ int openfile(BTCB *b,int stat) {
   return 0;			/* open successful */
 }
 
-void closefile(BTCB *b) {
+void btfile::closefile(BTCB *b) {
   if (b->flags) {
 #ifndef SINGLE
     btget(1);
@@ -262,11 +265,10 @@ void closefile(BTCB *b) {
   }
 }
 
-t_block creatfile(BTCB *b) {
-  BLOCK *bp;
-  if (b->rlen + node::PTRLEN > maxrec) btpost(BTERKLEN);
+t_block btfile::creatfile(BTCB *b) {
+  if (b->rlen + node::PTRLEN > bufpool->maxrec) btpost(BTERKLEN);
   btget(2);
-  bp = btnew(BLK_ROOT);
+  BLOCK *bp = bufpool->btnew(BLK_ROOT);
 #ifdef TRACE
   fprintf(stderr,"uid=%d,gid=%d,mode=%o\n",
     b->u.id.user,b->u.id.group,b->u.id.mode);
@@ -282,11 +284,10 @@ t_block creatfile(BTCB *b) {
   return bp->buf.r.root;
 }
 
-int delfile(BTCB *b,t_block root) {
-  BLOCK *bp;
+int btfile::delfile(BTCB *b,t_block root) {
   if (root == 0L) return 0;
   btget(2);
-  bp = btread(root);
+  BLOCK *bp = bufpool->btread(root);
   if (bp->buf.r.root == root) {
     /* check if directory unlink is legal */
     if (bp->buf.r.stat.id.mode & BT_DIR && bp->buf.r.stat.rcnt) {
@@ -310,7 +311,7 @@ int delfile(BTCB *b,t_block root) {
 	++bp->buf.r.stat.links;
 	return BTERDEL;
       }
-      btfree(bp);
+      bufpool->btfree(bp);
     }
     else
       bp->flags |= BLK_MOD;
@@ -318,12 +319,11 @@ int delfile(BTCB *b,t_block root) {
   return 0;
 }
 
-t_block linkfile(BTCB *b) {
-  if (b->rlen > maxrec - sizeof b->root) btpost(BTERKLEN);
+t_block btfile::linkfile(BTCB *b) {
+  if (b->rlen > bufpool->maxrec - sizeof b->root) btpost(BTERKLEN);
   if (b->u.cache.node) {
-    BLOCK *bp;
     btget(2);
-    bp = btread(b->u.cache.node);
+    BLOCK *bp = bufpool->btread(b->u.cache.node);
     if (bp->buf.r.root != b->u.cache.node) btpost(BTERROOT);
 #ifdef SAFELINK
     if (bp->buf.r.stat.level > btbuf(b->root)->buf.r.stat.level)

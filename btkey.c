@@ -1,25 +1,10 @@
 /*
 	Intermediate level operations on BTAS files.
 
-	A partial list of calls to lower levels:
-
-btree:	bttrace()		find record in tree
-	btadd()			insert record when node is full
-	btdel()			call when node is less than half full
-
-btbuf:	btget()			reserve buffers
-	btbuf()			get node in buffer
-	btread()		get node from another file (no root check)
-
-	What we do:
-
-btkey:	verify()		locate record with a given key.
-				Use cache.node,cache.slot if possible.
-	uniquekey()		locate record with a given key, post
-				DUPKEY if more than one.
-	addrec()		add user record, check for DUPKEY
-	delrec()		delete user record, caller locates first
  * $Log$
+ * Revision 2.1  1996/12/17  16:46:59  stuart
+ * C++ node interface
+ *
  * Revision 1.6  1995/01/13  23:48:31  stuart
  * stupid typo
  *
@@ -41,14 +26,14 @@ static const char what[] =
   "$Id$";
 #endif
 
-#include "hash.h"
+#include "btserve.h"
+#include "btbuf.h"
 #include "btas.h"
-#include "btkey.h"
-#include "bterr.h"
 #include "btfile.h"
+#include "bterr.h"
 
-BLOCK *btfirst(BTCB *b) {
-  BLOCK *bp = bttrace(b,b->klen,1);
+BLOCK *btfile::btfirst(BTCB *b) {
+  BLOCK *bp = trace(b,b->klen,1);
   if (sp->slot == 0) {
     if ((bp->flags & BLK_ROOT) || bp->buf.l.lbro == 0L) return 0;
     b->u.cache.node = bp->buf.l.lbro;
@@ -61,8 +46,8 @@ BLOCK *btfirst(BTCB *b) {
   return bp;
 }
 
-BLOCK *btlast(BTCB *b) {
-  BLOCK *bp = bttrace(b,b->klen,-1);
+BLOCK *btfile::btlast(BTCB *b) {
+  BLOCK *bp = trace(b,b->klen,-1);
   if (sp->slot == bp->cnt()) {
     if ((bp->flags & BLK_ROOT) || bp->buf.l.rbro == 0L) return 0;
     b->u.cache.node = bp->buf.l.rbro;
@@ -76,15 +61,12 @@ BLOCK *btlast(BTCB *b) {
   return bp;
 }
 
-BLOCK *uniquekey(BTCB *b) {
-  t_block rbro;
-
+BLOCK *btfile::uniquekey(BTCB *b) {
   /* We would like to use verify(), but we don't for now because
      our callers often need to call btadd() or btdel() and they
      would have to check sp and call bttrace() themselves when necessary.
   */
-  BLOCK *dp;
-  BLOCK *bp = bttrace(b,b->klen,1);
+  BLOCK *bp = trace(b,b->klen,1);
   if (sp->slot == 0 || BLOCK::dup < b->klen) btpost(BTERKEY); /* not found */
 
   /* check for unique key */
@@ -97,11 +79,11 @@ BLOCK *uniquekey(BTCB *b) {
 
   /* have to check dad and perhaps right brother */
 
-  rbro = bp->buf.l.rbro;	/* save right brother */
+  t_block rbro = bp->buf.l.rbro;	/* save right brother */
   if (rbro == 0) return bp;
   btget(3);
   --sp;
-  dp = btbuf(sp->node);
+  BLOCK *dp = btbuf(sp->node);
   if (sp->slot >= dp->cnt()	/* if last record in dad */
     || dp->comp(sp->slot + 1,b->lbuf,b->klen) >= b->klen) {
     bp = btbuf(rbro);
@@ -114,11 +96,11 @@ BLOCK *uniquekey(BTCB *b) {
 
 /* Verify cached record location. */
 
-BLOCK *verify(BTCB *b) {
+BLOCK *btfile::verify(BTCB *b) {
   BLOCK *bp;
   if (b->u.cache.slot > 0) {		/* if cached location */
     btget(1);
-    bp = btread(b->u.cache.node);
+    bp = bufpool->btread(b->u.cache.node);
     if (bp->buf.r.root == b->root			   /* root node OK */
       && (bp->flags & BLK_STEM) == 0			   /* leaf node */
       && b->u.cache.slot <= bp->cnt()		   /* slot OK */
@@ -131,16 +113,16 @@ BLOCK *verify(BTCB *b) {
   return 0;
 }
 
-int addrec(BTCB *b) {
+int btfile::addrec(BTCB *b) {
   BLOCK *bp;
-  bp = bttrace(b,b->klen,1);
+  bp = trace(b,b->klen,1);
   if (BLOCK::dup == b->klen) {
     return BTERDUP;	/* duplicate */
   }
-  newcnt = 0;
+  bufpool->newcnt = 0;
   if (bp->insert(sp->slot,b->lbuf,b->rlen)) {
-    btspace();		/* check for enough free space */
-    btadd(b->lbuf,b->rlen);
+    bufpool->btspace(needed());		/* check for enough free space */
+    add(b->lbuf,b->rlen);
     b->u.cache.slot = 0;		/* didn't keep track of slot */
   }
   else
@@ -148,13 +130,13 @@ int addrec(BTCB *b) {
   btget(1);
   bp = btbuf(b->root);
   ++bp->buf.r.stat.rcnt;	/* increment record count */
-  bp->buf.r.stat.bcnt += newcnt;
-  bp->buf.r.stat.mtime = curtime;
+  bp->buf.r.stat.bcnt += bufpool->newcnt;
+  bp->buf.r.stat.mtime = btserve::curtime;
   bp->flags |= BLK_MOD;
   return 0;
 }
 
-void delrec(BTCB *b,BLOCK *bp) {
+void btfile::delrec(BTCB *b,BLOCK *bp) {
   int rlen = bp->size(b->u.cache.slot);
   if ((b->flags & BT_DIR) && rlen >= node::PTRLEN) {
     t_block root;
@@ -169,18 +151,59 @@ void delrec(BTCB *b,BLOCK *bp) {
   bp->copy(b->u.cache.slot,b->lbuf,b->rlen = rlen,b->klen);
   /* delete the record */
   bp->del(b->u.cache.slot);
-  newcnt = 0;
+  bufpool->newcnt = 0;
   if (bp->np->free(bp->cnt()) >= bp->np->free(0)/2) {
     if (sp->slot == 0)	/* need to trace location */
-      bttrace(b,b->rlen,1);
-    btdel();			/* adjust tree */
+      trace(b,b->rlen,1);
+    del();			/* adjust tree */
   }
   btget(1);
   bp = btbuf(b->root);
   --bp->buf.r.stat.rcnt;	/* decrement record count */
-  bp->buf.r.stat.bcnt += newcnt;
-  bp->buf.r.stat.mtime = curtime;
+  bp->buf.r.stat.bcnt += bufpool->newcnt;
+  bp->buf.r.stat.mtime = btserve::curtime;
   bp->flags |= BLK_MOD;
   b->u.cache.slot = 0;		/* slot no longer valid */
   return;
+}
+
+void btfile::replace(BTCB *b,bool rewrite) {
+  BLOCK *bp = uniquekey(b);
+  /* check free space, physical size could change because of key
+     compression even when logical size doesn't */
+  bufpool->btspace(needed());
+  bufpool->newcnt = 0;
+  /* convert user record to a directory record if required */
+  if (b->flags & BT_DIR) {
+    if (b->rlen > bufpool->maxrec - sizeof (t_block))
+      b->rlen = bufpool->maxrec - sizeof (t_block);
+    t_block root = bp->ldptr(sp->slot);
+    b->rlen += stptr(root,b->lbuf + b->rlen);
+  }
+  if (rewrite) {
+    int rlen = bp->size(sp->slot);
+    /* extend user record with existing record if required */
+    if (rlen > b->rlen) {
+      int ptrlen = (b->flags & BT_DIR) ? node::PTRLEN : 0;
+      bp->copy(sp->slot,b->lbuf,rlen,b->rlen - ptrlen);
+      b->rlen = rlen;
+    }
+  }
+    /* OK, now replace the record */
+  if (bp->replace(sp->slot,b->lbuf,b->rlen)) {
+    --sp->slot;
+    add(b->lbuf,b->rlen);
+  }
+  else if (bp->np->free(bp->cnt()) >= bp->np->free(0)/2)
+    del();
+
+  if (b->flags & BT_DIR)
+    b->rlen -= node::PTRLEN;
+  btget(1);
+  bp = btbuf(b->root);
+  if (bufpool->newcnt || bp->buf.r.stat.mtime != btserve::curtime) {
+    bp->buf.r.stat.bcnt += bufpool->newcnt;
+    bp->buf.r.stat.mtime = btserve::curtime;
+    bp->flags |= BLK_MOD;
+  }
 }
