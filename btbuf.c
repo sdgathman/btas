@@ -4,7 +4,8 @@
 	11-04-88 keep track of free space
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
-*/
+$Log$
+ */
 #if !defined(lint) && !defined(__MSDOS__)
 static char what[] = "%W%";
 #endif
@@ -346,10 +347,9 @@ BLOCK *btbuf(blk)
   t_block blk;
 {
   register BLOCK *bp;
-  int retry = 2;
   if (blk == 0L)
     btpost(BTERROOT);	/* invalid root error */
-  while ((bp = btread(blk))->buf.r.root != root) {
+  if ((bp = btread(blk))->buf.r.root != root) {
 #if TRACE > 0
     fprintf(stderr,"201: btbuf(%08lX), root = %08lX\n", blk, root);
     fprintf(stderr,"blk = %08lX, mid = %d, cnt = %d, %s %s %s %s\n",
@@ -362,13 +362,13 @@ BLOCK *btbuf(blk)
     fprintf(stderr,"root = %08lX, son/rbro = %08lX\n",
       bp->buf.r.root, bp->buf.r.son);
 #endif
-    if (!retry-- || bp->flags & BLK_MOD)
-      btpost(BTERROOT);	/* invalid root error */
-
-    /* OS may have screwed up and given us the wrong block.
-       Don't laugh, it happens on several systems that I know of . . . */
-    bp->blk = 0L;	/* say we don't know where this block came from */
-    btflush();		/* before it's too late . . . */
+    if (!(bp->flags & BLK_MOD)) {
+      /* OS may have screwed up and given us the wrong block.
+	 Don't laugh, it happens on several systems that I know of . . . */
+      bp->blk = 0L;	/* say we don't know where this block came from */
+      btflush();		/* before it's too late . . . */
+    }
+    btpost(BTERROOT);	/* invalid root error */
   }
   return bp;
 }
