@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.9  1998/04/15  19:14:58  stuart
+ * support ISINDEXNAME
+ *
  * Revision 2.8  1997/11/25  20:53:15  stuart
  * support appending isrecnum to record to simplify browsing
  * files with no unique key
@@ -36,6 +39,7 @@ static const char id[] = "$Id$";
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <isamx.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -87,6 +91,12 @@ static int getflds(int fd,char *buf) {
   return i * 2;
 }
 
+static volatile int stop = 0;
+
+static void stopserver(int sig) {
+  stop = 1;
+}
+
 static int server() {
   int i, trace = -1;
   char *auxbuf = 0;
@@ -100,6 +110,10 @@ static int server() {
   union { char buf[MAXRLEN+1];
 	} p2;		/* parameter 2 */
 
+  signal(SIGINT,stopserver);
+  signal(SIGHUP,stopserver);
+  signal(SIGKILL,stopserver);
+
   for (i=3;i<20;) close(i++);	/* close parent's files */
 #ifdef TRACE
   {
@@ -111,7 +125,7 @@ static int server() {
     }
   }
 #endif
-  while (readFully(0,(char *)&r,sizeof r) == sizeof r) {
+  while (!stop && readFully(0,(char *)&r,sizeof r) == sizeof r) {
     int p1len = ldshort(r.p1);
     int p2len = ldshort(r.p2);
     int len = ldshort(r.len);
@@ -347,6 +361,7 @@ int main(int argc,char **argv) {
   int nodelay = 1;
   struct sockaddr_in saddr;
   int i;
+  int callback = 0;
   for (i = 1; i < argc; ++i) {
     if (strncmp(argv[i],"-f",2) == 0) {
       const char *trfile = argv[i][2] ? argv[i] + 2 : argv[++i];
@@ -355,11 +370,15 @@ int main(int argc,char **argv) {
       sprintf(ebuf,"%s=%s",trkey,trfile);
       putenv(ebuf);
     }
+    if (strcmp(argv[i],"-a") == 0) {
+      callback = 1;
+      continue;
+    }
     else if (isdigit(*argv[i]))
       port = atoi(argv[i]);
     else {
       fputs("$Id$\n\
-Usage:	isserve [-ftracedir] [tcpport]\n",stderr);
+Usage:	isserve [-a] [-ftracedir] [tcpport]\n",stderr);
       return 1;
     }
   }
@@ -370,7 +389,6 @@ Usage:	isserve [-ftracedir] [tcpport]\n",stderr);
   #endif
     return server();
   }
-  /* setup socket for listening */
   fd = socket(AF_INET,SOCK_STREAM,0);
   if (fd == -1) {
     perror("socket");
@@ -379,6 +397,20 @@ Usage:	isserve [-ftracedir] [tcpport]\n",stderr);
   saddr.sin_family = AF_INET;
   saddr.sin_addr.s_addr = INADDR_ANY;
   saddr.sin_port = port;
+  if (callback) {
+    if (connect(fd,(struct sockaddr *)&saddr,sizeof saddr) < 0) {
+      perror("connect");
+      return 1;
+    }
+  #ifdef TCP_NODELAY
+    setsockopt(fd,IPPROTO_TCP,TCP_NODELAY,&nodelay,sizeof nodelay);
+  #endif
+    close(0); close(1); close(2);
+    dup(fd); dup(fd); close(fd);
+    return server();
+    //return fork() ? 0 : server();
+  }
+  /* setup socket for listening */
   if (bind(fd,(struct sockaddr *)&saddr,sizeof saddr) < 0) {
     perror("bind");
     return 1;
