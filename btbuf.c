@@ -6,6 +6,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+ * Revision 2.4  1999/01/25  18:20:21  stuart
+ * use extern const for version info in serverstats
+ *
  * Revision 2.3  1997/06/23  15:28:13  stuart
  * move static vars to a BlockCache object
  *
@@ -138,19 +141,6 @@ BlockCache::~BlockCache() {
   delete [] pool;
 }
 
-void BlockCache::dumpbuf(const BLOCK *bp) {
-  fprintf(stderr,"blk = %08lX, mid = %d, cnt = %d,%s%s%s%s%s\n",
-    bp->blk, bp->mid, bp->cnt(),
-    (bp->flags & BLK_MOD) ? " BLK_MOD" : "",
-    (bp->flags & BLK_TOUCH) ? " BLK_TOUCH" : "",
-    (bp->flags & BLK_ROOT) ? " BLK_ROOT" : "",
-    (bp->flags & BLK_STEM) ? " BLK_STEM" : "",
-    (bp->flags & BLK_CHK) ? " BLK_CHK" : ""
-  );
-  fprintf(stderr,"root = %08lX, son/rbro = %08lX\n",
-    bp->buf.r.root, bp->buf.r.son);
-}
-
 BLOCK *BlockCache::btbuf(t_block blk) {
   register BLOCK *bp;
   if (blk == 0L)
@@ -158,7 +148,7 @@ BLOCK *BlockCache::btbuf(t_block blk) {
   if ((bp = btread(blk))->buf.r.root != root) {
 #if TRACE > 0
     fprintf(stderr,"201: btbuf(%08lX), root = %08lX\n", blk, root);
-    dumpbuf(bp);
+    bp->dump();
 #endif
 #if 0
     if (!(bp->flags & BLK_MOD)) {
@@ -206,7 +196,7 @@ BLOCK *BlockCache::btnew(short flag) {
   }
   ++newcnt;
 
-  bp->flags = (flag & ~(BLK_CHK|BLK_TOUCH)) | BLK_MOD;
+  bp->flags = (flag & ~BLK_CHK) | BLK_MOD;
   if (bp->flags&BLK_ROOT) {
     bp->np = (union node *)bp->buf.r.data;
     bp->buf.r.root = bp->blk;	/* make root node */
