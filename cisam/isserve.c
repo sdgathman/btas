@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.16  2003/02/25 04:43:57  stuart
+ * More functions and testing for cisam python module.
+ *
  * Revision 2.15  2002/03/20 20:07:14  stuart
  * Support ISMKDIR/ISRMDIR in isserve.
  * Include istrace in package.
@@ -126,7 +129,6 @@ static int server() {
   struct ISRES res;			/* result header */
   /* FIXME: need file formats for these also (and in isstub.c) */
   union { char buf[MAXRLEN+1];
-	  long id;
 	} p1;		/* parameter 1 */
   union { char buf[MAXRLEN+1];
 	} p2;		/* parameter 2 */
@@ -180,195 +182,30 @@ static int server() {
       if (p2len) write(trace,p2.buf,p2len);
     }
       
-    stshort(0,res.p1);
-    switch (r.fxn) {
-      union {
-	struct keydesc desc;
-	struct dictinfo dict;
-      } d;
-    case ISBUILD:
-	ldkeydesc(&d.desc,p2.buf);
-	if (len == 0)
-	  i = isbuildx(p1.buf,len,&d.desc,mode,0);
-	else
-	  i = isbuild(p1.buf,len,&d.desc,mode);
-	break;
-    case ISOPEN:
-	i = isopen(p1.buf,mode);
-	if (i >= 0) {
-	  isindexinfo(i,&d.desc,0);
-	  iserrno = d.dict.di_recsize;
-	}
-	break;
-    case ISCLOSE:
-	i = isclose(r.fd);
-	break;
-    case ISADDINDEX:
-	ldkeydesc(&d.desc,p1.buf);
-	i = isaddindexn(r.fd,&d.desc,(p2len == 0) ? 0 : p2.buf);
-	break;
-    case ISDELINDEX:
-	ldkeydesc(&d.desc,p1.buf);
-	i = isdelindex(r.fd,&d.desc);
-	break;
-    case ISSTART:
-	ldkeydesc(&d.desc,p2.buf);
-	isrange(r.fd,0,0);
-	i = isstart(r.fd,&d.desc,len,p1.buf,mode);
-	break;
-    case ISSTARTN:
-	isrange(r.fd,0,0);
-	i = isstartn(r.fd,p2.buf,len,p1.buf,mode);
-	break;
-    case ISREAD: case ISREADREC:
-	if (p1len == 0)	/* Allow client to skip key bytes for FIRST,NEXT,etc. */
-	  p1len = isreclen(r.fd);
-	else if (p1len >= isreclen(r.fd) + 4) {
-	  p1len -= 4;
-	  isrecnum = ldlong(p1.buf + p1len);
-	}
-	else	/* Allow client to send bytes needed for key info only. */
-	  p1len = isreclen(r.fd);
-	switch (mode) {
-	case ISLESS:
-	  mode = ISPREV;
-	  i = isread(r.fd,p1.buf,ISGTEQ);
-	  if (i) {
-	    if (iserrno != ENOREC) break;
-	    mode = ISLAST;
-	  }
-	  break;
-	case ISLTEQ:
-	  mode = ISPREV;
-	  i = isread(r.fd,p1.buf,ISGREAT);
-	  if (i) {
-	    if (iserrno != ENOREC) break;
-	    mode = ISLAST;
-	  }
-	  break;
-	}
-	i = isread(r.fd,p1.buf,mode);
-	if (r.fxn == ISREADREC) {
-	  stlong(isrecnum,p1.buf + p1len);
-	  p1len += 4;
-	}
-	stshort(p1len,res.p1);
-	if (i == 0 && len > 0) {
-	  switch (mode & 255) {
-	  case ISLESS: case ISLTEQ: case ISPREV: case ISLAST:
-	    mode = ISPREV; break;
-	  case ISGREAT: case ISGTEQ: case ISNEXT: case ISFIRST:
-	    mode = ISNEXT; break;
-	  default:
-	    mode = ISNEXT;
-	  }
-	  auxlen = --len * p1len;
-	  if (auxlen > auxmax) {
-	    if (auxbuf) free(auxbuf);
-	    auxmax = auxlen;
-	    auxbuf = malloc(auxlen);
-	  }
-	  for (i = 0; i < len; ++i) {
-	    char *buf = auxbuf + i * p1len;
-	    if (isread(r.fd,auxbuf + i * p1len,mode)) break;
-	    if (r.fxn == ISREADREC)
-	      stlong(isrecnum,buf + p1len - 4);
-	  }
-	  auxlen = i++ * p1len;
-	}
-	break;
-    case ISWRITE:
-	i = iswrite(r.fd,p1.buf);
-	break;
-    case ISREWRITE:
-	if (p1len >= isreclen(r.fd) + 4) {
-	  p1len -= 4;
-	  isrecnum = ldlong(p1.buf + p1len);
-	}
-	i = isrewrite(r.fd,p1.buf);
-	break;
-    case ISWRCURR:
-	i = iswrcurr(r.fd,p1.buf);
-	break;
-    case ISREWCURR:
-	i = isrewcurr(r.fd,p1.buf);
-	break;
-    case ISREWREC:
-	i = isrewrec(r.fd,isrecnum,p1.buf);
-	break;
-    case ISDELREC:
-	i = isdelrec(r.fd,isrecnum);
-	break;
-    case ISDELETE:
-	if (p1len >= isreclen(r.fd) + 4) {
-	  p1len -= 4;
-	  isrecnum = ldlong(p1.buf + p1len);
-	}
-	i = isdelete(r.fd,p1.buf);
-	break;
-    case ISDELCURR:
-	i = isdelcurr(r.fd);
-	break;
-    case ISUNIQUEID: {
-	long id;
-	i = isuniqueid(r.fd,&id);
-	stlong(id,p1.buf);
-	stshort(4,res.p1);
-	break;
+    i = isreq(r.fd,r.fxn,&p1len,p2len,p1.buf,p2.buf,mode,len);
+    stshort(p1len,res.p1);
+    if (i == 0 && len > 0 && (r.fxn == ISREAD || r.fxn == ISREADREC)) {
+      switch (mode & 255) {
+      case ISLESS: case ISLTEQ: case ISPREV: case ISLAST:
+	mode = ISPREV; break;
+      case ISGREAT: case ISGTEQ: case ISNEXT: case ISFIRST:
+	mode = ISNEXT; break;
+      default:
+	mode = ISNEXT;
       }
-    case ISINDEXINFO:
-	i = isindexinfo(r.fd,&d.desc,mode);
-	if (mode)
-	  stshort(stkeydesc(&d.desc,p1.buf),res.p1);
-	else
-	  stshort(stdictinfo(&d.dict,p1.buf),res.p1);
-	break;
-    case ISINDEXNAME:
-	i = isindexname(r.fd,p1.buf,mode);
-	stshort(strlen(p1.buf),res.p1);
-	break;
-    case ISAUDIT:
-	i = isaudit(r.fd,p1.buf,mode);
-	break;
-    case ISERASE:
-	i = iserase(p1.buf);
-	break;
-    case ISLOCKOP:
-	i = islock(r.fd);
-	break;
-    case ISUNLOCK:
-	i = isunlock(r.fd);
-	break;
-    case ISRELEASE:
-	i = isrelease(r.fd);
-	break;
-    case ISRENAME:
-	i = isrename(p1.buf,p2.buf);
-	break;
-    case ISSETRANGE:
-	i = isrange(r.fd,p1len ? p1.buf : 0,p2len ? p2.buf : 0);
-	break;
-    case ISADDFLDS:
-	i = addflds(r.fd,p1.buf,p1len);
-	break;
-    case ISGETFLDS:
-	i = getflds(r.fd,p1.buf);
-	stshort(i,res.p1);
-	i = 0;
-	break;
-    case ISMKDIR:
-      if (mode < 0)
-        i = btrmdir(p1.buf);
-      else
-        i = btmkdir(p1.buf,mode);
-      if (i) {
-        iserrno = i;
-	i = -1;
+      auxlen = --len * p1len;
+      if (auxlen > auxmax) {
+	if (auxbuf) free(auxbuf);
+	auxmax = auxlen;
+	auxbuf = malloc(auxlen);
       }
-      break;
-    default:
-	i = -1;
-	iserrno = 118;
+      for (i = 0; i < len; ++i) {
+	char *buf = auxbuf + i * p1len;
+	if (isread(r.fd,auxbuf + i * p1len,mode)) break;
+	if (r.fxn == ISREADREC)
+	  stlong(isrecnum,buf + p1len - 4);
+      }
+      auxlen = i++ * p1len;
     }
 
     stlong(isrecnum,res.recnum);

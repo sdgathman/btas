@@ -2,6 +2,10 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.4  2002/03/20 20:07:14  stuart
+ * Support ISMKDIR/ISRMDIR in isserve.
+ * Include istrace in package.
+ *
  * Revision 1.3  2001/02/28 23:09:27  stuart
  * new ops
  *
@@ -112,5 +116,5 @@ enum {
   MAXNAME= 128	/* maximum file name supported */
 };
 
-int isreq(int fd,enum isreqOp,int l1,int l2,char *,char *,int mode,int len);
+int isreq(int fd,enum isreqOp,int *l1,int l2,char *,char *,int mode,int len);
 #endif
