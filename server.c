@@ -17,6 +17,8 @@
 #include "node.def"
 #include <btas.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -31,14 +33,14 @@ time_t time(time_t *p) {
   return 0x7FFFFFFFL;
 }
 #else
-extern time_t time(/**/ time_t * /**/);
+extern time_t time(time_t *);
 #endif
 
 extern const char version[];
 
 static unsigned char btflags[32] = {
   0, 0, 8, 0, 0, 0, 0,0, 0, 0, 0,
-  DUPKEY>>8, NOKEY>>8, NOKEY>>8, LOCK>>8, 8, 0, 0, 8,0,0,0,0,8
+  DUPKEY>>8, NOKEY>>8, NOKEY>>8, LOCK>>8, 8, 0, 0, 8,0,0,0,0,8, NOKEY>>8
 };
 
 static void ignore(int), cleanq(int,int);
@@ -222,38 +224,42 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
       (void)alarm(2);
       (void)time(&curtime);
     }
-    reqp->op = btas(reqp,op = reqp->op);	/* execute request */
+    rc = reqp->op = btas(reqp,op = reqp->op);	/* execute request */
+
+    /* add allowed trap flags to error code */
+    if (reqp->op >= 200 && reqp->op < sizeof btflags + 200)
+      reqp->op |= btflags[reqp->op - 200] << 8;
+
     len = sizeof *reqp - sizeof reqp->msgident - sizeof reqp->lbuf;
     if (btopflags[op&31] != BT_UPDATE)
       len += reqp->rlen;
     else if (reqp->op & NOKEY)
       len += reqp->klen;	/* report why nokey failed */
 
-    if (reqp->op >= 200 && reqp->op < sizeof btflags + 200) {
-      reqp->op |= (btflags[reqp->op - 200] << 8) & op & BTERR;
 #if TRACE > 0
-      if ((reqp->op & BTERR) == 0) {	/* if fatal error */
-	int i, n;
-	switch (reqp->op) {
-	case 214: case 212: case 217: case 210:	/* cases we don't care about */
-	  break;
-	default:
-	  fprintf(stderr,
-	    "%sBTCB:\tpid=%ld root=%08lX mid=%d flgs=%04X rc=%d op=%d\n",
-	    ctime(&curtime),
-	    reqp->msgident,reqp->root,reqp->mid,reqp->flags,reqp->op,op
-	  );
-	  fprintf(stderr,"\tklen = %d rlen = %d\n",reqp->klen,reqp->rlen);
-	  n = len; if (n > MAXREC) n = MAXREC;
-	  for (i = 0; i < n; ++i) {
-	    fprintf(stderr,"%02X%c",
-		  reqp->lbuf[i]&0xff, ((i&15) == 15) ? '\n' : ' ');
-	  }
-	  if (i & 15) putc('\n',stderr);
-	}
-      }
+    if (rc && (reqp->op & op & BTERR) == 0) {	/* if fatal error */
+      int i, n;
+      switch (rc) {
+      case 214: case 212: case 217: case 210:	/* cases we don't care about */
+#if TRACE < 2
+	break;
 #endif
+      default:
+	fprintf(stderr,
+	  "%sBTCB:\tpid=%ld root=%08lX mid=%d flgs=%04X rc=%d op=%d\n",
+	  ctime(&curtime),
+	  reqp->msgident,reqp->root,reqp->mid,reqp->flags,reqp->op,op
+	);
+	fprintf(stderr,"\tklen = %d rlen = %d\n",reqp->klen,reqp->rlen);
+	n = len; if (n > MAXREC) n = MAXREC;
+	for (i = 0; i < n; ++i) {
+	  fprintf(stderr,"%02X%c",
+		reqp->lbuf[i]&0xff, ((i&15) == 15) ? '\n' : ' ');
+	}
+	if (i & 15) putc('\n',stderr);
+      }
     }
+#endif
 #if TRACE > 1
     fprintf(stderr,"smlen=%d\n",len);
 #endif
