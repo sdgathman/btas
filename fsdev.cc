@@ -8,6 +8,7 @@
 #include "btserve.h"
 #include "btdev.h"
 #include "btbuf.h"
+#pragma implementation "Sort.h"
 #include <Sort.h>
 
 FDEV::FDEV() {
@@ -160,7 +161,7 @@ int FDEV::sync(long &chkpntCount) {
   }
   else
     lastsize = size;
-#ifdef AIX
+#ifndef m88k
   fsync(fd);
 #endif
   if (::lseek(fd,superoffset,0) != superoffset || ::write(fd,buf,size) != size)
@@ -174,7 +175,7 @@ struct blkptr {
   operator long() const { return blk; }
 };
 
-#ifdef __GNUC__
+#ifdef __GNUG__
 template void sort(blkptr *,int);
 #endif
 
@@ -188,9 +189,6 @@ int FDEV::wait() {
     a[i].buf = buf + chksize(i);
   }
   sort(a,nblks);
-#ifdef AIX
-  fsync(fd);
-#endif
   for (i = 0; i < nblks; ++i) {
     int res = DEV::write(a[i].blk,a[i].buf);
     if (!rc) rc = res;
