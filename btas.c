@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.2";
+static char what[] = "@(#)btas.c	1.3";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -52,7 +52,7 @@ int btas(b,opcode)
   switch (opcode) {
   case BTLINK: case BTCREATE:
     if ( (b->flags & BT_DIR) == 0) return BTERDIR;
-    if (opcode == BTLINK)
+    if (opcode == (int)BTLINK)
       root = linkfile(b);		/* add root ptr to record */
     else
       root = creatfile(b);		/* add root ptr to record */
