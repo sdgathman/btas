@@ -2,6 +2,9 @@
 	Dump records using fcb from directory record
  *
  * $Log$
+ * Revision 1.2  1993/10/26  16:25:40  stuart
+ * fix alignment of timestamp dump
+ *
  */
 
 #include <stdio.h>
@@ -173,8 +176,9 @@ int dump() {
   char *s = readtext("Filename to dump: ");
   BTCB *dtf;
   struct btflds fcb;
-  char xopt = 0, ropt = 0, eopt = 0;
-  int rc;
+  char xopt = 0, ropt = 0;
+  BYTE *ftbl, *ebuf;
+  int rc, rlen;
   if (!s) return 1;
   dtf = btopen(s,BTRDONLY+4,MAXREC);
   while (*switch_char) {
@@ -186,8 +190,7 @@ int dump() {
       xopt = 2;		/* dump two column hex records */
       break;
     case 'e':
-      eopt = 1;		/* EBCDIC translation */
-      xopt = 2;		/* dump two column hex records */
+      xopt = 3;		/* dump two column hex records */
       break;
     case 'x':		/* dump hex records */
       xopt = 1;
@@ -210,8 +213,16 @@ int dump() {
     fcb.f[i].len  = 0;
     fcb.f[i].pos  = fcb.f[i-1].pos + fcb.f[i-1].len;
   }
-  else if (xopt == 0)
+  else if (xopt == 0 || xopt == 3) {
     (void)ldflds(&fcb,dtf->lbuf,dtf->rlen);
+    if (xopt == 3) {
+      /* save field table in b2erec format */
+      int len = strlen(dtf->lbuf) + 1;
+      ftbl = alloca(dtf->rlen - len + 1);
+      memcpy(ftbl,dtf->lbuf + len,dtf->rlen - len);
+      ftbl[dtf->rlen - len] = 0;
+    }
+  }
   else {
     fcb.klen = fcb.rlen = 1;
     fcb.f[0].type = BT_BIN;
@@ -221,6 +232,11 @@ int dump() {
     fcb.f[1].len  = 0;
     fcb.f[1].pos  = MAXREC;
   }
+  rlen = btrlen(&fcb);
+  /* kludge, reuse fcb as uncompressed EBCDIC buffer for b2erec */
+  if (rlen > sizeof fcb.f)
+    rlen = sizeof fcb.f;
+  ebuf = (BYTE *)fcb.f;
   dtf->klen = getdata((char *)0,dtf->lbuf,fcb.f,fcb.klen); /* key data */
   dtf->rlen = MAXREC;
   if (ropt)
@@ -228,11 +244,18 @@ int dump() {
   else
     rc = btas(dtf,BTREADGE+NOKEY);
   while (rc == 0 && cancel == 0) {
-    if (xopt == 2)
-      hexrec(dtf->lbuf,dtf->rlen,eopt);
-    else
+    switch (xopt) {
+    case 1: case 2:
+      hexrec(dtf->lbuf,dtf->rlen,0);
+      break;
+    case 3:
+      b2erec(ftbl,ebuf,rlen,dtf->lbuf,dtf->rlen);
+      hexrec((char *)ebuf,rlen,1);
+      break;
+    default:
       dumprec(dtf->lbuf,dtf->rlen,fcb.f);
-    dtf->klen = (dtf->rlen < MAXKEY) ? dtf->rlen : MAXKEY;
+    }
+    dtf->klen = dtf->rlen;
     dtf->rlen = MAXREC;
     if (ropt)
       rc = btas(dtf,BTREADLT+NOKEY);
