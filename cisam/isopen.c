@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.9  2003/07/29 16:46:35  stuart
+ * isfdlimit entry point.  Always use ischkfd.
+ *
  * Revision 1.8  1999/06/03 18:47:57  stuart
  * When no .idx, try to make master keydesc match btas fields.
  *
@@ -52,14 +55,13 @@ char *iscopyright  =
 	"Copyright 1988,1989,1990 Business Management Systems, Inc.";
 char *isserial	   = "000001";
 
-static int fdlimit = MAXFILES;
-static struct cisam *isamfd[MAXFILES];
-struct cisam *isamfdptr = isamfd;
-int isamfdsize = MAXFILES;
+static int fdlimit = 0;
+struct cisam **isamfdptr = 0;
+int isamfdsize = 0;
 
 int isfdlimit(int maxfds) {
   int old = fdlimit;
-  if (maxfds <= MAXFILES && maxfds > 0) {
+  if (maxfds <= MAXFILES && maxfds >= 0) {
     fdlimit = maxfds;
     return old;
   }
@@ -102,14 +104,14 @@ int isclose(int fd) {
   }
   free(ip->min);
   free((char *)ip);
-  isamfd[fd] = 0;
+  isamfdptr[fd] = 0;
   return iserr(rc);
 }
 
 void cdecl iscloseall() {
   register int i;
-  for (i = 0; i < MAXFILES; ++i)
-    if (isamfd[i]) (void)isclose(i);
+  for (i = 0; i < isamfdsize; ++i)
+    if (isamfdptr[i]) (void)isclose(i);
 }
 
 int isopen(const char *name,int mode) {
@@ -117,13 +119,34 @@ int isopen(const char *name,int mode) {
 }
 
 static int isnewfd() {
-  int fd;
-  /* find free descriptor */
-  for (fd = 0; fd < fdlimit; ++fd) {
-    if (isamfd[fd] == 0) 
-      return fd;
+  int startsearch = 0;
+  for (;;) {
+    int fd;
+    struct cisam **newptr;
+    struct cisam **oldptr;
+    int newsize;
+    int maxfd = isamfdsize;
+    if (fdlimit && fdlimit < isamfdsize)
+       maxfd = fdlimit;
+    /* find free descriptor */
+    for (fd = startsearch; fd < maxfd; ++fd) {
+      if (isamfdptr[fd] == 0) 
+	return fd;
+    }
+    if (fdlimit && maxfd) return iserr(ETOOMANY);
+    startsearch = maxfd;
+    newsize = isamfdsize + MAXFILES;
+    newptr = (struct cisam **)malloc(newsize * sizeof *newptr);
+    if (newptr == 0) return iserr(ETOOMANY);
+    oldptr = isamfdptr;
+    for (fd = 0; fd < isamfdsize; ++fd)
+      newptr[fd] = oldptr[fd];
+    for (fd = isamfdsize; fd < newsize; ++fd)
+      newptr[fd] = 0;
+    isamfdptr = newptr;
+    isamfdsize = newsize;
+    free(oldptr);
   }
-  return iserr(ETOOMANY);
 }
 
 int isopenx(const char *name,int mode,int rlen) {
@@ -159,7 +182,7 @@ int isopenx(const char *name,int mode,int rlen) {
   cp->curidx = &cp->key;	/* default to primary key */
   cp->min = 0;
   cp->max = 0;
-  isamfd[fd] = cp;
+  isamfdptr[fd] = cp;
   len = strlen(name);
   if (len > sizeof ctl_name - sizeof CTL_EXT)
     errpost(EFNAME);			/* name too long */

@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.4  2001/02/28 23:14:39  stuart
+/* better handling of recno key
+/*
  * Revision 1.3  1998/12/17  23:56:12  stuart
  * build with rlen == 0 in any directory (bug fix)
  * try to make isopen get correct klen for rlen == 0,
@@ -119,7 +122,7 @@ int isbuildx(
     envend
     free((char *)fcb);
     (void)btclose(ctlf);
-    if (rc) return iserr(rc);
+    if (rc) return ismaperr(rc);
   }
 
   /* create default field table if needed.  Use logical key length when
@@ -136,7 +139,7 @@ int isbuildx(
     rc = btcreate(idxname,fcb,0666);	/* create recnum file */
     free((PTR)fcb);
     /* we ought to delete ctlf on error */
-    if (rc) return iserr(rc);
+    if (rc) return ismaperr(rc);
   }
   rc = f->klen;			/* save klen */
   f->klen = f->rlen;		/* convert all fields */
@@ -148,7 +151,7 @@ int isbuildx(
   free((PTR)fcb);
   /* FIXME: we ought to delete ctlf on error, but isaddindex depends
     on keeping it to auto create a .idx */
-  if (rc) return iserr(rc);
+  if (rc) return ismaperr(rc);
   return isopenx(name,mode,rlen);
 }
 

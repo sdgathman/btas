@@ -5,7 +5,7 @@
 
 #define iserr(code)	((iserrno = code) ? -1 : 0)
 enum { MAXFILES = 255, MAXCISAMREC = 4096, MAXKEYNAME = 32 };
-#define ischkfd(fd)	((fd < 0 || fd >= isamfdsize)?0:isamfd[fd])
+#define ischkfd(fd)	((fd < 0 || fd >= isamfdsize)?0:isamfdptr[fd])
 #define CTL_EXT	".idx"	/* control file extension */
 
 struct fisam {			/* records in emulator control file */
@@ -46,7 +46,7 @@ typedef struct cisam {
 #define c_recno(r) ((long *)r->recidx->k.k_part)[0]
 #define c_recnum(r) ((long *)r->recidx->k.k_part)[1]
 
-extern struct cisam *isamfdptr;
+extern struct cisam **isamfdptr;
 extern int isamfdsize;
 struct btflds *isconvkey(const struct btflds *, struct keydesc *, int);
 int iskeynorm(struct keydesc *);
