@@ -53,6 +53,13 @@ Usage:	btdu [-asm] files $Revision$\n\
   exit(1);
 }
 
+static int error(const char *path,int code) {
+  switch (code) {
+  case 222: fprintf(stderr,"%s: permission denied\n",path); return 0;
+  }
+  return code;
+}
+
 main(int argc,char **argv) {
   int i;
   long gtot = 0L;
@@ -89,7 +96,7 @@ main(int argc,char **argv) {
     while (rc == 0) {
       total = totstk;
       *total = 0L;
-      switch (rc = btwalk(ff.b->lbuf,show)) {
+      switch (rc = btwalkx(ff.b->lbuf,show,error)) {
       case 0:
 	if (opt.sum)
 	  printf("%-8ld %s/%s\n",totstk[0],dir,ff.b->lbuf);
