@@ -1,10 +1,7 @@
 #include "cisam.h"
 #include <btas.h>
 
-int isuniqueid(fd,lp)
-  int fd;
-  long *lp;
-{
+int isuniqueid(int fd,long *lp) {
   register struct cisam *r;
   register BTCB *b;
   r = ischkfd(fd);
@@ -25,9 +22,7 @@ int isuniqueid(fd,lp)
   return iserr(0);
 }
 
-int issetunique(fd,id)
-  long id;
-{
+int issetunique(int fd,long id) {
   register BTCB *b;
   if (ischkfd(fd) == 0) return iserr(ENOTOPEN);
   b = isamfd[fd]->idx;

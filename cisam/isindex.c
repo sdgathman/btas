@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.6  2001/02/28 23:16:55  stuart
+ * isindexname support
+ *
  * Revision 1.5  1997/05/08  16:02:10  stuart
  * autocreate .idx file
  * support isstartn
@@ -120,6 +123,7 @@ int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
   struct btflds *fp;
   BTCB *c, *savdir = btasdir;
   char *name;
+  struct fisam f;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
   if ((r->key.btcb->flags & BTEXCL) == 0)
@@ -153,7 +157,6 @@ int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
   }
   name = 0;
   if (idxname) {
-    struct fisam f;
     isstkey(idxname,k,&f);
     u2brec(r->f->f,(char *)&f,sizeof f,c,sizeof f.name);
     btas(c,BTWRITE + DUPKEY);	/* create idx record */
@@ -169,7 +172,6 @@ int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
     }
     name = 0;
     do {
-      struct fisam f;
       sprintf(f.name,"%s.%02d",c->lbuf,++idx);	/* new index name */
       isstkey(f.name,k,&f);
       u2brec(r->f->f,(char *)&f,sizeof f,c,sizeof f.name);
@@ -183,12 +185,11 @@ int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
   p->next = r->key.next;
   r->key.next = p;
   p->f = fp;
-  ldchar(c->lbuf,MAXKEYNAME,p->name);
+  isldkey(p->name,&p->k,&f);
   rc = btcreate(p->name,p->f,0666);		/* create new index file */
   if (rc) errpost(rc);
   idxname = 0;		/* DUPKEYs no longer translated to EKEXISTS */
   name = p->name;	/* tell enverr to delete key file on error */
-  p->k = *k;
   if (kn.k_flags & ISDUPS)
     p->klen = btrlen(p->f);
   else

@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.18  2003/03/18 21:38:34  stuart
+ * Make isreq a public interface.
+ *
  * Revision 2.17  2003/03/12 22:41:53  stuart
  * Create isreq encapsulated C-isam call interface.
  *
@@ -190,11 +193,11 @@ static int server() {
       stlong(tbuf.tms_stime,tsbuf+8);
       write(trace,tsbuf,sizeof tsbuf);
       write(trace,(char *)&res,sizeof res);
-      if (ldshort(res.p1)) write(trace,p1.buf,ldshort(res.p1));
+      if (p1len) write(trace,p1.buf,p1len);
       if (auxlen > 0) write(trace,auxbuf,auxlen);
     }
     write(0,(char *)&res,sizeof res);
-    if (ldshort(res.p1)) write(0,p1.buf,ldshort(res.p1));
+    if (p1len) write(0,p1.buf,p1len);
     if (auxlen > 0) write(0,auxbuf,auxlen);
   }
   if (auxbuf)

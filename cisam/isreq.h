@@ -2,6 +2,9 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.6  2003/03/18 21:38:34  stuart
+ * Make isreq a public interface.
+ *
  * Revision 1.5  2003/03/12 22:41:53  stuart
  * Create isreq encapsulated C-isam call interface.
  *
@@ -111,7 +114,17 @@ enum isreqOp {
   ISMKDIR
 };
 
-int isreq(int fd,int op,int *l1,int l2,char *,char *,int mode,int len);
+int isreq(int fd,int op,int *l1,int l2,char *,const char *,int mode,int len);
+
+/** Return maximum result length given logical record length.
+  * Possible results:
+  * ISUNIQUE 4 byte id
+  * ISREADREC rlen + 4 byte recnum
+  * GETFLDS field table, max 2 * rlen
+  * ISINDEXINFO dictinfo or keydesc, 52 (call it 64)
+  * ISINDEXNAME index name, MAXKEYNAME = 32
+  */
+#define ISREQ_MAXRES(rlen) ((rlen < 32) ? 64 : rlen * 2)
 
 #ifndef __cplusplus
 enum {

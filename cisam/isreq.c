@@ -41,14 +41,23 @@ static int getflds(int fd,char *buf) {
 /** Execute an encapsulated C-isam request.  Returns the C-isam result code
  * of the operation plus p1len, p1buf, and C-isam globals (iserrno, etc.).
  * This simplifies wrapping the library for RPC like protocols (isserve.c),
- * and Virtual Machines like Java.
+ * and Virtual Machines like Java.  P1 and p2 and variable length parameters,
+ * for example a filename or a record buffer.
+ * @param rfd	file descriptor 
+ * @param fxn	function code, defined in isreq.h
+ * @param p1lenp ptr to size of p1, replaced with variable result size.
+ * @param p2len	size of p2
+ * @param p1buf	buffer to hold p1 and variable result
+ * @param p2buf	buffer to hold p2
+ * @param mode	function modifier (for example, ISREAD uses ISFIRST)
+ * @param len	length parameter (used by ISSTART for example)
  */
 
 int isreq(int rfd,int fxn, int *p1lenp, int p2len,
-    char *p1buf, char *p2buf, int mode,int len) {
+    char *p1buf, const char *p2buf, int mode,int len) {
     int i;
     int p1len = *p1lenp;
-    *p1lenp = 0;
+    *p1lenp = 0;	// default to no variable result
     switch (fxn) {
       union {
 	struct keydesc desc;
