@@ -4,6 +4,10 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.10  2000/04/27 12:42:36  stuart
+ * more time stamps in log
+ * make BTERDIR trappable with 0xF00
+ *
  * Revision 1.9  1999/05/17  21:41:07  stuart
  * Support startup script
  * don't log symlink notifications
@@ -59,6 +63,7 @@ extern time_t time(time_t *);
 #endif
 
 extern const char version[];
+extern "C" int nap(long);
 
 static unsigned char btflags[32] = {
   0, 0, 8, 0, 0, 0, 0,0, 0, 0, 8,
