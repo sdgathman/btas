@@ -1,3 +1,6 @@
+/*
+ * $Log$
+ */
 #include <btas.h>
 #include <string.h>
 #include <stdlib.h>
@@ -36,10 +39,18 @@ int btchdir(const char *name) {
 
 BTCB *btgetdir() {
   BTCB *b;
-  if (!btasdir) return 0;
-  b = btopen("",BTNONE+BTDIROK+8,btasdir->rlen);/* open current directory */
-  strcpy(b->lbuf,btasdir->lbuf); /* copy directory environment */
-  b->rlen = btasdir->rlen;
+  if (btasdir) {
+    b = btopen("",BTNONE+BTDIROK+8,btasdir->rlen);/* open current directory */
+    strcpy(b->lbuf,btasdir->lbuf); /* copy directory environment */
+    b->rlen = btasdir->rlen;
+  }
+  else {
+    const char *s = getenv("BTASDIR");
+    int len = strlen(s) + 9;
+    b = btopen("",BTNONE+BTDIROK+8,len);/* open current directory */
+    sprintf(b->lbuf,"BTASDIR=%s",s);
+    b->rlen = len;
+  }
   return b;
 }
 
