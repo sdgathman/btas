@@ -276,6 +276,27 @@ START_TEST(test_dictinfo) {
   fail_unless(iscleanup(0) == 0,"cleanup failed");
 } END_TEST
 
+enum { FDLIMIT = 255 };
+START_TEST(test_fdlimit) {
+  int oldlimit = isfdlimit(FDLIMIT);
+  int fd,i;
+  int v[FDLIMIT + 10];
+  iserase(fname);
+  fd = isbuild(fname,100,&Ktest,ISINOUT + ISMANULOCK);
+  fail_unless(fd >= 0,"isbuild failed");
+  fail_unless(isclose(fd) == 0,"close failed");
+  for (i = 0; i < FDLIMIT + 10; ++i) {
+    fd = isopen(fname,ISINOUT + ISMANULOCK);
+    if (fd < 0) break;
+    v[i] = fd;
+  }
+  fail_unless(i == FDLIMIT,"wrong fdlimit");
+  fail_unless(iserrno == ETOOMANY,"did not get ETOOMANY");
+  iscloseall();
+  fail_unless(iserase(fname) == 0,"erase failed");
+  fail_unless(isfdlimit(oldlimit) == FDLIMIT,"restore fdlimit failed");
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *cisam_suite (void) {
@@ -283,6 +304,7 @@ Suite *cisam_suite (void) {
   TCase *tc_api = tcase_create ("API");
 
   suite_add_tcase (s, tc_api);
+  tcase_add_test (tc_api, test_fdlimit);
   tcase_add_test (tc_api, bttestx);
   tcase_add_test (tc_api, bttesty);
   tcase_add_test (tc_api, test_dictinfo);
@@ -299,6 +321,6 @@ int main (int argc,char **argv) {
   srunner_run_all (sr, CK_NORMAL);
   nf = srunner_ntests_failed (sr);
   srunner_free (sr);
-  suite_free (s);
+  //suite_free (s);
   return (nf == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
