@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 2.2  1997/06/23  15:29:15  stuart
+ * implement btserve object, use btkey object
+ *
  * Revision 2.1  1996/12/17  16:43:28  stuart
  * C++ node and bufpool interface
  *
@@ -263,7 +266,7 @@ int btserve::btas(BTCB *b,int opcode) {
     btget(1);
     bp = bufpool->find(b->u.cache.node,b->mid);
     bp->blk = b->u.cache.node;
-    bp->flags = 0;
+    bp->flags &= ~BLK_ROOT;	// prevent "instant delete" of root
     bufpool->btfree(bp);
     return 0;
   /* BTUNLINK is done by setting b->flags at present */
