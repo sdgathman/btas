@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.1  1999/01/25  22:26:27  stuart
+ * Initial revision
+ *
  *	BTAS/X dump directory
  *	Author: Stuart D. Gathman
  *	Copyright 1991 Business Management Systems, Inc.
@@ -17,12 +20,9 @@ can be used to identify the root id's of files on an image backup, or to find
 #include "logdir.h"
 /* #define TRACE */
 
-static int donode(t_block, NODE *, void *, int);
+static int donode(Logdir &,t_block, NODE *, void *, int);
 
-void doroot(struct root_n *) { }
-
-
-main(int argc,char **argv) {
+int main(int argc,char **argv) {
   const char *name;
   if (argc != 2 && argc != 1) {
     fputs("Usage:\tbtddir [osfile]\n",stderr);
@@ -39,6 +39,7 @@ main(int argc,char **argv) {
       perror(name);
     return 1;
   }
+  Logdir log;
   union btree *b;
   while ((b = fs.get()) != 0) {
     int t = fs.lasttype();
@@ -51,9 +52,9 @@ main(int argc,char **argv) {
     if (fs.isSaveImage())
       b->r.root &= 0x7fffffffL;
     if (t & BLKROOT) {
-      logroot(b->r.root,&b->r.stat);
+      log.logroot(b->r.root,&b->r.stat);
       if (t & BLKDATA)
-	cnt = donode(
+	cnt = donode(log,
 	  b->r.root,(NODE *)b->r.data,b->data + fs.blksize(),(t & BLKDIR)
 	);
 #ifdef TRACE
@@ -67,7 +68,7 @@ main(int argc,char **argv) {
 	if (!(roottype & BLKROOT)) continue;
       }
       if (t & BLKDATA) {
-	cnt = donode(
+	cnt = donode(log,
 	  b->l.root,
 	  (NODE *)b->l.data, b->data + fs.blksize(), (roottype & BLKDIR)
 	);
@@ -75,14 +76,14 @@ main(int argc,char **argv) {
     }
     if (cnt < 0 && (cnt & 0x7fff) > fs.blksize())
       printf("%d root=%08lX blk=%08lX\n",cnt,b->r.root,fs.lastblk());
-    logrecs(b->r.root,cnt);
+    log.logrecs(b->r.root,cnt);
   }
   fprintf(stderr,"%ld cache hits, %ld cache misses\n",fs.hits,fs.misses);
-  logprint(1L);
+  log.logprint(1L);
   return 0;
 }
 
-static int donode(t_block root,NODE *np,void *blkend,int dirflag) {
+static int donode(Logdir &log,t_block root,NODE *np,void *blkend,int dirflag) {
   int i;
   int cnt;
   cnt = np->size();
@@ -100,7 +101,7 @@ static int donode(t_block root,NODE *np,void *blkend,int dirflag) {
     int rlen = np->size(i) + *p - np->PTRLEN;
     if (rlen >= 0) {
       memcpy(lbuf + *p,p + 1,rlen - *p);
-      logdir(root,lbuf,rlen,np->ldptr(i));
+      log.logdir(root,lbuf,rlen,np->ldptr(i));
     }
   }
   return cnt;
