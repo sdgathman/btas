@@ -5,7 +5,7 @@
 	Author: Stuart D. Gathman
 */
 
-static char what[] = "@(#)bttestc.c	1.2";
+static char what[] = "@(#)bttestc.c	1.3";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -267,7 +267,7 @@ int main(argc, argv)
   for (idx = 0L; idx < cnt; ++idx) {
     char txt[sizeof t.txt];
     stlong(idx,t.seq);
-    t.txt[rand()%sizeof t.txt] = (opt.exact) ? 'A' : 'a' + rand() % 26;
+    t.txt[rand()%sizeof t.txt] = ((opt.exact) ? 'A' : 'a') + rand() % 26;
     memcpy(txt,t.txt,sizeof txt);
     if (chk(isread(fd,(char *)&t,ISLTEQ),ISNOKEY))
       ++errs;
