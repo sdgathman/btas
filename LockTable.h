@@ -1,5 +1,4 @@
 #pragma interface
-#include <String.h>
 #include <VHMap.h>
 #include <VHSet.h>
 
