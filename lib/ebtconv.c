@@ -35,15 +35,16 @@ void b2erec(p,urec,ulen,buf,len)
   int len;			/* size of compressed buffer */
 {
   register int pos = 0;
-  for (++p; *p; ++p, pos += *p++) {
+  for (++p; *p; p += 2) {
     register int flen;
 
     if (pos >= ulen) break;	/* field outside user buffer */
     flen = p[1];		/* uncompressed field length */
-    if (pos + flen > ulen)
-      flen = ulen - pos;	/* truncate short field */
 
     if (*p == BT_CHAR) {
+      if (pos + flen > ulen)
+	flen = ulen - pos;	/* truncate short field */
+      pos  += flen;
       if (len == 0 || *buf == 0) {		/* blank field */
 	if (len) { ++buf; --len; }
       }
@@ -71,14 +72,32 @@ void b2erec(p,urec,ulen,buf,len)
       }
       farmemset((char far *)urec,0x40,flen);	/* add trailing blanks */
     }
+#if 0
+    else if (*p == BT_RLOCK) {
+      if (buf[len - 1] == 0)
+	*urec = 0x40;
+      else
+	*urec = 0x00;
+      ++pos;
+    }
+#endif
     else {
-      if (flen > len) {
-	farmemset((char far *)urec + len, 0, flen - len);
-	flen = len;
+      int mlen;
+      /* optimize by combining adjacent binary fields */
+      while (p[2] && p[2] != BT_CHAR) {
+	p += 2; flen += p[1];
       }
-      farmove((char far *)urec,buf,flen);
-      buf += flen;
-      len -= flen;
+      if (pos + flen > ulen)
+	flen = ulen - pos;	/* truncate short field */
+      pos += flen;
+      mlen = flen;
+      if (mlen > len) {
+	farmemset((char far *)urec + len, 0, mlen - len);
+	mlen = len;
+      }
+      farmove((char far *)urec,buf,mlen);
+      buf += mlen;
+      len -= mlen;
     }
     urec += flen;
   }
