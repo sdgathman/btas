@@ -10,6 +10,9 @@ that is needed by btar and btutil.  Please review the proposed command
 line options for btar and send your comments.
  *
  * $Log$
+ * Revision 1.4  1998/04/08  21:58:26  stuart
+ * Support replace/rewrite and dupkey
+ *
  * Revision 1.3  1997/09/10  21:41:40  stuart
  * reduce non-verbose output
  *
@@ -33,6 +36,9 @@ line options for btar and send your comments.
 #include <bttype.h>
 #include "btar.h"
 
+#define obstack_chunk_alloc xmalloc
+#define obstack_chunk_free free
+
 typedef enum {false, true} bool;
 
 int verbose;
@@ -42,7 +48,7 @@ static void handler(int sig) {
   cancel = true;
 }
 
-static void *xmalloc(unsigned size) {
+static void *xmalloc(size_t size) {
   void *p = malloc(size);
   if (!p && size) {
     fputs("btar: Out of memory!\n",stderr);
