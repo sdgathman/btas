@@ -1,14 +1,21 @@
 #ifndef HASH_H
 #define HASH_H
 #pragma interface
-#include "btbuf.h"
-/* interface between btbuf.c and {no}hash.c */
-/* hash.c || nohash.c */
+#include "btree.h"
 
 #define FAILSAFE
 
+class BLOCK;
+class BlockCache;
+
 class BufferPool {
-  int hash(unsigned long v) { return int(v * 781316125L >> hshift) & hmask; }
+  enum {
+    MAXFLUSH = 200,	// try not to flush more than this at a time
+    MAXBUF = MAXLEV * 2	// maximum buffers reserved (worst case insert)
+  };
+  int hash(unsigned long v) const {
+    return int(v * 781316125L >> hshift) & hmask;
+  }
   BLOCK *mru, **hashtbl;
   BLOCK **inuse;
   BLOCK **touched;	// All buffers with BLK_TOUCH or BLK_CHK set
@@ -21,12 +28,18 @@ class BufferPool {
   int curline;
   int maxtouch;
   void rehash(BLOCK *bp,int oldhash,int newhash);
+  int indexOf(BLOCK *bp) const;
+protected:
+  virtual int writebuf(BLOCK *) = 0;
 public:
-  BufferPool(int ncnt);
+  static int maxflush;
+  btpstat serverstats;
+  BufferPool(int ncnt = 0);
   void put(BLOCK *);
   void get(int cnt);	// reserve cnt buffers
   void get(int cnt,const char *file,int line);	// reserve cnt buffers w/ debug
-  int sync(short mid);	// write all modified buffers & start writer sync
+  // write up to lim modified buffers, if all written, start writer sync
+  int sync(short mid,int lim = 0);
   int wait(short mid);	// wait for sync, and release touched buffers
   void clear(BLOCK *);	// clear cache entry for block
   void onemore() { ++curcnt; }
