@@ -12,6 +12,9 @@ than the original, but non-printing bytes in character fields may be lost.
 
 Character field compression is designed to preserve sort order.
  * $Log$
+ * Revision 1.3  2001/02/28 22:17:33  stuart
+ * handle complemented strings
+ *
  * Revision 1.2  1994/02/10  19:50:35  stuart
  * replace control characters when compressing char fields
  *
@@ -144,7 +147,6 @@ void u2brec(p,urec,ulen,b,klen)
     ubuf = urec + p->pos;
     if (p->type == BT_CHAR) {
 	/*	flen	chars in user field
-		slen	logical field length
 		buf	current pointer in btas buffer
 		ubuf	current pointer in user buffer
 	*/

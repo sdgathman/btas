@@ -1,6 +1,6 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.10.0
+%define version 2.10.1
 Version: %{version}
 Release: 1
 Copyright: Commercial

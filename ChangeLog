@@ -1,0 +1,6 @@
+2.10.1
+- minor change to isserve.c allowing client to send key bytes only for ISREAD
+
+2.10.0
+- make .. cross join boundaries
+- 

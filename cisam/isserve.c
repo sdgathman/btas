@@ -1,5 +1,9 @@
 /*
  * $Log$
+ * Revision 2.13  2000/09/27 19:50:58  stuart
+ * Add timing info to trace output
+ * clear range on isstart
+ *
  * Revision 2.12  2000/09/21 02:47:59  stuart
  * handle network byte order for loopback port/IP
  *
@@ -210,12 +214,14 @@ static int server() {
 	i = isstartn(r.fd,p2.buf,len,p1.buf,mode);
 	break;
     case ISREAD: case ISREADREC:
-	if (p1len == 0)
+	if (p1len == 0)	/* Allow client to skip key bytes for FIRST,NEXT,etc. */
 	  p1len = isreclen(r.fd);
 	else if (p1len >= isreclen(r.fd) + 4) {
 	  p1len -= 4;
 	  isrecnum = ldlong(p1.buf + p1len);
 	}
+	else	/* Allow client to send bytes needed for key info only. */
+	  p1len = isreclen(r.fd);
 	switch (mode) {
 	case ISLESS:
 	  mode = ISPREV;
