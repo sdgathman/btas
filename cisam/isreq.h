@@ -117,7 +117,8 @@ enum isreqOp {
   ISGETFLDS,
   ISREADREC,
   ISINDEXNAME,
-  ISMKDIR
+  ISMKDIR,
+  ISCLEANUP	/* retry erases of open files */
 };
 
 int isreq(int fd,int op,int *l1,int l2,char *,const char *,int mode,int len);

@@ -191,6 +191,9 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
     case ISERASE:
 	i = iserase(p1buf);
 	break;
+    case ISCLEANUP:
+	i = iscleanup(p1buf);
+	break;
     case ISLOCKOP:
 	i = islock(rfd);
 	break;
