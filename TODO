@@ -1,3 +1,5 @@
+btbr needs libfsp to build.
+
 Default cache size is too small - results in screwy error code as well,
 and/or assertion errors in hash.c.  Btserve should check for big enough
 cache at startup.

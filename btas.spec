@@ -7,7 +7,7 @@ Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
 BuildRoot: /var/tmp/%{name}-root
-BuildRequires: libbms-devel >= 1.1.4
+BuildRequires: libbms-devel >= 1.1.5
 
 %description
 The BTAS filesystem is a hierarchical filesystem where each file and
