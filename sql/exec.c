@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.1  2001/02/28 23:00:03  stuart
+ * Old C version of sql recovered as best we can.
+ *
  */
 #include <stdio.h>
 #include <string.h>
@@ -95,8 +98,8 @@ Cursor *Select_init(const struct select *sel,int rdonly,struct tabinfo *nest) {
     nest = &systabinfo;
   }
 
-  /* if (sel->table_list == 0) */
-    /* return Values_init(sel->select_list); */
+  if (sel->table_list == 0)
+    return Values_init(sel->select_list);
 
   /* step 1,	get the list of fully qualified column names for
 		the list of tables from the data dictionary */

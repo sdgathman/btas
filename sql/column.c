@@ -528,6 +528,9 @@ static sql Sqlfld_load(Column *c) {
 }
 
 static int Sqlfld_store(Column *col,sql x,char *buf) {
+  Sqlfld *this = (Sqlfld *)col;
+  this->exp = x;
+  if (!buf) return -1;
   switch (x->op) {
   case EXSTRING:
     stchar(x->u.name[0],buf,col->len);

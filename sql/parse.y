@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.1  2001/02/28 23:00:05  stuart
+ * Old C version of sql recovered as best we can.
+ *
  * Revision 1.5.1.1  1993/05/24  13:59:06  stuart
  * allow subqueries in DELETE,UPDATE - make them read-only
  *
@@ -280,7 +283,7 @@ assignlist	: assign
 		;
 
 assign	: ident '=' expr
-		{ $$ = mkbinop($1,EXEQ,$3); }
+		{ $$ = mkbinop($1,EXASSIGN,$3); }
 	;
 
 identlist	: ident
@@ -389,6 +392,8 @@ string	: STRING
 
 atom	: CONST
 		{ $$ = mkconst(&$1); }
+	| '-' CONST
+		{ $$ = mkunop(EXNEG,mkconst(&$2)); }
 	| string
 		{ $$ = $1; }
 	| IDENT string

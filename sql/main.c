@@ -357,7 +357,8 @@ static void sqlexec(const struct sql_stmt *cmd) {
 	  if (!t) break;
 	}
 	if (s->ncol != t->ncol)
-	  puts("INSERT must have same number of columns");
+	  fprintf(stderr,"INSERT must have same number of columns, %d != %d\n",
+	    s->ncol,t->ncol);
 	else if (do0(s,first) == 0) {
 	  do {
 	    int i;
