@@ -1,7 +1,10 @@
 #pragma implementation
+#ifndef __MSDOS__
 const char what[] = "$Revision$";
+#endif
 #include <stdio.h>
 #include <unistd.h>
+#include <malloc.h>
 #include <string.h>
 #include <fcntl.h>
 #include <io.h>
@@ -21,7 +24,8 @@ DEV::extent &DEV::ext(int i) const {
 }
 
 DEV::DEV() {
-  blksize = 0;
+  blksize = 0;		// mark unused
+  dcnt = 0; baseid = 0;	// return BTERBLK on any access
 }
 
 DEV::~DEV() {
@@ -83,6 +87,10 @@ int DEV::write(t_block blk,const char *buf) {
   return rc;
 }
 
+/* FIXME: should ensure that 'needed' blocks are verified and kept
+   on an in memory list so that corrupted free space cannot corrupt
+   a file. */
+
 int DEV::chkspace(int needed) {	/* check available space */
   if (needed <= space + newspace) return 0;	/* enough known space */
   char *zbuf = (char *)alloca(blksize);
@@ -95,7 +103,7 @@ int DEV::chkspace(int needed) {	/* check available space */
       for (t_block blk = p->d.eod + newspace; needed; --needed) {
 	int rc = write(++blk,zbuf);
 	if (rc) {
-	  if (rc == ENOSPC) {
+	  if (rc == ENOSPC || rc == EFBIG) {
 	    p->d.eof = --blk;	/* don't try this extent ever again */
 	    space += blk - p->d.eod;
 	    break;
@@ -143,8 +151,10 @@ int DEV::open(const char *name,bool rdonly) {
   extoffset = superoffset + SECT_SIZE;
   if (superoffset)	// new format rounds to blksize
     extoffset = (extoffset + blksize - 1) & ~(blksize - 1);
+#if TRACE > 1
   fprintf(stderr,"superoffset = %d, blkoffset = %ld, extoffset = %ld\n",
 	superoffset,blkoffset,extoffset);
+#endif
   if (rc != sizeof u.buf)
     rc = errno;
   else if (!valid(u.d) || blkoffset < superoffset + SECT_SIZE)
@@ -270,7 +280,7 @@ int DEV::writehdr() const {
   gethdr(buf,sizeof buf);
 #ifdef __MSDOS__
   if (flag == 0) {
-    for (i = 0; i < dp->dcnt; ++i)
+    for (i = 0; i < dcnt; ++i)
       ::_close(dup(ext(i).fd));	/* update DOS dir */
   }
 #endif
