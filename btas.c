@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 1.15  1993/12/09  19:27:34  stuart
+ * allow mount/unmount of a filesystem not on a directory
+ *
  * Revision 1.14  1993/08/25  22:56:24  stuart
  * use btfirst, new bttrace
  *
@@ -204,7 +207,7 @@ int btas(BTCB *b,int opcode) {
     fprintf(stderr,"uid=%d,gid=%d,mode=%o\n",
 	b->u.id.user,b->u.id.group,b->u.id.mode);
 #endif
-    return openfile(b);		/* check permissions */
+    return openfile(b,0);		/* check permissions */
   case BTCLOSE:
     closefile(b);
 #ifdef SINGLE
@@ -224,7 +227,8 @@ int btas(BTCB *b,int opcode) {
     b->mid = btmount(b->lbuf);
     return 0;
   case BTSTAT:		/* set/extract status information */
-	/* FIXME: if klen set, stat a pathname */
+    if (b->klen)
+      return openfile(b,1);
     if (b->root) {
       if (b->rlen >= sizeof (struct btstat)) {
 	struct btstat st;
