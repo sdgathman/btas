@@ -1,0 +1,63 @@
+/* 	SQL expression opcodes.
+
+	The second argument indicates the type of arguments used.
+		x - another expression
+		f - a function call
+		s - a string
+		n - a MONEY
+		i - an integer (logical value at present)
+
+	This file is designed to be used to initialize a structure
+	using #include with an appropriate definition of DEF_SQL.
+*/
+
+DEF_SQL(EXNULL,"","NULL")	/* this op and below have fixed constants */
+DEF_SQL(EXADD,"xx","+")
+DEF_SQL(EXSUB,"xx","-")
+DEF_SQL(EXMUL,"xx","*")
+DEF_SQL(EXDIV,"xx","/")
+DEF_SQL(EXFUNC,"xf","()")
+DEF_SQL(EXNEG,"x","-")
+DEF_SQL(EXNAME,"ss",".")	/* column / table names before resolving */
+DEF_SQL(EXCOL,"c","")		/* column structure after resolving */
+DEF_SQL(EXASSIGN,"xx","=")
+DEF_SQL(EXCONST,"n","")		/* scaled MONEY value (DECIMAL/INTEGER) */
+DEF_SQL(EXDBL,"d","")		/* double value (FLOAT) */
+DEF_SQL(EXSTRING,"s","%s")	/* string value (CHARACTER) */
+DEF_SQL(EXBITSTRING,"si","%s")	/* bitstring value (BIT) */
+DEF_SQL(EXDATE,"j","%ld")	/* date value (DATE) */
+DEF_SQL(EXTIME,"ts","%d %s")	/* time of day value (TIME) */
+DEF_SQL(EXTIMESTAMP,"us","%ld %s")	/* timestamp value (TIMESTAMP) */
+DEF_SQL(EXINTERVAL,"is","%ld %s")	/* time interval (INTERVAL) */
+DEF_SQL(EXQUERY,"qs"," QUERY")	/* subquery */
+DEF_SQL(EXALIAS,"xs"," ")
+DEF_SQL(EXLIST,"xx","")
+DEF_SQL(EXALL,"x","ALL")
+DEF_SQL(EXANY,"x","ANY")
+DEF_SQL(EXCAT,"xx","||")
+DEF_SQL(EXSUBSTRING,"xxx","SUBSTRING")
+DEF_SQL(EXIFELSE,"bxx","IFELSE")
+DEF_SQL(EXDESC,"x","DESC")
+DEF_SQL(EXOUTER,"x","OUTER")
+DEF_SQL(EXAGG,"xa","AGGR")
+DEF_SQL(EXHEAD,"lx","LIST")
+DEF_SQL(EXEXIST,"x","EXISTS")
+DEF_SQL(EXCURSOR,"r"," CURSOR")
+DEF_SQL(EXUNIQ,"x","UNIQUE")
+DEF_SQL(EXCOLIDX,"i","COL")
+DEF_SQL(EXBIT_LENGTH,"x","BIT_LENGTH")
+DEF_SQL(EXCHAR_LENGTH,"x","CHAR_LENGTH")
+DEF_SQL(EXBYTE_LENGTH,"x","OCTET_LENGTH")
+DEF_SQL(EXISNUL,"x","ISNULL")
+DEF_SQL(EXEQ,"xx","==")
+DEF_SQL(EXNE,"xx","!=")
+DEF_SQL(EXLT,"xx","<")
+DEF_SQL(EXGT,"xx",">")
+DEF_SQL(EXLE,"xx","<=")
+DEF_SQL(EXGE,"xx",">=")
+DEF_SQL(EXAND,"xx","&")
+DEF_SQL(EXOR,"xx","|")
+DEF_SQL(EXNOT,"x","|")
+DEF_SQL(EXLIKE,"xx","LIKE")
+DEF_SQL(EXINT,"i","")		/* logical constant */
+DEF_SQL(EXNOP,"x","")
