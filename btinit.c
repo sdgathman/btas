@@ -1,16 +1,16 @@
 /*
 	Initialize BTAS/2 file systems
+ * $Log$
 */
 
 #include <stdio.h>
+#include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include "btree.h"
 #include <btas.h>
 
-#include <io.h>
-#include <mem.h>
 #include <time.h>
 
 int btinit(const char *, int, long, unsigned, unsigned);
@@ -87,7 +87,7 @@ int btinit(const char *s,int mode,long size,unsigned blksize,unsigned chk) {
   long superoffset = SECT_SIZE;
   union {
     struct btfs d;
-    struct root r;
+    struct root_node r;
     char buf[SECT_SIZE];
   } u;
   fd = open(s,O_WRONLY+O_CREAT+O_BINARY,0666);
@@ -97,10 +97,13 @@ int btinit(const char *s,int mode,long size,unsigned blksize,unsigned chk) {
   if (size < 0)
     rc = errno;
   else {
+    int align = blksize / SECT_SIZE;	// sector alignment
     memset(u.buf,0,sizeof u.buf);
     u.d.dtbl->eod = 1L;			/* we will write a root node */
     (void)strncpy(u.d.dtbl->name,s,sizeof u.d.dtbl->name);
     u.d.hdr.root = (superoffset + SECT_SIZE) / SECT_SIZE + chk;
+    u.d.hdr.root += align - 1;
+    u.d.hdr.root -= u.d.hdr.root % align;
     long rootpos = u.d.hdr.root * SECT_SIZE;
     if (size <= rootpos) {
       u.d.hdr.space = 0;
