@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.8  1999/06/03 18:47:57  stuart
+ * When no .idx, try to make master keydesc match btas fields.
+ *
  * Revision 1.7  1998/12/17  23:34:05  stuart
  * return user key length from iskeynorm
  * set unique klen when no idx
@@ -49,7 +52,19 @@ char *iscopyright  =
 	"Copyright 1988,1989,1990 Business Management Systems, Inc.";
 char *isserial	   = "000001";
 
-struct cisam *isamfd[MAXFILES];		/* max cisam files open */
+static int fdlimit = MAXFILES;
+static struct cisam *isamfd[MAXFILES];
+struct cisam *isamfdptr = isamfd;
+int isamfdsize = MAXFILES;
+
+int isfdlimit(int maxfds) {
+  int old = fdlimit;
+  if (maxfds <= MAXFILES && maxfds > 0) {
+    fdlimit = maxfds;
+    return old;
+  }
+  return iserr(EBADARG);
+}
 
 int ismaperr(int code) {
   switch (code) {
@@ -62,8 +77,9 @@ int ismaperr(int code) {
 }
 
 int isflush(int fd) {
-  if (ischkfd(fd) == 0) return iserr(ENOTOPEN);
-  (void)btas(isamfd[fd]->key.btcb,BTFLUSH);
+  struct cisam *r = ischkfd(fd);
+  if (r == 0) return iserr(ENOTOPEN);
+  (void)btas(r->key.btcb,BTFLUSH);
   return 0;
 }
 
@@ -103,7 +119,7 @@ int isopen(const char *name,int mode) {
 static int isnewfd() {
   int fd;
   /* find free descriptor */
-  for (fd = 0; fd < MAXFILES; ++fd) {
+  for (fd = 0; fd < fdlimit; ++fd) {
     if (isamfd[fd] == 0) 
       return fd;
   }

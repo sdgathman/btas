@@ -23,9 +23,11 @@ int isuniqueid(int fd,long *lp) {
 }
 
 int issetunique(int fd,long id) {
+  register struct cisam *r;
   register BTCB *b;
-  if (ischkfd(fd) == 0) return iserr(ENOTOPEN);
-  b = isamfd[fd]->idx;
+  r = ischkfd(fd);
+  if (r == 0) return iserr(ENOTOPEN);
+  b = r->idx;
   if (b == 0) return iserr(EBADFILE);
   b->lbuf[0] = 0; b->klen = b->rlen = 5;
   stlong(id,b->lbuf+1);

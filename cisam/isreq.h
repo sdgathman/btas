@@ -2,6 +2,9 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.7  2003/04/05 04:40:59  stuart
+ * Sanity check keydesc.  Initialize kp->k.k_len in isaddindex().
+ *
  * Revision 1.6  2003/03/18 21:38:34  stuart
  * Make isreq a public interface.
  *
@@ -125,6 +128,14 @@ int isreq(int fd,int op,int *l1,int l2,char *,const char *,int mode,int len);
   * ISINDEXNAME index name, MAXKEYNAME = 32
   */
 #define ISREQ_MAXRES(rlen) ((rlen < 32) ? 64 : rlen * 2)
+
+/** Sets file descriptor limit.  Maximum file desciptor allocated will
+  * be one less than the limit.  Used to ensure fds fit into 
+  * the integer type reserved for them.  For example, isserve.c
+  * uses an 8 bit field for file descriptor, and calls isfdlimit(255).
+  * Return the previous setting, or 0 for no limit (other than memory).
+  */
+int isfdlimit(int maxfds);
 
 #ifndef __cplusplus
 enum {
