@@ -13,35 +13,43 @@ int Alarm::interval = 3;
 
 Alarm::Alarm() {
   limit = 1;
-  signal(SIGTERM,handler);
-  signal(SIGPWR,handler);
+  signal(SIGTERM,handleFatal);
+  signal(SIGPWR,handleFatal);
 #ifdef SIGDANGER
-  signal(SIGDANGER,handler);
+  signal(SIGDANGER,handleFatal);
 #endif
 }
 
-void Alarm::handler(int sig) {	/* ignore signals (but terminate system call) */
-  if (sig == SIGALRM) {
-    if (ticks) {
-      ++ticks;
-      signal(SIGALRM,handler);
-      alarm(interval);
-      time(&curtime);
-    }
-  }
-  else fatal = sig;
+void Alarm::handleFatal(int sig) {
+  fatal = sig;
 }
 
-void Alarm::enable(int secs) {
-  limit = secs / interval;
-  if (ticks == 0) {
-    signal(SIGALRM,handler);
+void Alarm::handler(int sig) {	/* ignore signals (but terminate system call) */
+  signal(SIGALRM,handler);
+  if (ticks) {
+    ++ticks;
     alarm(interval);
     time(&curtime);
   }
-  ticks = 1;
 }
 
+/* The main server loop calls this after every operation.  It must be 
+   fast most of the time.  Secs is the maximum age of dirty buffers.  For now,
+   we enforce this by forcing a flush at that interval.  Normally we
+   flush only when there is no activity as detected by calls to check().
+ */
+void Alarm::enable(int secs) {
+  limit = secs / interval;
+  if (ticks == 0)
+    handler(SIGALRM);
+  else
+    ticks = 1;
+}
+
+/* The main server loop calls this every time a blocking system call
+   fails - usually because msgrcv() is interrupted by SIGALRM.  
+   Return true if the server should shutdown.
+ */
 bool Alarm::check() {
   if (errno != EINTR || fatal) return true;
   if (ticks > limit) {
@@ -67,4 +75,3 @@ Alarm::~Alarm() {
     fprintf(stderr,"BTAS/X shutdown: %s\n",s);
   }
 }
-
