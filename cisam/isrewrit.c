@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.1  1995/04/06  20:17:26  stuart
+ * Initial revision
+ *
  */
 #include <malloc.h>
 #include <string.h>
@@ -30,7 +33,6 @@ static int isrew(struct cisam *r,const void *rec) {
   struct cisam_key *kp;
   BTCB *b;
   int rlen;
-  int rc;
   char *buf;
   kp = &r->key;
   b = kp->btcb;
@@ -38,27 +40,45 @@ static int isrew(struct cisam *r,const void *rec) {
   rlen = isrlen(kp->f);		/* actual record length */
   buf = alloca(rlen);
   b2urec(kp->f->f,buf,rlen,b->lbuf,b->rlen);	/* save master record */
-  for (;;) {
-    u2brec(kp->f->f,rec,r->rlen,b,kp->klen);	/* load new record */
-    switch (cmprec(kp->f,rec,buf,r->rlen)) {
-    case 1:				/* key change */
+  /* first do the writes, saving the cmpresults and checking for DUPKEY */
+  do {
+    kp->cmpresult = cmprec(kp->f,rec,buf,r->rlen);
+    if (kp->cmpresult == 1) {
+      int rc;
+      b = kp->btcb;
+      u2brec(kp->f->f,rec,r->rlen,b,kp->klen);	/* load new record */
       rc = btas(b,BTWRITE + DUPKEY);		/* write new record */
       if (rc) {
-	/* backout partial rewrite */
-	return iserr(EDUPL);
+	struct cisam_key *bk;
+	/* got a DUPKEY, backout new records */
+	for (bk = &r->key; bk != kp; bk = bk->next) {
+	  if (bk->cmpresult == 1) {
+	    b = bk->btcb;
+	    (void)btas(b,BTDELETE + NOKEY);	  /* delete new record */
+	    u2brec(bk->f->f,buf,rlen,b,bk->klen); /* restore old record */
+	  }
+	}
+	return rc;
       }
+    }
+  } while (kp = kp->next);
+
+  /* now delete the old and rewrite the new */
+
+  for (kp = &r->key; kp; kp = kp->next) {
+    b = kp->btcb;
+    switch (kp->cmpresult) {
+    case 1:
       u2brec(kp->f->f,buf,rlen,b,kp->klen);	/* load old record */
       (void)btas(b,BTDELETE + NOKEY);		/* delete old record */
       u2brec(kp->f->f,rec,r->rlen,b,kp->klen);	/* restore new record */
       break;
     case 2:
+      u2brec(kp->f->f,rec,r->rlen,b,kp->klen);	/* load new record */
       btas(b,BTREPLACE);			/* replace record */
     }
-    kp = kp->next;
-    if (kp == 0) break;
-    b = kp->btcb;
   }
-  return iserr(0);
+  return 0;
 }
 
 /* the Cisam calls */
@@ -67,7 +87,7 @@ isrewcurr(int fd,const void *rec) {
   struct cisam *r;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
-  return isrew(r,rec);
+  return ismaperr(isrew(r,rec));
 }
 
 /* save key, BTREWRIT KEY=, restore key */
