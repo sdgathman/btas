@@ -60,7 +60,7 @@ typedef struct block {
 
 /* flag values */
 #define BLK_MOD		001	/* block modified */
-#define BLK_ACC		002	/* block has been accessed */
+#define BLK_LOW		002	/* block is low priority */
 #define BLK_CHK		004	/* block has been checkpointed */
 #define BLK_ROOT	010	/* root node */
 #define BLK_KEY		020	/* block id has been modified */
