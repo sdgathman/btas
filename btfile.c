@@ -52,6 +52,9 @@ static char what[] = "$Id$";
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 1.4  1994/03/28  20:13:55  stuart
+ * support BTSTAT with pathname
+ *
  * Revision 1.3  1993/12/09  19:32:23  stuart
  * use RCS Id
  *
@@ -61,7 +64,7 @@ static char what[] = "$Id$";
  */
 
 #include <string.h>
-#include "btbuf.h"
+#include "hash.h"
 #include "node.h"
 #include <btas.h>
 #include <bterr.h>
@@ -148,7 +151,7 @@ int openfile(BTCB *b,int stat) {
 
   if (b->root == 0L) {		/* find root of filesystem */
     b->root = devtbl[b->mid].root;
-    (void)btroot(b->root,b->mid);
+    btroot(b->root,b->mid);
   }
 
   /* follow path */
@@ -181,7 +184,7 @@ int openfile(BTCB *b,int stat) {
 	break;
       }
     }
-    (void)btroot(b->root,b->mid);		/* new root */
+    btroot(b->root,b->mid);		/* new root */
   }
 
   b->rlen = 0;
@@ -253,9 +256,7 @@ void closefile(BTCB *b) {
   }
 }
 
-t_block creatfile(b)
-  BTCB *b;
-{
+t_block creatfile(BTCB *b) {
   BLOCK *bp;
   if (b->rlen + PTRLEN > maxrec) btpost(BTERKLEN);
   btget(2);
@@ -270,7 +271,8 @@ t_block creatfile(b)
   bp->buf.r.stat.id = b->u.id;
   ++bp->buf.r.stat.links;
   bp->flags |= BLK_MOD;
-  b->rlen += stptr(bp->buf.r.root,b->lbuf + b->rlen);
+  stptr(bp->buf.r.root,b->lbuf + b->rlen);
+  b->rlen += PTRLEN;
   /* caller writes directory record */
   return bp->buf.r.root;
 }
@@ -328,6 +330,7 @@ t_block linkfile(BTCB *b) {
     }
     bp->flags |= BLK_MOD;
   }
-  b->rlen += stptr(b->u.cache.node,b->lbuf + b->rlen);
+  stptr(b->u.cache.node,b->lbuf + b->rlen);
+  b->rlen += PTRLEN;
   return b->u.cache.node;
 }
