@@ -1,4 +1,4 @@
-/*
+/* $Log$
   Allocate & open a BTAS/2 file with support for "current" directory.  
   The "current" directory is passed to programs through the environment.
 */
@@ -68,26 +68,33 @@ int btopenf(BTCB *b,const char *name,int mode,int rlen) {
   b->flags = 0;
   b->root = 0L;
   b->mid = 0;
-  *b->lbuf = 0;
+  dirname = 0;
   if (*name == '/') ++name;
   else if (btasdir) {
     if (btasdir->flags) {
       b->root = btasdir->root;
       b->mid  = btasdir->mid;
     }
-    else {
-      (void)strcat(b->lbuf,btasdir->lbuf + sizeof btdirname);
-      (void)strcat(b->lbuf,"/");
-    }
+    else
+      dirname = btasdir->lbuf + sizeof btdirname;
   }
   /* open file following symbolic links */
   for (i = 0; i < 10; ++i) {
+    int len;
+    int newpath_offset;
     b->u.id.user = geteuid();
     b->u.id.group = getegid();
     b->u.id.mode = perms[mode&15];	/* desired permissions */
     /* FIXME: check for overflow constructing path */
-    (void)strcat(b->lbuf,name);
-    b->klen = strlen(b->lbuf);	/* simplest method */
+    len = dirname ? strlen(dirname) : 0;
+    if (len + strlen(name) + 2 > rlen)
+      errdesc(name,BTERKLEN);		/* buffer too small */
+    if (dirname) {
+      strcpy(b->lbuf,dirname);
+      b->lbuf[len++] = '/';
+    }
+    strcpy(b->lbuf + len,name);
+    b->klen = len = strlen(b->lbuf);
     /* set path seperator to null for kernel */
     for (dirname = b->lbuf; dirname = strchr(dirname,'/'); *dirname++ = 0);
     b->rlen = rlen;
@@ -98,14 +105,18 @@ int btopenf(BTCB *b,const char *name,int mode,int rlen) {
 	errdesc(name,rc);	/* add filename to error log */
     envend
     if (rc != BTERLINK) break;
-    name = b->lbuf + strlen(b->lbuf) + 1;
-    b->lbuf[b->rlen] = 0;	/* ensure null terminated */
-    /* printf("%s --> %s\n",b->lbuf,name); */
-    *b->lbuf = 0;
-    if (*name == '/') {
+    newpath_offset = strlen(b->lbuf) + 1;
+    b->klen -= newpath_offset;
+    name += strlen(name) - b->klen;
+    /* shift to beginning of buffer to ensure room for terminator */
+    memcpy(b->lbuf,b->lbuf + newpath_offset,b->rlen -= newpath_offset);
+    b->lbuf[b->rlen] = 0;	/* null terminate */
+    dirname = b->lbuf;
+    //printf("newpath: %s/%s\n",b->lbuf,name);
+    if (*dirname == '/') {
       b->mid = 0;	/* begin again at root directory */
       b->root = 0;
-      ++name;
+      ++dirname;
     }
   }
   return rc;
@@ -140,3 +151,13 @@ void btputdir(BTCB *b) {
   }
   btasdir = b;
 }
+
+#if 0
+int main(int argc,char **argv) {
+  int i;
+  for (i = 1; i < argc; ++i) {
+    BTCB *b = btopen(argv[i],BTRDONLY,512);
+    btclose(b);
+  }
+}
+#endif
