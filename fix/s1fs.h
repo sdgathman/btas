@@ -73,7 +73,7 @@ struct s1FS: btFS {
       s1_word  vde;	// DDB address (S/1 only)
     } ds[125];		// extent table
   };
-  s1FS(const char *name,int flag = FS_RDONLY);
+  s1FS(const char *name,int flag = fstbl::FS_RDONLY);
   s1btree *get(t_block blk = 0);
   t_block lastblk() const;
   t_block xblk(t_block) const;
