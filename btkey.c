@@ -29,6 +29,9 @@ btkey:	verify()		locate record with a given key.
 	addrec()		add user record, check for DUPKEY
 	delrec()		delete user record, caller locates first
  * $Log$
+ * Revision 1.5  1994/07/06  15:52:13  stuart
+ * don't return old node with record
+ *
  * Revision 1.4  1993/12/09  19:33:53  stuart
  * RCS Id
  *
@@ -52,7 +55,7 @@ static const char what[] = "$Id$";
 BLOCK *btfirst(BTCB *b) {
   BLOCK *bp = bttrace(b,b->klen,1);
   if (sp->slot == 0) {
-    if ((bp->flags && BLK_ROOT) || bp->buf.l.lbro == 0L) return 0;
+    if ((bp->flags & BLK_ROOT) || bp->buf.l.lbro == 0L) return 0;
     b->u.cache.node = bp->buf.l.lbro;
     btget(1);
     bp = btbuf(b->u.cache.node);
@@ -66,7 +69,7 @@ BLOCK *btfirst(BTCB *b) {
 BLOCK *btlast(BTCB *b) {
   BLOCK *bp = bttrace(b,b->klen,-1);
   if (sp->slot == node_count(bp)) {
-    if ((bp->flags && BLK_ROOT) || bp->buf.l.rbro == 0L) return 0;
+    if ((bp->flags & BLK_ROOT) || bp->buf.l.rbro == 0L) return 0;
     b->u.cache.node = bp->buf.l.rbro;
     btget(1);
     bp = btbuf(b->u.cache.node);
@@ -165,7 +168,7 @@ void delrec(BTCB *b,BLOCK *bp) {
     if (rc = delfile(b,root)) btpost(rc);
     btget(1);
     bp = btbuf(b->u.cache.node);
-    rlen -= PTRSIZE;
+    rlen -= PTRLEN;
   }
   /* save the record we are about to delete */
   node_copy(bp,b->u.cache.slot,b->lbuf,b->rlen = rlen,b->klen);
