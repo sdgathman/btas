@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 2.3  1999/10/03  04:49:36  stuart
+ * mark buffers removed from touched
+ *
  * Revision 2.2  1997/06/23  15:40:24  stuart
  * incremental flushing
  *
@@ -26,7 +29,7 @@
 
 #ifndef ASSERTFCN
 #define ASSERTFCN _assert
-extern "C" _assert(const char *,const char *,int);
+extern "C" void _assert(const char *,const char *,int);
 #endif
 
 int BufferPool::maxflush = MAXFLUSH;
@@ -40,7 +43,7 @@ BufferPool::BufferPool(int size) {
   lastcnt = 0;
   curcnt = 0;
   mru = 0;
-  maxtouch = size;
+  maxtouch = size / 3;
   if (maxtouch > maxflush)
     maxtouch = maxflush;
   int hsize = size * 3 / 2;
@@ -91,7 +94,7 @@ void BufferPool::get(int cnt) {
       int i;
       for (i = 0; i < numtouch; ++i)
 	if (touched[i] == bp) {
-	  btdumpbuf(bp);
+	  bp->dump();
 	  bp->flags |= BLK_TOUCH;
 	  break;
 	}
@@ -106,7 +109,7 @@ void BufferPool::get(int cnt) {
       break;
     }
 #else	// add to touched array if not already there
-    if ((bp->flags & (BLK_MOD | BLK_TOUCH)) == BLK_MOD) {
+    if (bp->flags & BLK_MOD) {
       int mcnt = 0;
       int i;
       bp->flags |= BLK_TOUCH;
@@ -191,8 +194,14 @@ BLOCK *BufferPool::find(t_block blk,short mid) {
   bp = mru->mru;	// least recently used buffer
 #ifdef FAILSAFE
   while (bp->flags & (BLK_MOD | BLK_CHK)) {
+    if (bp == mru) {	// shouldn't happen, but
+      bp = bp->mru;	// ran out of unencumbered buffers, grab LRU
+      bp->dump();	// log the encumbered buffer we grab and keep going
+      writebuf(bp);
+      break;
+    }
     bp = bp->mru;
-    assert(bp != mru);
+    //assert(bp != mru);
   }
 #else
   if (bp->flags & BLK_MOD)
@@ -286,8 +295,8 @@ int BufferPool::wait(short mid) {
       }
     }
     modcnt = mcnt;
-    /* if (numtouch != newcnt) */
-      /* fprintf(stderr,"%d buffers released\n",numtouch - newcnt); */
+    /* if (numtouch != newcnt) 
+      fprintf(stderr,"%d buffers released\n",numtouch - newcnt);  */
     numtouch = newcnt;
   }
   return rc;
@@ -295,7 +304,10 @@ int BufferPool::wait(short mid) {
 
 int BufferPool::sync(short mid,int lim) {
   int rc = wait(mid);
-  if (rc) return rc;
+  if (rc) {
+    fprintf(stderr,"wait failed, rc = %d\n",rc);
+    return rc;
+  }
   FDEV *dev = devtbl + mid;
   if (lim == 0)
     lim = numtouch;
