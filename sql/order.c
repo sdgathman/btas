@@ -2,6 +2,9 @@
 	Copyright 1993 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
 $Log$
+Revision 1.1  2001/02/28 23:00:04  stuart
+Old C version of sql recovered as best we can.
+
  * Revision 1.4.1.1  1993/05/21  20:45:43  stuart
  * give Order objects their own obstack point their sql results to it
  *
@@ -156,7 +159,8 @@ static void undoFld(sql *e,sql *r) {
 static void updateFld(sql x,Column **c) {
   const char *p;
   int i;
-  if (x->op == EXCOL) {
+  if (x->op == EXCOLIDX) {
+    x->op = EXCOL;
     x->u.col = c[x->u.ival];
     return;
   }
