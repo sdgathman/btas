@@ -1,21 +1,21 @@
-/* $log$
+/* $Log$
  */
 #include <btas.h>
 #include <errenv.h>
-#include <mem.h>
+#include <string.h>
 
 int btstat(const char *s,struct btstat *p) {
-  BTCB *dir = 0;
+  BTCB bt;
   int rc;
   catch(rc)
-    dir = btopen(s,BTNONE+LOCK+BTDIROK,sizeof *p);
-    if (!dir) return -1;
-    dir->rlen = sizeof *p;
-    dir->klen = 0;
-    (void)btas(dir,BTSTAT);
-    (void)memcpy((char *)p,dir->lbuf,sizeof *p);
+    if (btopenf(&bt,s,BTNONE+LOCK+NOKEY+BTDIROK,sizeof bt.lbuf))
+      return -1;
+    bt.rlen = sizeof *p;
+    bt.klen = 0;
+    (void)btas(&bt,BTSTAT);
+    (void)memcpy(p,bt.lbuf,sizeof *p);
   envend
-  (void)btclose(dir);
+  btas(&bt,BTCLOSE);
   return rc;
 }
 
