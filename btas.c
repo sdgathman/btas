@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.9";
+static char what[] = "@(#)btas.c	1.10";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -39,9 +39,10 @@ int btas(b,opcode)
   int rlen,rc;
   t_block root;
 
-  if (b->klen > b->rlen
-    || (unsigned)b->klen > MAXKEY || (unsigned)b->rlen > maxrec)
+  if ((unsigned)b->klen > b->rlen || (unsigned)b->rlen > maxrec)
     return BTERKLEN;	/* invalid key or record length */
+  if (b->klen > MAXKEY)
+    b->klen = MAXKEY;	/* truncate long keys */
   if (rc = setjmp(btjmp)) {
     return rc;
   }
