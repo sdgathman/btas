@@ -14,7 +14,8 @@
 	lock status is not detected by the C library routines.  (But
 	maybe we'll add the feature.)  Anyway, we aren't using locked
 	records in EDX anymore either!
-*/
+ * $Log$
+ */
 
 #include "btasedx.h"
 
@@ -28,9 +29,7 @@
 static unsigned short e2brec_rlen = ~0;
 BYTE e2brec_skip = 0;
 
-void e2brec_begin(rlen)
-  unsigned rlen;		/* large record length */
-{
+void e2brec_begin(unsigned rlen) {	/* large record length */
   e2brec_rlen = rlen;
   e2brec_skip = 0;
 }
@@ -38,13 +37,7 @@ void e2brec_begin(rlen)
 /*
 	convert BTAS/X record to EDL
 */
-void b2erec(p,urec,ulen,buf,len)
-  const BYTE *p;		/* field table */
-  BYTE far *urec;		/* uncompressed user buffer */
-  int ulen;			/* user record length: max bytes to load */
-  const char *buf;		/* compressed buffer */
-  int len;			/* size of compressed buffer */
-{
+void b2erec(const BYTE *p,BYTE far *urec,int ulen,const char *buf,int len) {
   register int pos = 0;
   for (++p; *p; p += 2) {
     register int flen;
@@ -135,13 +128,13 @@ void b2erec(p,urec,ulen,buf,len)
     _fmemset(urec, 0, ulen - pos);
 }
 
-unsigned e2brec(p,urec,ulen,btcb,klen)
-  const BYTE *p;	/* field table */
-  const BYTE far *urec;	/* unpacked user record */
-  unsigned ulen;		/* size of user record */
-  BTCB *btcb;		/* btcb->klen, btcb->rlen, btcb->lbuf modified */
-  int klen;		/* unpacked key length */
-{
+unsigned e2brec(
+  const BYTE *p,	/* field table */
+  const BYTE far *urec,	/* unpacked user record */
+  unsigned ulen,	/* size of user record */
+  BTCB *btcb,		/* btcb->klen, btcb->rlen, btcb->lbuf modified */
+  int klen		/* unpacked key length */
+) {
   const BYTE *sav = p;
   char *buf = btcb->lbuf;	/* compressed buffer pointer */
   unsigned pos = 0;	/* position in user buffer */
@@ -192,7 +185,10 @@ unsigned e2brec(p,urec,ulen,btcb,klen)
 
 	i = farblkfntl((char far *)urec+flen,0x40,flen);
 	for (nblen = 0; *urec && nblen < i; ++nblen) {
-	  *buf++ = ebcdic(*urec++);
+	  int c = ebcdic(*urec++);
+	  if (c < ' ')
+	    c = ':';
+	  *buf++ = c;
 	}
 	if (nblen < p[1] - blen)
 	  *buf++ = 0;
