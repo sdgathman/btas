@@ -105,6 +105,9 @@ mkuser -a id=711 pgrp=bms home=/bms \
 %endif
 %ifos linux
 /usr/sbin/useradd -u 711 -d /bms -M -c "BTAS/X File System" -g bms btas || true
+
+%post
+/sbin/ldconfig
 %endif
 
 %files
