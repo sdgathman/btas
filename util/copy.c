@@ -108,6 +108,7 @@ static int copymove(int move) {
       srcf = btopen(src,BTRDONLY,MAXREC);
       copy1(srcf,dstf);
       btclose(srcf);
+      srcf = 0;
     }
   }
   else {			/* copy 1 file to different name */
@@ -167,9 +168,20 @@ static int copymove(int move) {
   return 0;
 }
 
+static char *ftbldup(const char *buf,int rlen) {
+  int slen = strlen(buf);
+  int flen = rlen - slen;
+  char *ftbl = malloc(flen);
+  if (ftbl == 0) return 0;
+  memcpy(ftbl,buf + slen + 1,flen - 1);
+  ftbl[flen] = 0;
+  return ftbl;
+}
+
 static void copy1(BTCB *srcf,BTCB *dstf) {
   int rc;
   char *srctbl = 0, *dsttbl = 0;
+  char *buf = 0;
   int rlen, klen;
   char econvert = !!strchr(switch_char,'e');	/* ebcdic conversion flag */
   char aconvert = !!strchr(switch_char,'a');	/* ascii conversion flag */
@@ -179,10 +191,11 @@ static void copy1(BTCB *srcf,BTCB *dstf) {
   (void)fflush(stderr);
 
   if (econvert) {
-    srctbl = strdup(srcf->lbuf + strlen(srcf->lbuf) + 1);
+    srctbl = ftbldup(srcf->lbuf,srcf->rlen);
     rlen = bt_rlen(srcf->lbuf,srcf->rlen);
-    dsttbl = strdup(dstf->lbuf + strlen(dstf->lbuf) + 1);
+    dsttbl = ftbldup(dstf->lbuf,dstf->rlen);
     klen = bt_klen(dstf->lbuf);
+    buf = malloc(rlen);
   }
 
   srcf->klen = 0;
@@ -192,10 +205,14 @@ static void copy1(BTCB *srcf,BTCB *dstf) {
     rc = 212;		/* pretend file is empty */
   else
     rc = btas(srcf,BTREADGE+NOKEY);
+  if (!buf || !dsttbl || !srctbl) {
+    puts("*** out of memory ***\n");
+    cancel = 1;
+  }
   while (rc == 0 && !cancel) {
     if (econvert) {
-      b2erec(srctbl,dstf->lbuf,rlen,srcf->lbuf,srcf->rlen);
-      e2brec(dsttbl,dstf->lbuf,rlen,dstf,klen);
+      b2erec(srctbl,buf,rlen,srcf->lbuf,srcf->rlen);
+      e2brec(dsttbl,buf,rlen,dstf,klen);
     }
     else {
       (void)memcpy(dstf->lbuf,srcf->lbuf,srcf->rlen);
@@ -216,6 +233,7 @@ static void copy1(BTCB *srcf,BTCB *dstf) {
   envend
   if (srctbl) free(srctbl);
   if (dsttbl) free(dsttbl);
+  if (buf) free(buf);
   (void)fprintf(stderr,"%ld records copied, %ld dups\n",recs,dups);
   if (rc) errpost(rc);
 }
