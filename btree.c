@@ -1,16 +1,21 @@
+/*	BMS super btree
+	variable length records up to 1/2 node size
+	minimum unique keys
+ * $Log$
+ */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.22";
+static char what[] = "$Id$";
 #endif
 
 #include "btbuf.h"
 #include "node.h"
+#include "btas.h"
 #include "bterr.h"
 #include <stdio.h>
 #include <assert.h>
 
-static int getkey(/**/ BLOCK *, BLOCK *, char *, t_block * /**/);
-static int insert(/**/ BLOCK *, BLOCK *,
-		int, char *, int, struct btlevel * /**/);
+static int getkey(BLOCK *, BLOCK *, char *, t_block *);
+static int insert(BLOCK *, BLOCK *, int, char *, int, struct btlevel *);
 
 /*	the level stack records the path followed when
 	locating a record.  bttrace() follows the tree
@@ -30,10 +35,7 @@ struct btlevel *sp;		/* stack pointer */
 	A record may be replaced and/or inserted at each iteration.
 */
 
-void btadd(urec,ulen)
-  char *urec;
-  int ulen;
-{
+void btadd(char *urec,int ulen) {
   register BLOCK *bp,*np,*dp,*ap;
   struct btlevel *savstk;
   short idx,i,limit,acnt,cnt;
@@ -225,13 +227,11 @@ void btadd(urec,ulen)
 	build level stack for possible inserts later
 */
 
-BLOCK *bttrace(root,key,klen,dir)
-  t_block root;
-  char *key;
-  int klen,dir;
-{
-  register BLOCK *bp;
-  register short pos;
+BLOCK *bttrace(BTCB *b,int klen,int dir) {
+  t_block root = b->root;
+  char *key = b->lbuf;
+  BLOCK *bp;
+  short pos;
   sp = stack;
   sp->node = root;
   for (;;) {
@@ -247,6 +247,7 @@ BLOCK *bttrace(root,key,klen,dir)
     else
       node_ldptr(bp,pos,&sp->node);	/* store node */
   }
+  b->u.cache = *sp;
   return bp;
 }
 
@@ -258,8 +259,7 @@ BLOCK *bttrace(root,key,klen,dir)
 	A record may be replaced and/or deleted at each iteration.
 */
 
-void btdel()
-{
+void btdel() {
   register BLOCK *np, *bp, *dp;
   register short i;
   short nfree,bfree,totfree,cnt,ulen,bcnt;
@@ -329,8 +329,8 @@ void btdel()
       else
 	dp->buf.s.son = bp->blk;
     }
-    else {
-      totfree = (nfree + bfree)/2;	/* even up data in brothers */
+    else {		/* even up data in brothers */
+      totfree = (nfree + bfree)/2;	
       if (nfree < bfree || bcnt < 2) {
 	totfree += node_free(np->np,0) - bfree;
 	for (i = 0; node_free(np->np,i) > totfree; ++i);
@@ -361,13 +361,8 @@ void btdel()
    location, otherwise point lp to the record after which the new record
    still needs to be inserted.  Return 0 for success. */
 
-static int insert(bp,np,idx,urec,ulen,lp)
-  BLOCK *bp,*np;
-  int idx;
-  char *urec;
-  int ulen;
-  struct btlevel *lp;
-{
+static int
+insert(BLOCK *bp,BLOCK *np,int idx,char *urec,int ulen,struct btlevel *lp) {
   int rc;
   if (idx <= 0) {
     rc = node_insert(bp,idx + node_count(bp),urec,ulen);
@@ -390,11 +385,7 @@ static int insert(bp,np,idx,urec,ulen,lp)
 
 /* compute the unique key record to distinquish two nodes */
 
-static int getkey(bp,np,urec,blkp)
-  BLOCK *bp, *np;
-  char *urec;
-  t_block *blkp;
-{
+static int getkey(BLOCK *bp,BLOCK *np,char *urec,t_block *blkp) {
   register int ulen,i;
   i = node_count(bp);
   if (np->flags & BLK_STEM) {

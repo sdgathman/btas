@@ -61,14 +61,16 @@ typedef struct block {
 /* flag values */
 #define BLK_MOD		001	/* block modified */
 #define BLK_ACC		002	/* block has been accessed */
-#define BLK_NEW		004	/* new buffer (for failsafe) */
+#define BLK_CHK		004	/* block has been checkpointed */
 #define BLK_ROOT	010	/* root node */
 #define BLK_KEY		020	/* block id has been modified */
 #define BLK_DIR		040	/* block belongs to a directory */
+#define BLK_TOUCH      0100	/* block is in touched list */
 #define BLK_STEM	(unsigned short)0x8000	/* key data */
 
-extern BLOCK *bttrace(/**/ t_block , char *, int , int /**/);
-extern void btadd(/**/ char *, int /**/);
-extern void btdel(/**/ void /**/);
+struct BTCB;
+BLOCK *bttrace(struct BTCB *, int, int);
+void btadd(char *, int);
+void btdel(void);
 extern jmp_buf btjmp;
 #define btpost(c)	longjmp(btjmp,c)
