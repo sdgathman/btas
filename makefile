@@ -3,7 +3,7 @@ OBJS = btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o
 L = /bms/lib/$Mlibbtas.a
 
 .DEFAULT:
-	co -rV110 $(<:.o=.c)
+	co -rR1V14 $(<:.o=.c)
 
 make:	btserve btstop btinit $L
 
