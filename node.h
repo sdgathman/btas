@@ -1,8 +1,11 @@
 /*
 	interface to node functions
  * $Log$
+ * Revision 2.1  1996/12/17  16:55:34  stuart
+ * C++ node interface
+ *
  */
-
+#include <stddef.h>
 #include "btree.h"
 
 extern "C" {
@@ -29,16 +32,17 @@ private:
      memory bound checkers happy. */
   short tab[BLKSIZE/sizeof (short)];		/* offset table */
   unsigned char dat[BLKSIZE];			/* data area */
+
 public:
   // return a pointer to a given record
   unsigned char *rptr(short idx) { return dat + tab[idx]; }
   const unsigned char *rptr(short idx) const { return dat + tab[idx]; }
 
-  // return record count of disk node or size in bytes of memory node
-  short size() const { return tab[0]; }
-
   // set record count to make disk resident form
   void setsize(short cnt) { tab[0] = cnt; }	// set count
+
+  // return record count of disk node or size in bytes of memory node
+  short size() const { return tab[0]; }
 
   // set end of buffer to make memory resident form
   void setsize(void *end) { tab[0] = (unsigned char *)end - dat; }
@@ -46,12 +50,7 @@ public:
   // NOTE: all remaining operations are only valid for memory format nodes
 
   // return size of a given record
-  private:
   short size(int i) const { return tab[i-1] - tab[i]; }
-  public:
-  /* FIXME: this computes uncompressed size - we shouldn't know about
-     duplicate compression - callers should be using BLOCK::size */
-  //short size(int i) const { return tab[i-1] - tab[i] + *rptr(i) - 1; }
 
   // Load and store the block pointer for a given stem node record.
   // Pointers are stored as the last 4 bytes of a record.
@@ -65,8 +64,6 @@ public:
 
 inline int stptr(t_block n,char *p) { stlong(n,p); return node::PTRLEN; }
 inline t_block ldptr(const char *p) { return ldlong(p); }
-
-extern char *workrec;	/* work buffer of max record size */
 
 typedef union node NODE;
 
@@ -90,20 +87,30 @@ enum {
    FIXME: make more stuff private.  This was converted from C code.
  */
 
-struct BLOCK {
+class BLOCK {
+  friend class BufferPool;
   BLOCK *lru;
 #ifndef NOHASH
   BLOCK *mru;		/* lru buffer chain */
 #endif
+public:
   t_block blk;		/* block address */
   short mid;		/* mount id */
   short flags;
   short count;		/* holds count while NODE is in memory format */
 public:
+  BLOCK();
   union node *np;	/* pointer to data area of node */
   union btree buf;
   int cnt() const { return count; }	// return record count
-  short size(int i) const;		// return 
+  short size(int i) const;		// return record size
+  void setblksize(unsigned blksize);	// set block size
+  unsigned getblksize() const {
+    return (char *)np->dat + np->size() - buf.data; }
+  static short maxrec(unsigned blksz) {	// return max record size
+    return (blksz - offsetof(leaf,data[3])) / 2 - 1;
+  }
+  short maxrec() const { return maxrec(getblksize()); }
 
   // extract a record.  dup byte are already in buffer (from sequential
   // records).  Use 0 if in doubt.
