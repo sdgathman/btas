@@ -43,9 +43,7 @@ static void addlist(BTCB *b,const char *name) {
   }
 }
 
-int iserase(name)
-  const char *name;
-{
+int iserase(const char *name) {
   BTCB * volatile b = 0;
   int rc;
   char *fname;

@@ -11,6 +11,9 @@ test:	bttestc btteste
 	bttestc $R | tee log
 	btteste $R | tee -a log
 
+testcisam:	testcisam.o $L
+	$(CC) testcisam.o $(LDFLAGS) -lbtas -lbms -lcheck -o testcisam
+
 btteste:	bttestc.o $L
 	$(CC) bttestc.o $(LDFLAGS) -lbtas -lbms -o btteste
 

@@ -41,8 +41,8 @@ static int getflds(int fd,char *buf) {
 /** Execute an encapsulated C-isam request.  Returns the C-isam result code
  * of the operation plus p1len, p1buf, and C-isam globals (iserrno, etc.).
  * This simplifies wrapping the library for RPC like protocols (isserve.c),
- * and Virtual Machines like Java.  P1 and p2 and variable length parameters,
- * for example a filename or a record buffer.
+ * and Virtual Machines like Java and Python.  P1 and p2 are variable length
+ * parameters, for example a filename or a record buffer.
  * @param rfd	file descriptor 
  * @param fxn	function code, defined in isreq.h
  * @param p1lenp ptr to size of p1, replaced with variable result size.

@@ -2,6 +2,9 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.8  2003/07/29 16:46:35  stuart
+ * isfdlimit entry point.  Always use ischkfd.
+ *
  * Revision 1.7  2003/04/05 04:40:59  stuart
  * Sanity check keydesc.  Initialize kp->k.k_len in isaddindex().
  *
@@ -139,8 +142,8 @@ int isfdlimit(int maxfds);
 
 #ifndef __cplusplus
 enum {
-  MAXFD	 = 63,	/* maximum user file descriptors */
-  MAXPROC= 7,	/* maximum request pipes */
+  MAXFD	 = 63,	/* maximum user file descriptors (NOT USED) */
+  MAXPROC= 7,	/* maximum request pipes (NOT USED) */
   MAXRLEN= 1024,/* maximum record length supported */
   MAXNAME= 128	/* maximum file name supported */
 };
