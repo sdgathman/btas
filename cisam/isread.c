@@ -1,3 +1,5 @@
+/* $Log$
+ */
 #include <malloc.h>
 #include <errenv.h>
 #include "cisam.h"
@@ -113,6 +115,8 @@ int isread(int fd,void *rec,int mode) {
     b->klen = b->rlen;
   catch(rc)
   rc = btas(b,(int)op + NOKEY);	/* read btas (possibly key) record */
+  if (rc == 0)
+    rc = isCheckRange(r,buf,op);
   if (rc == 0) {
     if (kp != &r->key) {
       b2urec(kp->f->f,buf,r->rlen,b->lbuf,b->rlen);
