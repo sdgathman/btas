@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.10";
+static char what[] = "@(#)btree.c	1.11";
 #endif
 
 #include "btbuf.h"
@@ -49,7 +49,6 @@ void btadd(urec,ulen)
     /* root node gets special split so that it never moves */
 
     if (sp == stack) {		/* if root node */
-      (void)fputs("root split\n",stderr);
       bp = btnew(np->flags & ~BLK_ROOT);
       ap = btnew(bp->flags);
       if ((ap->flags & BLK_STEM) == 0) {
@@ -156,7 +155,6 @@ void btadd(urec,ulen)
 	t_block new;
 	new = ap->blk;
 	--sp->slot;
-	(void)fputs("Recursive btadd()\n",stderr);
 	btadd(insrec,ulen);
 	btget(3);
 	ap = btbuf(new);
