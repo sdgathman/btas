@@ -1,10 +1,11 @@
-static char id[] = "@(#)isserve.c 1.6 2/9/94";
+static char id[] = "@(#)isserve.c 1.7 2/9/94";
 
 #include <isam.h>
 #include "isreq.h"
 
 main()
 {
+  register int i;
   REQ r;			/* request header */
   RES res;			/* result header */
   union { struct keydesc desc;
@@ -29,71 +30,73 @@ main()
       p2.buf[r.p2]=0;
     }
       
-    res.res = -1;
     res.p1  = 0;
-
     switch (r.fxn) {
     case ISBUILD:
-	res.res = isbuild(p1.buf,r.len,&p2.desc,r.mode); break;
+	i = isbuild(p1.buf,r.len,&p2.desc,r.mode); break;
     case ISOPEN:
-	res.res = isopen(p1.buf,r.mode);
-	if (res.res >= 0) {
-	  isindexinfo(res.res,&p1.desc,0);
+	i = isopen(p1.buf,r.mode);
+	if (i >= 0) {
+	  isindexinfo(i,&p1.desc,0);
 	  iserrno = p1.dict.di_recsize;
 	} break;
     case ISCLOSE:
-	res.res = isclose(r.fd); break;
+	i = isclose(r.fd); break;
     case ISADDINDEX:
-	res.res = isaddindex(r.fd,&p1.desc); break;
+	i = isaddindex(r.fd,&p1.desc); break;
     case ISDELINDEX:
-	res.res = isdelindex(r.fd,&p1.desc); break;
+	i = isdelindex(r.fd,&p1.desc); break;
     case ISSTART:
 	res.p1 = r.p1;
-	res.res = isstart(r.fd,&p2.desc,r.len,p1.buf,r.mode); break;
+	i = isstart(r.fd,&p2.desc,r.len,p1.buf,r.mode); break;
     case ISREAD:
 	res.p1 = r.p1;
-	res.res = isread(r.fd,p1.buf,r.mode); break;
+	i = isread(r.fd,p1.buf,r.mode); break;
     case ISWRITE:
-	res.res = iswrite(r.fd,p1.buf); break;
+	i = iswrite(r.fd,p1.buf); break;
     case ISREWRITE:
-	res.res = isrewrite(r.fd,p1.buf); break;
+	i = isrewrite(r.fd,p1.buf); break;
     case ISWRCURR:
-	res.res = iswrcurr(r.fd,p1.buf); break;
+	i = iswrcurr(r.fd,p1.buf); break;
     case ISREWCURR:
-	res.res = isrewcurr(r.fd,p1.buf); break;
+	i = isrewcurr(r.fd,p1.buf); break;
     case ISDELETE:
-	res.res = isdelete(r.fd,p1.buf); break;
+	i = isdelete(r.fd,p1.buf); break;
     case ISDELCURR:
-	res.res = isdelcurr(r.fd); break;
+	i = isdelcurr(r.fd); break;
     case ISUNIQUEID:
 	res.p1 = sizeof p1.id;
-	res.res = isuniqueid(r.fd,&p1.id); break;
+	i = isuniqueid(r.fd,&p1.id); break;
     case ISINDEXINFO:
 	res.p1 = sizeof p1.dict;
 	if (r.mode) {
 	  res.p1 = sizeof p1.desc;
 	}
-	res.res = isindexinfo(r.fd,&p1.desc,r.mode); break;
+	i = isindexinfo(r.fd,&p1.desc,r.mode); break;
     case ISAUDIT:
-	res.res = isaudit(r.fd,p1.buf,r.mode); break;
+	i = isaudit(r.fd,p1.buf,r.mode); break;
     case ISERASE:
-	res.res = iserase(p1.buf); break;
+	i = iserase(p1.buf); break;
     case ISLOCK:
-	res.res = islock(r.fd); break;
+	i = islock(r.fd); break;
     case ISUNLOCK:
-	res.res = isunlock(r.fd); break;
+	i = isunlock(r.fd); break;
     case ISRELEASE:
-	res.res = isrelease(r.fd); break;
+	i = isrelease(r.fd); break;
     case ISRENAME:
-	res.res = isrename(p1.buf,p2.buf); break;
+	i = isrename(p1.buf,p2.buf); break;
     default:
+	i = -1;
 	iserrno = 118;
     }
 
+    res.res = i;
     res.iserrno = iserrno;
     res.isstat1 = isstat1;
     res.isstat2 = isstat2;
     write(1,(char *)&res,sizeof res);
     if (res.p1) write(1,p1.buf,res.p1);
   }
+  for (i=0;i<9;) isclose(i++);	/* close all files */
+  return 0;
 }
