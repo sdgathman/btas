@@ -7,7 +7,7 @@ Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
 BuildRoot: /var/tmp/%{name}-root
-BuildRequires: libbms-devel >= 1.1.2
+BuildRequires: libbms-devel >= 1.1.3
 
 %description
 The BTAS filesystem is a hierarchical filesystem where each file and
@@ -33,7 +33,7 @@ Headers and libraries needed to develop BTAS applications.
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make
 CC=gcc; export CC
 cd lib
-%ifos aix
+%ifos aix4.1
 ln libbtas.a PIClibbtas.a
 %else
 M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" make

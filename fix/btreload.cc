@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.2  1999/12/14 04:33:03  stuart
+/* handle symlinks correctly
+/*
  */
 #include <stdio.h>
 #include <String.h>
@@ -121,6 +124,15 @@ void FileTable::load() {
 }
 
 int main(int argc,char **argv) {
+  if (argc < 2) {
+    fputs("\
+Usage:	btreload btasimg\n\
+	Restores all files and directories from a Btas image backup\n\
+	relative to the current directory.  All records are extracted\n\
+	and reindexed, so this can be used to change block size of\n\
+	a filesystem.\n",stderr);
+    return 2;
+  }
   const char *imagefile = argv[1];
   const char *lostdir = "lost+found";
   if (btmkdir(lostdir,0755)) {

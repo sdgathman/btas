@@ -30,14 +30,18 @@ btstop:	btstop.c include/btas.h
 btinit:	btinit.c btbuf.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $< $(BMSLIB) -o btinit
 
-tar:
+SRCTAR=btas-$(VERS).src.tar.gz
+
+$(SRCTAR):	
 	rm btas-$(VERS); ln -s . btas-$(VERS)
 	for dir in . sql util lib cisam include fix; do \
 	   path=btas-$(VERS)/$$dir; \
     ls $$path/*.[chy] $$path/*.cc $$path/makefile $$path/*.spec $$path/*.sh \
 	  $$path/*.def; done | tar cvT - -f - | gzip >btas-$(VERS).src.tar.gz
 
-rpm:	tar
+tar:	$(SRCTAR)
+
+rpm:	$(SRCTAR)
 	mv btas-$(VERS).src.tar.gz /bms/rpm/SOURCES
 	rpm -ba btas.spec
 

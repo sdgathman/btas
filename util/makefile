@@ -20,7 +20,7 @@ UTILOBJS=	btutil.o	\
 make:	btutil btar btpwd btdu # isserve idx dat
 
 btutil:	$(UTILOBJS) $L
-	$(CC) -map $(UTILOBJS) \
+	$(CC) $(UTILOBJS) \
 	$(LDFLAGS) -lm $(LIBS) -o btutil
 
 btar:	btar.o archive.o permstr.o
