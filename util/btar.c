@@ -10,6 +10,9 @@ that is needed by btar and btutil.  Please review the proposed command
 line options for btar and send your comments.
  *
  * $Log$
+ * Revision 1.2  1996/01/05  01:37:40  stuart
+ * fix many bugs
+ *
  * Revision 1.1  1996/01/04  21:32:26  stuart
  * Initial revision
  *
@@ -270,14 +273,16 @@ int main(int argc,char **argv) {
     if (btar_opennew(arfile,seekable)) return 1;
     for (s = dirlist; s && !cancel; ) {
       s = s->next;
-      fprintf(stderr,"%s%s%s\n","EMPTY ",expand_dir ? "EXPAND " : "",s->name);
+      if (verbose)
+	fprintf(stderr,"%s%s%s\n","EMPTY ",expand_dir ? "EXPAND " : "",s->name);
       if (btar_add(s->name,true,expand_dir))
 	rc = 1;
       if (s == dirlist) break;
     }
     for (s = filelist; s && !cancel; ) {
       s = s->next;
-      fprintf(stderr,"%s%s\n",expand_dir ? "EXPAND " : "",s->name);
+      if (verbose)
+	fprintf(stderr,"%s%s\n",expand_dir ? "EXPAND " : "",s->name);
       if (btar_add(s->name,false,expand_dir))
 	rc = 1;
       if (s == filelist) break;
