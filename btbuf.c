@@ -1,10 +1,14 @@
 #define TRACE 1
+#pragma implementation
 /*
 	physical I/O of blocks and cache maintenance
 	11-04-88 keep track of free space
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+ * Revision 2.2  1997/01/27  15:50:56  stuart
+ * release buffers before unmount
+ *
  * Revision 2.1  1995/12/12  23:36:31  stuart
  * C++ version
  *
@@ -25,7 +29,7 @@ $Log$
  *
  */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "$Id$";
+static const char what[] = "$Id$";
 #endif
 
 #ifdef TRACE
@@ -34,28 +38,16 @@ static char what[] = "$Id$";
 //#include <unistd.h>
 #include <time.h>
 #include <assert.h>
-#include "hash.h"
+#include <new.h>
+#include "btserve.h"
+#include "btbuf.h"
 #include "btdev.h"
 //#include <io.h>
 #include "bterr.h"
 
-static t_block root;		/* current root node */
-static char *pool;		/* buffer storage */
-static int poolsize;		/* number of buffers */
-static unsigned nsize;		/* sizeof a buffer */
-
-BufferPool *bufpool;
-int newcnt = 0;		/* accumulates new blocks added/deleted */
-long curtime;		/* BTAS time */
-int maxrec;		/* maximum record size */
-int safe_eof = 1;	/* safe OS eof processing */
-char *workrec;
-struct btpstat serverstats;
-
-static FDEV *dev;	/* current file system */
 FDEV devtbl[MAXDEV];
 
-int btroot(t_block r,short mid) {
+int BlockCache::btroot(t_block r,short mid) {
   if (mid < 0 || mid >= MAXDEV) return -1;
   dev = &devtbl[mid];	/* base device for current root node */
   if (!dev->isopen()) return -1;
@@ -63,15 +55,15 @@ int btroot(t_block r,short mid) {
   return 0;		/* mount id OK */
 }
 
-void btspace() {	/* check available space */
-  int needed = sp - stack + 2;
-  int rc = dev->chkspace(needed);
+void BlockCache::btspace(int needed) {	/* check available space */
+  int rc = dev->chkspace(needed,safe_eof);
   if (rc) btpost(rc);
 }
 
-void btcheck() { bufpool->get(0); }
+void BlockCache::btcheck() { get(0); }
 
-short btmount(const char *name) { /* mount filesystem & return mount id */
+/* mount filesystem & return mount id */
+short BlockCache::mount(const char *name) {
   int i, rc;
   for (i = 0; i < MAXDEV && devtbl[i].isopen(); ++i); /* find free mid */
   if (i >= MAXDEV)
@@ -84,72 +76,66 @@ short btmount(const char *name) { /* mount filesystem & return mount id */
   return i;
 }
 
-int btumount(short m) {		/* unmount filesystem */
+int BlockCache::unmount(short m) {		/* unmount filesystem */
   DEV *d = &devtbl[m];
   if (!d->isopen()) btpost(BTERMID);
   // FIXME: should we force unmount despite opens?
   //   the problem is that apps with open files may make additional
   //   calls against another filesystem mounted at the same mid.
   if (d->mcnt > 1) return 0;	/* still in use */
-  bufpool->get(0);
+  get(0);
   --d->mcnt;
-  int rc = bufpool->sync(m);
-  bufpool->wait(m);	// untouch buffers
-  int res = d->close();
+  int rc = sync(m);
+  int res = sync(m);	// untouch buffers
+  if (!rc) rc = res;
+  res = d->close();
+  if (!rc) rc = res;
   for (int i = 0; i < poolsize; ++i) {
     BLOCK *bp = (BLOCK *)(pool + i * nsize);
     if (bp->mid == m)
-      bufpool->clear(bp);
+      clear(bp);
   }
-  if (!rc) rc = res;
   return rc;
 }
 
-int btflush() {			/* flush buffers to disk */
+int BlockCache::flush() {		/* flush buffers to disk */
   int rc = 0;
   for (int i = 0; i < MAXDEV; ++i) {	/* update all super blocks */
-    int j = bufpool->sync(i);
-    if (!rc) rc = j;
+    int j = sync(i);
+    if (!rc)
+      rc = (j || devtbl[i].isclean()) ? j : BTERBUSY;
   }
   return rc;
 }
 
-int btbegin(int size,unsigned psize) {		/* initialize buffer pool */
-  BLOCK *p;
+/* initialize buffer pool */
+BlockCache::BlockCache(int size,unsigned psize):
+  maxrec(BLOCK::maxrec(size)),
+  BufferPool(poolsize = psize / (nsize = offsetof(BLOCK,buf) + size))
+{
   DEV::maxblksize = size;	/* save max block size */
-  maxrec = (size - 18)/2 - 1;
-  nsize = sizeof *p - sizeof p->buf + size;
-  poolsize = psize / nsize;
-  pool = new char[nsize * poolsize + maxrec];
-  if (pool == 0) return -1;
-  bufpool = new BufferPool(poolsize);
-  for (int i = 0; i < poolsize; ++i) {
-    p = (BLOCK *)(pool + i * nsize);
-    p->flags = 0;
-    p->blk = 0;
-    p->mid = 0;
-    p->np = (union node *)p->buf.r.data;
-    bufpool->put(p);
-  }
+  newcnt = 0;
+  safe_eof = true;
+  pool = new char[nsize * poolsize];
+  if (pool == 0) return;
+  for (int i = 0; i < poolsize; ++i)
+    put(new(getblock(i)) BLOCK);
   serverstats.bufs = poolsize;
-  workrec = pool + poolsize * nsize;
-  time(&serverstats.uptime);
+  btserve::curtime = time(&serverstats.uptime);
   serverstats.version = 112;
-  return 0;
 }
 
-void btend() {
+BlockCache::~BlockCache() {
   for (int i = 0; i < MAXDEV; ++i) {	/* unmount all filesystems */
     if (devtbl[i].isopen()) {
       devtbl[i].mcnt = 1;
-      btumount(i);
+      unmount(i);
     }
   }
-  delete bufpool;
   delete [] pool;
 }
 
-void btdumpbuf(const BLOCK *bp) {
+void BlockCache::dumpbuf(const BLOCK *bp) {
   fprintf(stderr,"blk = %08lX, mid = %d, cnt = %d,%s%s%s%s%s\n",
     bp->blk, bp->mid, bp->cnt(),
     (bp->flags & BLK_MOD) ? " BLK_MOD" : "",
@@ -162,14 +148,14 @@ void btdumpbuf(const BLOCK *bp) {
     bp->buf.r.root, bp->buf.r.son);
 }
 
-BLOCK *btbuf(t_block blk) {
+BLOCK *BlockCache::btbuf(t_block blk) {
   register BLOCK *bp;
   if (blk == 0L)
     btpost(BTERROOT);	/* invalid root error */
   if ((bp = btread(blk))->buf.r.root != root) {
 #if TRACE > 0
     fprintf(stderr,"201: btbuf(%08lX), root = %08lX\n", blk, root);
-    btdumpbuf(bp);
+    dumpbuf(bp);
 #endif
 #if 0
     if (!(bp->flags & BLK_MOD)) {
@@ -184,14 +170,14 @@ BLOCK *btbuf(t_block blk) {
   return bp;
 }
 
-BLOCK *btnew(short flag) {
+BLOCK *BlockCache::btnew(short flag) {
   register BLOCK *bp;
 
   if (dev->free == 0L) {
     t_block blk = dev->newblk();
     short mid = dev - devtbl;
     if (blk == 0) btpost(BTERFULL);
-    bp = bufpool->find(blk,mid);
+    bp = find(blk,mid);
     bp->blk = blk;
   }
   else {		/* remove block from free list */
@@ -201,7 +187,7 @@ BLOCK *btnew(short flag) {
     else {
       if (bp->buf.s.root != dev->droot) {
 	BLOCK *dp;
-	bufpool->onemore();
+	onemore();
 	dp = btread(bp->buf.s.root);	/* get root node */
 	if (dp->buf.r.root) {		/* verify that it's deleted */
 	  dev->free = 0; dev->space = 0;
@@ -229,19 +215,20 @@ BLOCK *btnew(short flag) {
     bp->buf.r.stat.id.user = 0;	/* owned by current user */
     bp->buf.r.stat.id.group = 0;	/* current group */
     bp->buf.r.stat.id.mode = 0;	/* no permissions, data file */
-    curtime = time(&bp->buf.r.stat.ctime);	/* file create time */
-    bp->buf.r.stat.mtime = bp->buf.r.stat.atime = curtime;
+    /* file create time */
+    btserve::curtime = bp->buf.r.stat.mtime = bp->buf.r.stat.atime
+	= time(&bp->buf.r.stat.ctime);
   }
   else {
     bp->np = (union node *)bp->buf.s.data;
     bp->buf.r.root = root;
   }
   bp->count = 0;
-  bp->np->setsize(bp->buf.data + dev->blksize);
+  bp->setblksize(dev->blksize);
   return bp;
 }
 
-void btfree(BLOCK *bp) {		/* delete node */
+void BlockCache::btfree(BLOCK *bp) {		/* delete node */
   t_block left, right;
   left = bp->buf.r.son;
   bp->buf.r.root = 0;	/* mark deleted */
@@ -252,7 +239,7 @@ void btfree(BLOCK *bp) {		/* delete node */
     long droot = bp->blk, bcnt = bp->buf.r.stat.bcnt;
     while (bp->flags & BLK_STEM) {
       right = bp->ldptr(bp->cnt());
-      btget(2);
+      get(2);
       bp = btread(left);
       if (bp->buf.s.root != droot) btpost(BTERROOT);
       left = bp->buf.s.son;
@@ -270,12 +257,13 @@ void btfree(BLOCK *bp) {		/* delete node */
   }
 }
 
-int writebuf(BLOCK *bp) {
+int BlockCache::writebuf(BLOCK *bp) {
   DEV *dp = devtbl + bp->mid;
   bp->flags &= ~(BLK_MOD | BLK_TOUCH);	/* mark unmodifed */
   bp->flags |= BLK_CHK;
   bp->np->setsize(bp->cnt() | (bp->flags & BLK_STEM));
   int rc = dp->write(bp->blk,bp->buf.data);
+  ++serverstats.pwrites;
   bp->np->setsize(bp->buf.data + dp->blksize);
 #ifdef MARKNODE
   if (bp->flags & BLK_ROOT)
@@ -290,16 +278,17 @@ int writebuf(BLOCK *bp) {
   return rc;
 }
 
-BLOCK *btread(t_block blk) {
+BLOCK *BlockCache::btread(t_block blk) {
   int mid = dev - devtbl;
   ++serverstats.lreads;
 
   /* search for matching block */
-  BLOCK *bp = bufpool->find(blk,mid);
+  BLOCK *bp = find(blk,mid);
   if (bp->blk == blk)
     return bp;
 
   int rc = dev->read(blk,bp->buf.data);
+  ++serverstats.preads;
   if (rc) btpost(rc);
 
   bp->blk = blk;
