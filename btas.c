@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.8";
+static char what[] = "@(#)btas.c	1.9";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -254,8 +254,8 @@ int btas(b,opcode)
   /* Successful read operations end up here */
 
   b->rlen = node_size(bp->np,b->u.cache.slot);
-  if ((b->flags & BT_DIR) && b->rlen >= sizeof (t_block))
-    b->rlen -= sizeof (t_block);	/* hidden root */
   node_copy(bp,b->u.cache.slot,b->lbuf,b->rlen);
+  if ((b->flags & BT_DIR) && b->rlen >= PTRLEN)
+    b->rlen -= PTRLEN;	/* hidden root, but user can look if he wants */
   return 0;
 }
