@@ -34,7 +34,7 @@ SRCTAR=btas-$(VERS).src.tar.gz
 
 $(SRCTAR):	
 	rm btas-$(VERS); ln -s . btas-$(VERS)
-	for dir in . sql util lib cisam include fix; do \
+	for dir in . sql util lib cisam include fix btbr; do \
 	   path=btas-$(VERS)/$$dir; \
     ls $$path/*.[chy] $$path/*.cc $$path/makefile $$path/*.spec $$path/*.sh \
 	  $$path/*.def; done | tar cvT - -f - | gzip >btas-$(VERS).src.tar.gz

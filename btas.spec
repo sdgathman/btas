@@ -32,28 +32,20 @@ Headers and libraries needed to develop BTAS applications.
 %build
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make
 CC=gcc; export CC
-cd lib
 %ifos aix4.1
-ln libbtas.a PIClibbtas.a
+ln lib/libbtas.a lib/PIClibbtas.a
 %else
-M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" make
-cd ../cisam
+M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" make -C lib
 M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" \
-	make lib
-cd -
+	make -C cisam lib
 %endif
-mkdir pic; cd pic; ar xv ../PIClibbtas.a; cd ..
-gcc -shared -o libbtas.so pic/*.o -L/bms/lib -lbms
-cd ../cisam
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make isserve bcheck addindex indexinfo
-cd ../util
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make
-cd ../sql
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make
-cd ../fix
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make
-cd ../btbr
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make
+mkdir lib/pic; cd lib/pic; ar xv ../PIClibbtas.a; cd -
+cd lib; gcc -shared -o libbtas.so pic/*.o -L/bms/lib -lbms; cd -
+LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C cisam isserve bcheck addindex indexinfo
+LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C util
+LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C sql
+LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C fix
+LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C btbr
 
 %install
 mkdir -p $RPM_BUILD_ROOT/bms/bin
@@ -81,7 +73,7 @@ cp sql/btlc.sh $RPM_BUILD_ROOT/bms/bin/btlc
 cp sql/sql $RPM_BUILD_ROOT/bms/bin
 cp cisam/isserve cisam/bcheck cisam/addindex cisam/indexinfo	\
 	$RPM_BUILD_ROOT/bms/bin
-cp btbr/btbr btbr/btflded $RPM_BUILD_ROOT/bms/bin
+cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
 
 { cd $RPM_BUILD_ROOT/bms/bin
   strip btserve btinit btstop || true
@@ -125,6 +117,9 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/bin/addindex
 /bms/bin/delindex
 /bms/bin/indexinfo
+/bms/bin/btbr
+/bms/bin/btflded
+/bms/bin/btflded.scr
 %attr(2755,btas,bms)/bms/bin/isserve
 %dir /bms/lib
 /bms/lib/libbtas.a
@@ -140,6 +135,7 @@ mkuser -a id=711 pgrp=bms home=/bms \
 * Wed Oct 17 2001 Stuart Gathman <stuart@bmsi.com>
 - fix dyn lib packaging for AIX
 - auto add btas user
+- include btbr, btflded
 * Wed Feb 28 2001 Stuart Gathman <stuart@bmsi.com>
 - move to CVS
 * Fri Sep  8 2000 Stuart Gathman <stuart@bmsi.com>
