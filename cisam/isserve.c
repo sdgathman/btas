@@ -1,4 +1,4 @@
-static char id[] = "@(#)isserve.c 1.2 2/9/94";
+static char id[] = "@(#)isserve.c 1.3 2/9/94";
 
 #include <isam.h>
 #include "isreq.h"
@@ -48,12 +48,10 @@ main()
     case ISDELINDEX:
 	res.res = isdelindex(r.fd,&p1.desc); break;
     case ISSTART:
-	res.p1 = r.len;
-	if (r.len > MAXRLEN) { iserrno = 119; break; }
-	res.res = isstart(r.fd,p2.desc,r.p1,p1.buf,r.mode); break;
+	res.p1 = r.p1;
+	res.res = isstart(r.fd,p2.desc,r.len,p1.buf,r.mode); break;
     case ISREAD:
-	res.p1 = r.len;
-	if (r.len > MAXRLEN) { iserrno = 119; break; }
+	res.p1 = r.p1;
 	res.res = isread(r.fd,p1.buf,r.mode); break;
     case ISWRITE:
 	res.res = iswrite(r.fd,p1.buf); break;
@@ -65,12 +63,11 @@ main()
 	res.p1 = sizeof p1.id;
 	res.res = isuniqueid(r.fd,&p1.id); break;
     case ISINDEXINFO:
-	if (r.len) {
-	  res.p1 = sizeof p1.desc;
-	  res.res = isindexinfo(r.fd,&p1.desc,r.len); break;
-	}
 	res.p1 = sizeof p1.dict;
-	res.res = isindexinfo(r.fd,&p1.dict,r.len); break;
+	if (r.mode) {
+	  res.p1 = sizeof p1.desc;
+	}
+	res.res = isindexinfo(r.fd,&p1.desc,r.mode); break;
     case ISERASE:
 	res.res = iserase(p1.buf); break;
     case ISLOCK:
