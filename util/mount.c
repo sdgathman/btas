@@ -6,6 +6,7 @@
 #include <bterr.h>
 #include <time.h>
 #include <errenv.h>
+#include <math.h>
 
 static void stat1(int);
 
@@ -16,7 +17,7 @@ int mountfs() {
   int rc;
   int len = strlen(s);
   if (dir) {
-    if (btopenf(&t,dir,BTWRONLY + 4,len+1)) {
+    if (btopenf(&t,dir,BTWRONLY + 4,sizeof t.lbuf)) {
       (void)puts("Can't open directory for update.");
       return 0;
     }
@@ -61,10 +62,13 @@ int unmountfs() {
     t.mid = s[0] - 'A';
     t.flags = 0;
     t.klen = t.rlen = 0;
-    rc = btas(&t,BTOPEN + NOKEY + BT_UPDATE);
+    t.u.id.user = geteuid();
+    t.u.id.group = getegid();
+    t.u.id.mode = BT_DIR + BT_UPDATE;
+    rc = btas(&t,BTOPEN + NOKEY);
   }
   else
-    rc = btopenf(&t,s,BTWRONLY + BTDIROK + NOKEY,0);
+    rc = btopenf(&t,s,BTWRONLY + BTDIROK + NOKEY,sizeof t.lbuf);
   if (rc) {
     puts("Can't open directory.");
     return 0;
@@ -89,12 +93,14 @@ static void stat1(int drive) {
   t.rlen = MAXREC;
   t.klen = 0;
   envelope
-    (void)btas(&t,BTSTAT);	/* try to stat drive */
+    btas(&t,BTSTAT);	/* try to stat drive */
     if (t.rlen > sizeof f) t.rlen = sizeof f;
-    (void)memcpy((char *)&f,t.lbuf,t.rlen);
-    (void)printf("%c: %8ld %.16s %6d %6d %s\n", t.mid + 'A',
+    memcpy((char *)&f,t.lbuf,t.rlen);
+    printf("%c: %8ld %.16s %6d %6d %s\n", t.mid + 'A',
 	f.hdr.space, ctime(&f.hdr.mount_time),
-	f.hdr.blksize, f.hdr.mcnt, f.hdr.flag ? "Dirty" : "Clean");
+	f.hdr.blksize, f.hdr.mcnt,
+	(f.hdr.flag == 0xFF) ? "Dirty" : (f.hdr.flag ? "ChkPnt" : "Clean")
+    );
     for (i = 0; i < f.hdr.dcnt; ++i) {
       struct btdev *d = f.dtbl + i;
       printf("\t%.16s %ld",d->name,d->eod);
@@ -108,7 +114,7 @@ int fsstat() {		/* report status of mounted file systems */
   int d;
   char *s = readtext((char *)0);
   (void)printf("   %8s %16s %6s %6s %s\n",
-	"Free","Mounted","Blksiz","Mounts","Status");
+	"Free","Mounted","Blksiz","Opens","Status");
   if (s) {
     stat1(*s - 'A');
     return 0;
@@ -135,6 +141,32 @@ int pstat() {		/* report performance statistics */
   printf("Flush:\tfbufs  = %ld, fcnt   = %ld", stat.fbufs, stat.fcnt);
   if (stat.fcnt > 0)
     printf(", average = %ld", stat.fbufs/stat.fcnt);
-  printf("\nMessages = %ld, Sum(IO^2) = %ld\n",stat.trans,stat.sum2);
+  {
+    double iocnt = stat.preads + stat.pwrites;
+    double avg = iocnt / stat.trans;
+    double avg2 = (double)stat.sum2/stat.trans;
+    double stddev = sqrt(avg2 - (avg * avg));
+    printf("\nMessages = %ld, Avg = %f, StdDev = %f, StdDev/Avg = %f\n",
+	  stat.trans,avg,stddev,stddev/avg);
+  }
+  if (stat.uptime) {
+    long uptime = time(0) - stat.uptime;
+    long hours = uptime / 3600;
+    int mins = uptime % 3600;
+    int secs = mins % 60;
+    mins /= 60;
+    printf("Uptime = %ld hour%s, %d minute%s, %d second%s",
+      hours, "s" + (hours == 1),
+      mins, "s" + (mins == 1),
+      secs, "s" + (secs == 1)
+    );
+    if (stat.checkpoints)
+      printf(", Checkpoints = %ld",stat.checkpoints);
+    puts("");
+    if (stat.version) {
+      printf("Dirty buffers = %d, Server Version = %ld.%02ld\n",
+	stat.dirty,stat.version/100,stat.version%100);
+    }
+  }
   return 0;
 }
