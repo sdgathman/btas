@@ -11,9 +11,13 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 1.13  1993/05/27  21:58:24  stuart
+ * symbolic link support, beginning failsfae support
+ *
  */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "$Id$";
+static char what[] =
+"$Id$";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -67,16 +71,13 @@ int btas(BTCB *b,int opcode) {
     delrec(b,uniquekey(b));
     return 0;
   case BTDELETEF:			/* delete first matching key */
-    bp = bttrace(b->root,b->lbuf,b->klen,1);
-    if (node_dup < b->klen || sp->slot == 0) return BTEREOF;
-    b->u.cache = *sp;
+    bp = btfirst(b);
+    if (!bp) return BTEREOF;
     delrec(b,bp);
     return 0;
   case BTDELETEL:			/* delete last matching key */
-    bp = bttrace(b->root,b->lbuf,b->klen,-1);
-    if (sp->slot == node_count(bp)
-      || node_comp(bp,++sp->slot,b->lbuf,b->klen) < b->klen) return BTEREOF;
-    b->u.cache = *sp;
+    bp = btlast(b);
+    if (!bp) return BTEREOF;
     delrec(b,bp);
     return 0;
   case BTREPLACE: case BTREWRITE:
@@ -124,18 +125,17 @@ int btas(BTCB *b,int opcode) {
     bp = uniquekey(b);
     break;
   case BTREADF:			/* read first matching key */
-    bp = bttrace(b->root,b->lbuf,b->klen,1);
-    if (node_dup < b->klen || sp->slot == 0) return BTERKEY;
-    b->u.cache = *sp;
+    bp = btfirst(b);
+    if (!bp) return BTERKEY;
     break;
   case BTREADL:			/* read last matching key */
-    bp = bttrace(b->root,b->lbuf,b->klen,-1);
-    if (sp->slot == node_count(bp)
-      || node_comp(bp,++sp->slot,b->lbuf,b->klen) < b->klen) return BTERKEY;
-    b->u.cache = *sp;
+    bp = btlast(b);
+    if (!bp) return BTERKEY;
     break;
   case BTREADGT:	/* to the left */
-    bp = verify(b,-1);
+    bp = verify(b);
+    if (!bp)
+      bp = bttrace(b,b->klen,-1);
     if (node_dup >= b->klen) {
       if (--b->u.cache.slot <= 0) {
 	if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L) return BTEREOF;
@@ -148,10 +148,8 @@ int btas(BTCB *b,int opcode) {
       }
       else
 	rc = *rptr(bp->np,b->u.cache.slot);
-      if (rc >= b->klen) {
-	bp = bttrace(b->root,b->lbuf,b->klen,-1);
-	b->u.cache = *sp;
-      }
+      if (rc >= b->klen)
+	bp = bttrace(b,b->klen,-1);
     }
     if (b->u.cache.slot <= 0) {
       if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L) return BTEREOF;
@@ -162,7 +160,9 @@ int btas(BTCB *b,int opcode) {
     }
     break;
   case BTREADLT:
-    bp = verify(b,1);
+    bp = verify(b);
+    if (!bp)
+      bp = bttrace(b,b->klen,1);
     for (;;) {
       if (b->u.cache.slot == node_count(bp)) {
 	if (bp->flags & BLK_ROOT || bp->buf.l.rbro == 0L) return BTEREOF;
@@ -173,13 +173,11 @@ int btas(BTCB *b,int opcode) {
       }
       rc = node_comp(bp,++b->u.cache.slot,b->lbuf,b->klen);
       if (rc < b->klen) break;
-      bp = bttrace(b->root,b->lbuf,b->klen,1);
-      b->u.cache = *sp;
+      bp = bttrace(b,b->klen,1);
     }
     break;
   case BTREADGE:
-    bp = bttrace(b->root,b->lbuf,b->klen,1);
-    b->u.cache = *sp;
+    bp = bttrace(b,b->klen,1);
     if (b->u.cache.slot == 0) {
       if (bp->flags&BLK_ROOT || bp->buf.l.lbro == 0) return BTEREOF;
       b->u.cache.node = bp->buf.l.lbro;
@@ -189,8 +187,7 @@ int btas(BTCB *b,int opcode) {
     }
     break;
   case BTREADLE:
-    bp = bttrace(b->root,b->lbuf,b->klen,-1);
-    b->u.cache = *sp;
+    bp = bttrace(b,b->klen,-1);
     if (b->u.cache.slot++ == node_count(bp)) {
       if (bp->flags&BLK_ROOT || bp->buf.l.rbro == 0) return BTEREOF;
       b->u.cache.slot = 1;
