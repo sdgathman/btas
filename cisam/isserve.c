@@ -1,4 +1,4 @@
-static char id[] = "@(#)isserve.c 1.8 2/9/94";
+static char id[] = "@(#)isserve.c 1.9 2/9/94";
 
 #include <isam.h>
 #include "isreq.h"
@@ -12,12 +12,12 @@ main()
 	  struct dictinfo dict;
 	  char buf[MAXRLEN+1];
 	  long id;
-	} p1;		/* holds miscellany */
+	} p1;		/* parameter 1 */
   union { struct keydesc desc;
 	  char buf[MAXNAME+1];
-	} p2;		/* holds miscellany */
+	} p2;		/* parameter 2 */
 
-
+  for (i=2;i<20;) close(i++);	/* close parent's files */
   while (read(0,(char *)&r,sizeof r) == sizeof r) {
     if (r.p1) {
       while (r.p1 > MAXRLEN) { read(0,p1.buf,MAXRLEN); r.p1 -= MAXRLEN; }
