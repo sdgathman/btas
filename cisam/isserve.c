@@ -1,5 +1,10 @@
 /*
  * $Log$
+ * Revision 2.4  1997/02/17  21:26:02  stuart
+ * TCPNODELAY
+ * readn()
+ * operation from inetd
+ *
  * Revision 2.3  1996/09/23  21:51:42  stuart
  * run from inetd, readFully request headers
  *
@@ -61,6 +66,7 @@ int server() {
     int p2len = ldshort(r.p2);
     int len = ldshort(r.len);
     int auxlen = 0;
+    isrecnum = ldlong(r.recnum);
     if (trace > 0)
       write(trace,(char *)&r,sizeof r);
     if (p1len) {
@@ -135,7 +141,7 @@ int server() {
 	}
 	i = isread(r.fd,p1.buf,ldshort(r.mode));
 	if (i == 0 && len > 0) {
-	  int mode;
+	  int mode = ISNEXT;
 	  switch (ldshort(r.mode)) {
 	  case ISLESS: case ISLTEQ: case ISPREV: case ISLAST:
 	    mode = ISPREV; break;
@@ -164,6 +170,12 @@ int server() {
 	break;
     case ISREWCURR:
 	i = isrewcurr(r.fd,p1.buf);
+	break;
+    case ISREWREC:
+	i = isrewrec(r.fd,isrecnum,p1.buf);
+	break;
+    case ISDELREC:
+	i = isdelrec(r.fd,isrecnum);
 	break;
     case ISDELETE:
 	i = isdelete(r.fd,p1.buf);
@@ -205,6 +217,7 @@ int server() {
 	iserrno = 118;
     }
 
+    stlong(isrecnum,res.recnum);
     stshort(i,res.res);
     stshort(iserrno,res.iserrno);
     res.isstat1 = isstat1;
