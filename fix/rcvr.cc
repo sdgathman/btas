@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.2  1999/06/21 18:58:43  stuart
+/* hooks for applications that rebuild directory structure.
+/*
  * Revision 1.1  1999/05/10  22:40:47  stuart
  * Initial revision
  *
@@ -14,7 +17,7 @@
 #include "fix.h"
 #include "../node.h"
 #include "rcvr.h"
-#include <new.h>
+#include <new>
 
 rcvr::rcvr() {
   tag.flags = 0;

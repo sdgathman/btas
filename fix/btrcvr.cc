@@ -4,6 +4,9 @@
 	Recover a list of files while BTAS/X is running.
 
 $Log$
+Revision 2.6  2003/03/05 04:45:02  stuart
+Minor fixes.
+
 Revision 2.5  2003/03/04 16:03:16  stuart
 Convert btrcvr to use STL.
 
@@ -46,10 +49,10 @@ use new.h
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <new.h>
+#include <new>
 #include <time.h>
-#include <hash_map>
-
+#include <map>
+using namespace std;
 extern "C" {
 #include <btas.h>
 #include "../util/util.h"
@@ -65,12 +68,12 @@ static char *fsname(int);
 
 // files to be recovered from one filesystem
 
-template class hash_map<t_block,rcvr *>;
-typedef hash_map<t_block,rcvr *>::iterator Pix;
+template class map<t_block,rcvr *>;
+typedef map<t_block,rcvr *>::iterator Pix;
 
 class rcvrlist {
   rcvrlist *next;
-  hash_map<t_block,rcvr *> list;
+  map<t_block,rcvr *> list;
   const char *imagefile;// image backup file or NULL for in place
   bool test,interactive;
   friend class rcvrall;

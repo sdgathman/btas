@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 2.4  2001/02/28 21:32:31  stuart
+/* flush LRU buffer if we run out
+/*
  * Revision 2.3  1999/10/03  04:49:36  stuart
  * mark buffers removed from touched
  *
@@ -21,7 +24,6 @@
 #pragma implementation
 #include <stdio.h>
 #include <assert.h>
-#include <alloc.h>
 #include <string.h>
 #include "hash.h"
 #include "node.h"

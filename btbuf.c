@@ -6,6 +6,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+Revision 2.5  2001/02/28 21:26:00  stuart
+make dumpbuf into method
+
  * Revision 2.4  1999/01/25  18:20:21  stuart
  * use extern const for version info in serverstats
  *
@@ -44,7 +47,7 @@ static const char what[] = "$Id$";
 //#include <unistd.h>
 #include <time.h>
 #include <assert.h>
-#include <new.h>
+#include <new>
 #include "btserve.h"
 #include "btbuf.h"
 #include "btdev.h"

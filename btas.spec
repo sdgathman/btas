@@ -6,6 +6,7 @@ Release: 1
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
+Patch: btas-el3.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
 %ifos aix4.1
@@ -31,6 +32,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
+%patch -p1 -b .el3
 
 %build
 %ifos aix4.1
@@ -163,6 +165,7 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
+* Tue Feb 08 2005 Stuart Gathman <stuart@bmsi.com> 2.10.8-1
 - check ulimit when mounting filesystems
 - fix error reporting on startup
 - fix btchdir when btasdir is NULL

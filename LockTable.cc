@@ -1,4 +1,7 @@
 // $Log$
+// Revision 1.4  2003/03/05 04:34:08  stuart
+// Simplify STL LockTable
+//
 // Revision 1.3  2003/03/05 02:50:30  stuart
 // Conversion to STL
 //
@@ -80,10 +83,8 @@ bool LockEntry::isValid() {
 #endif
 }
 
-template class hash_set<LockEntry *>;
-typedef hash_set<LockEntry *>::iterator lock_iter;
-template class hash_map<long,LockEntry *>;
-typedef hash_map<long,LockEntry *>::iterator pid_iter;
+typedef set<LockEntry *>::iterator lock_iter;
+typedef map<long,LockEntry *>::iterator pid_iter;
 
 LockTable::LockTable() { }
 LockTable::~LockTable() { }

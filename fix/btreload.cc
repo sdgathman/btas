@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.4  2002/11/06 05:13:32  stuart
+/* Convert to STL.
+/*
 /* Revision 1.3  2001/10/17 00:49:32  stuart
 /* Minor AIX build bugs, help message for btreload.
 /*
@@ -11,7 +14,7 @@
 #include <map>
 #include "fs.h"
 #include "rcvr.h"
-
+using namespace std;
 /** A file or directory.  When we see a link to a file, we don't always know
     yet whether it is a file or directory.
  */

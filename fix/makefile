@@ -46,10 +46,10 @@ btddir1.o: fs.h fix.h s1fs.h
 btddir.o: fs.h fix.h
 
 btsave: btsave.o $F
-	$(CC) $(LDFLAGS) btsave.o $F $L -lbms -o btsave
+	g++ $(LDFLAGS) btsave.o $F $L -lbms -o btsave
 
 btrest:	btrest.o $F
-	$(CC) $(LDFLAGS) btrest.o $F $L -lbms -o btrest
+	g++ $(LDFLAGS) btrest.o $F $L -lbms -o btrest
 
 btundup btzap btlink: %: %.o
 	$(CC) $(LDFLAGS) $^ $L -lbms -o $@
