@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.3";
+static char what[] = "@(#)btas.c	1.4";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -197,7 +197,7 @@ int btas(b,opcode)
 #endif
     return openfile(b);		/* check permissions */
   case BTCLOSE:
-    (void)closefile(b);
+    closefile(b);
     return 0;
   case BTUMOUNT:
     return btunjoin(b);	/* unmount filesystem */
