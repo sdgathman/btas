@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.20";
+static char what[] = "@(#)btree.c	1.21";
 #endif
 
 #include "btbuf.h"
@@ -74,7 +74,7 @@ void btadd(urec,ulen)
 	limit = node_free(np->np,0) / 2;
 	for (i = cnt = 0; node_free(np->np,i) > limit && ++i < acnt;);
       }
-      if (i > idx && (bp->flags & BLK_STEM)) --i;
+      if (i > idx) --i;
       (void)node_move(np,bp,1,0,i);
       (void)node_move(np,ap,i+1,0,acnt - i);
       sp->node = ap->blk;	/* default to right node */
@@ -131,6 +131,7 @@ void btadd(urec,ulen)
       if ((ap->flags & BLK_STEM) == 0) {
 	ap->buf.l.rbro = bp->buf.l.rbro;
 	bp->buf.l.rbro = ap->blk;
+	bp->flags |= BLK_MOD;	/* in case nothing moved for large ulen */
       }
       ap->buf.l.lbro = np->buf.l.lbro;
       np->buf.l.lbro = ap->blk;
@@ -139,9 +140,10 @@ void btadd(urec,ulen)
       cnt = node_count(bp);
       limit = node_free(bp->np,0)/2 - ulen + node_free(bp->np,cnt);
       for (i = cnt; node_free(bp->np,i) < limit && i > 0; --i);
-      if (++i <= cnt) {
-	cnt = node_move(bp,ap,i,0,node_count(bp)-i+1);
-	node_delete(bp,i,cnt);
+      /* i is number of records to keep in bp */
+      if (++i < cnt) {
+	cnt = node_move(bp,ap,i+1,0,node_count(bp)-i);
+	node_delete(bp,i+1,cnt);
       }
       else cnt = 0;
       /* cnt is now number of records in node ap */
@@ -307,7 +309,10 @@ void btdel()
       }
       cnt = node_move(np,bp,1,bcnt,node_count(np));
       assert (cnt == node_count(np));
-      blk = np->blk;		/* switch nodes to get efficient node_move */
+      /* This is messy.  We want to move data from np to bp, but we want
+	 to delete node bp since there is no rbro for stem nodes.  Our
+	 solution is to switch block ids. */
+      blk = np->blk;
       np->blk = bp->blk;
       bp->blk = blk;
       if ((np->flags & BLK_STEM) == 0) {	/* connect right pointers */
@@ -319,6 +324,7 @@ void btdel()
 	  ap->flags |= BLK_MOD;
 	}
       }
+      bp->flags |= BLK_MOD;
       btfree(np);
       if (--sp->slot > 0)
         node_stptr(dp,sp->slot,&bp->blk);
@@ -336,10 +342,11 @@ void btdel()
       else {
 	for (i = bcnt - 1; node_free(bp->np,i) < totfree; --i); ++i;
 	cnt = node_move(bp,np,i+1,0,bcnt - i);
+	assert(cnt == bcnt - i);
 	node_delete(bp,i+1,cnt);
-	assert(bcnt - cnt == node_count(bp));
       }
       ulen = getkey(bp,np,keyrec,&np->blk);
+      assert(node_count(bp) && node_count(np));
       if (node_replace(dp,sp->slot,keyrec,ulen)) {
 	--sp->slot;
 	btadd(keyrec,ulen);
