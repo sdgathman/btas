@@ -12,6 +12,9 @@ than the original, but non-printing bytes in character fields may be lost.
 
 Character field compression is designed to preserve sort order.
  * $Log$
+ * Revision 1.2  1994/02/10  19:50:35  stuart
+ * replace control characters when compressing char fields
+ *
  */
 
 #include <stdlib.h>
@@ -79,6 +82,11 @@ void b2urec(p,urec,ulen,buf,len)
 	flen = len;
       }
       (void)memcpy(ubuf,buf,flen);
+      if (p->type & 0x80) {
+	int i;
+	for (i = flen; i-- > 0;)
+	  ubuf[i] ^= 0xFF;
+      }
       if (flen < p->len && p->len <= len)
 	flen = p->len;
       buf += flen;
@@ -92,10 +100,13 @@ void b2urec(p,urec,ulen,buf,len)
 static int fldccpy(char *tbuf,const char *ubuf,int flen) {
   char *buf = tbuf;
   while (flen--) {
-    int c = *ubuf++;
+    int c = (unsigned char)*ubuf++;
     if (c == 0) break;
-    if ((c & ~0x7f) || c < ' ')	/* make sure we won't screw up decompress */
-      c = ':';
+    /* replace illegal chars in user data */
+    if (c == 0xff)
+      c = 0x7f;		/* highest legal char */
+    else if (c < ' ')
+      c = ' ';		/* lowest legal char */
     *buf++ = c;
   }
   return buf - tbuf;
@@ -181,6 +192,11 @@ void u2brec(p,urec,ulen,b,klen)
     }
     else {		/* no compression for non-character types */
       (void)memcpy(buf,ubuf,flen);
+      if (p->type & 0x80) {
+	int i;
+	for (i = flen; i-- > 0;)
+	  buf[i] ^= 0xFF;
+      }
       if (klen) {
 	if (klen <= flen) {
 	  b->klen = buf - b->lbuf + klen;
