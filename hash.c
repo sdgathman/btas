@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 2.2  1997/06/23  15:40:24  stuart
+ * incremental flushing
+ *
  * Revision 2.1  1996/12/17  16:44:12  stuart
  * C++ bufpool interface
  *
@@ -16,6 +19,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <alloc.h>
+#include <string.h>
 #include "hash.h"
 #include "node.h"
 #include "btdev.h"
@@ -24,6 +28,8 @@
 #define ASSERTFCN _assert
 extern "C" _assert(const char *,const char *,int);
 #endif
+
+int BufferPool::maxflush = MAXFLUSH;
 
 /* allocate hash table, and initialize chain */
 
@@ -35,8 +41,8 @@ BufferPool::BufferPool(int size) {
   curcnt = 0;
   mru = 0;
   maxtouch = size;
-  if (maxtouch > MAXFLUSH * 2)
-    maxtouch = MAXFLUSH * 2;
+  if (maxtouch > maxflush)
+    maxtouch = maxflush;
   int hsize = size * 3 / 2;
   for (hmask = 16, hshift = 28; hmask < hsize; hmask <<= 1, --hshift);
   hashtbl = new BLOCK *[hmask];
@@ -138,10 +144,18 @@ void BufferPool::get(int cnt) {
       mru = bp;
   }
   curcnt = cnt;
-  if (cnt == 0 && (modcnt > maxtouch / 2 || numtouch > maxtouch - MAXLEV)) {
-    assert(numtouch > 0);
-    sync(touched[0]->mid,MAXLEV);
+#ifdef FAILSAFE
+  if (cnt == 0) {
+    /* Flush enough touched buffers to leave room for a worst
+       case insert.  By incrmementally flushing the first fs in the
+       touched list, we effectively round-robin the updates.
+     */
+    while (numtouch >= maxtouch - MAXBUF) {
+      assert(numtouch > 0);
+      sync(touched[0]->mid,MAXBUF);
+    }
   }
+#endif
 }
 
 BLOCK *BufferPool::find(t_block blk,short mid) {
@@ -265,8 +279,10 @@ int BufferPool::wait(short mid) {
 	touched[newcnt] = bp;
       if (bp->mid == mid) {
 	bp->flags &= ~BLK_CHK;
-	if ((bp->flags & BLK_MOD) == 0)
-	  --newcnt;
+	if ((bp->flags & BLK_MOD) == 0) {
+	  --newcnt;			// remove from touched array
+	  bp->flags &= ~BLK_TOUCH;
+	}
       }
     }
     modcnt = mcnt;
