@@ -21,10 +21,7 @@ static char what[] = "@(#)node.c	1.15";
 #include <assert.h>
 
 #ifndef node_size
-short node_size(np,i)
-  NODE *np;
-  int i;
-{
+short node_size(NODE *np,int i) {
   return np->tab[i-1] - np->tab[i] + *rptr(np,i) - 1;
 }
 #endif
@@ -35,12 +32,7 @@ short node_size(np,i)
    record extracted.  Caller can get actual record size
    with node_size(), this function does not check. */
 
-int node_copy(bp,idx,rec,len,s)
-  BLOCK *bp;
-  int idx;
-  char *rec;
-  int len,s;
-{
+int node_copy(BLOCK *bp,int idx,char *rec,int len,int s) {
   register unsigned char *p;
   register NODE *np = bp->np;
   register int i, dup;
@@ -61,19 +53,17 @@ int node_copy(bp,idx,rec,len,s)
 
 /* compare a record to a partial key */
 
-short node_comp(bp,idx,rec,len)
-  BLOCK *bp;
-  int idx;
-  char *rec;
-  int len;
-{
+short node_comp(BLOCK *bp,int idx,char *rec,int len) {
   unsigned char buf[256];		/* largest compression */
   register int i,res;
   register unsigned char *p;
   p = rptr(bp->np,idx);
   i = *p;
+  if (i > len) {
+    node_copy(bp,idx,(char *)buf,len,0);/* extract compressed portion */
+    return blkcmp(buf,(unsigned char *)rec,len);	/* and compare */
+  }
   if (i > 0) {
-    if (i > len) i = len;
     node_copy(bp,idx,(char *)buf,i,0);/* extract compressed portion */
     res = blkcmp(buf,(unsigned char *)rec,i);	/* and compare */
     if (res < i) return res;		/* return if that sufficed */
@@ -83,9 +73,7 @@ short node_comp(bp,idx,rec,len)
   return (i + blkcmp(p+1,(unsigned char *)rec+i,len));	/* compare rest */
 }
 
-void node_clear(bp)
-  BLOCK *bp;
-{
+void node_clear(BLOCK *bp) {
   bp->count = 0;
   bp->flags |= BLK_MOD;
   (void)memset((char *)bp->np->dat+sizeof *bp->np->tab,0,
@@ -102,12 +90,7 @@ void node_clear(bp)
   even this version is reasonably efficient;
 */
 
-short node_move(bp1,bp2,from,to,cnt)
-  BLOCK *bp1,*bp2;
-  int from,to;	/* first record to stay */
-  int cnt;		/* positive for np1[n] -> np2[0] */
-			/* negative for np1[1] -> np2[n] */
-{
+short node_move(BLOCK *bp1,BLOCK *bp2,int from,int to,int cnt) {
   short scnt = node_count(bp1);
   short rlen;
   NODE *np = bp1->np;
@@ -125,33 +108,26 @@ short node_move(bp1,bp2,from,to,cnt)
 
 /* this is where we use blkmovl() */
 
-void node_delete(bp,idx,cnt)
-  BLOCK *bp;
-  int idx,cnt;
-{
-  register short i;
-  register NODE *np = bp->np;
-  unsigned char *tgt;
-  short slen,n;
+void node_delete(BLOCK *bp,int idx,int cnt) {
   if (cnt > 0) {
-    n = node_count(bp);
+    NODE *np = bp->np;
+    unsigned char *tgt;
+    int i,slen,n = node_count(bp);
     assert(idx > 0 && idx <= n);
 
     /* recompute key compression */
 
     tgt = rptr(np,--idx);
     if (idx > 0) {
-      short tlen;
-      tlen = *tgt++;
+      int tlen = *tgt++;
       for (i = 0; ++i <= cnt;) {
-	unsigned char *src;
-	src = rptr(np,idx+i);
+	unsigned char *src = rptr(np,idx+i);
 	slen = tlen - *src;
 	if (slen > 0) {
 	  tgt -= slen;
 	  tlen -= slen;
 	  np->tab[idx] -= slen;
-	  (void)blkmovl((char *)tgt+slen,(char *)++src+slen,slen);
+	  blkmovl((char *)tgt+slen,(char *)++src+slen,slen);
 	  if (tlen == 0) break;
 	}
       }
@@ -177,12 +153,7 @@ void node_delete(bp,idx,cnt)
    function because it could be optimized.
 */
 
-int node_replace(bp,idx,rec,len)
-  BLOCK *bp;
-  int idx;
-  char *rec;
-  int len;
-{
+int node_replace(BLOCK *bp,int idx,char *rec,int len) {
   /* a really lazy implementation for now */
   node_delete(bp,idx,1);
   return node_insert(bp,idx-1,rec,len);
