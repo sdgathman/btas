@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.6  1998/12/09  22:05:25  stuart
+ * support directory open
+ *
  * Revision 1.5  1998/02/02  20:01:55  stuart
  * Auto create key files
  * support min/max records
@@ -192,8 +195,7 @@ int isopenx(const char *name,int mode,int rlen) {
     for (kp = &cp->key; kp; kp = kp->next) {
       struct keydesc kn;
       kn = kp->k;
-      iskeynorm(&kn);
-      kp->k.k_len = kn.k_len;
+      kp->k.k_len = iskeynorm(&kn);
       strcpy(np,kp->name);
 
       if (kp == &cp->key) {
@@ -250,9 +252,11 @@ int isopenx(const char *name,int mode,int rlen) {
     }
   }
   else {		/* no idx - use master field table */
+    int klen;
     (void)btclose(cp->idx);
     cp->idx = 0;	/* isunique not possible */
-    cp->key.btcb = btopen(name,bmode+NOKEY+BTDIROK,rlen);
+    if (mode & ISDIROK) bmode |= BTDIROK;
+    cp->key.btcb = btopen(name,bmode+NOKEY,rlen);
     if (cp->key.btcb->flags == 0)
       errpost(BTERKEY);	/* post here to avoid errdesc in btopen */
     if (cp->key.btcb->flags & BT_DIR) {
@@ -268,8 +272,10 @@ int isopenx(const char *name,int mode,int rlen) {
     cp->key.k.k_flags = 0;		/* no dups on primary */
     cp->key.k.k_nparts = 1;		/* primary key normalized */
     cp->key.k.k_start = 0;
-    cp->key.k.k_leng = cp->key.f->f[cp->key.f->klen].pos;
-    cp->key.k.k_len = cp->key.klen = cp->key.k.k_leng;
+    klen = cp->key.f->f[cp->key.f->klen].pos;
+    cp->key.k.k_leng = klen;
+    cp->key.k.k_len = klen;
+    cp->key.klen = klen;
     cp->key.k.k_type = CHARTYPE;
     ctl_name[len] = 0;
     strncpy(cp->key.name,np,MAXKEYNAME)[MAXKEYNAME] = 0;
@@ -296,13 +302,13 @@ int isopenx(const char *name,int mode,int rlen) {
 
 /* normalize keydesc */
 
-void iskeynorm(struct keydesc *k) {
+int iskeynorm(struct keydesc *k) {
   register struct keypart *kp;
   register int i;
   k->k_flags &= ISDUPS;		/* only ISDUPS flag used with BTAS */
   if (k->k_nparts == 0) {
     k->k_len = 4;
-    return;
+    return 4;
   }
   kp = k->k_part;
   k->k_len = 0;
@@ -315,4 +321,5 @@ void iskeynorm(struct keydesc *k) {
       *kp++ = k->k_part[i];
   }
   k->k_nparts = kp - k->k_part;
+  return k->k_len;
 }
