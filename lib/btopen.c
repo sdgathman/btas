@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.2  1999/01/22  23:50:52  stuart
+ * Fix symlinks that are not the last part of the path.
+ *
   Allocate & open a BTAS/2 file with support for "current" directory.  
   The "current" directory is passed to programs through the environment.
 */
@@ -104,19 +107,37 @@ int btopenf(BTCB *b,const char *name,int mode,int rlen) {
       if (rc != BTERLINK)
 	errdesc(name,rc);	/* add filename to error log */
     envend
-    if (rc != BTERLINK) break;
+    if (rc != BTERLINK) {
+      break;
+    }
     newpath_offset = strlen(b->lbuf) + 1;
-    b->klen -= newpath_offset;
-    name += strlen(name) - b->klen;
     /* shift to beginning of buffer to ensure room for terminator */
     memcpy(b->lbuf,b->lbuf + newpath_offset,b->rlen -= newpath_offset);
     b->lbuf[b->rlen] = 0;	/* null terminate */
-    dirname = b->lbuf;
-    //printf("newpath: %s/%s\n",b->lbuf,name);
-    if (*dirname == '/') {
-      b->mid = 0;	/* begin again at root directory */
-      b->root = 0;
-      ++dirname;
+    if (b->klen > newpath_offset) {
+      b->klen -= newpath_offset;
+      name += strlen(name) - b->klen;
+      dirname = b->lbuf;
+#ifdef DEBUG_MAIN
+      printf("newpath: %s/%s\n",b->lbuf,name);
+#endif
+      if (*dirname == '/') {
+	b->mid = 0;	/* begin again at root directory */
+	b->root = 0;
+	++dirname;
+      }
+    }
+    else {
+      name = b->lbuf;
+      dirname = 0;
+#ifdef DEBUG_MAIN
+      printf("newpath: %s\n",name);
+#endif
+      if (*name == '/') {
+	b->mid = 0;	/* begin again at root directory */
+	b->root = 0;
+	++name;
+      }
     }
   }
   return rc;
@@ -152,11 +173,16 @@ void btputdir(BTCB *b) {
   btasdir = b;
 }
 
-#if 0
+#ifdef DEBUG_MAIN
 int main(int argc,char **argv) {
   int i;
   for (i = 1; i < argc; ++i) {
-    BTCB *b = btopen(argv[i],BTRDONLY,512);
+    BTCB *b = 0;
+    envelope
+      b = btopen(argv[i],BTRDONLY,512);
+    enverr
+      printf("Error %d opening %s\n",errno,argv[i]);
+    envend
     btclose(b);
   }
 }
