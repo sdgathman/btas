@@ -5,7 +5,7 @@
 #ifdef __MSDOS__
 char helpfile[] = "/lib/btutil.hlp";
 #else
-static char helpfile[] = "/local/lib/btutil.help";
+static char helpfile[] = "/usr/share/btas/btutil.help";
 #endif
 
 static FILE *f;
