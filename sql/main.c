@@ -22,8 +22,7 @@ volatile int cancel = 0;
 
 static char verbose = 1;
 static char errorch = 0;
-static char formatch = ' ';
-static char noquotes = 0;
+static char formatch[] = " '";
 static char echostmt = 0;
 static volatile int inexec = 1;
 
@@ -65,8 +64,8 @@ int main(int argc,char **argv) {
 	continue;
       case 'b':		/* uniplex 'batch' mode */
 	verbose = 0;
-	noquotes = 1;
-	formatch = '\t';
+	formatch[1] = 0;
+	formatch[0] = '\t';
 	continue;
       case 'q':		/* 'quiet' mode */
 	verbose = 0;
@@ -81,13 +80,26 @@ int main(int argc,char **argv) {
       case 'f':		/* format & field separator */
 	verbose = 0;
 	if (argv[i][++j]) {
-	  formatch = argv[i][j];
-	  if (isdigit(formatch))
-	    formatch = atoi(argv[i]+j);
+	  formatch[0] = argv[i][j];
+	  if (isdigit(formatch[0]))
+	    formatch[0] = atoi(argv[i]+j);
 	  break;
 	}
 	else if (argv[i + 1]) {
-	  formatch = atoi(argv[++i]);
+	  formatch[0] = atoi(argv[++i]);
+	  break;
+	}
+	break;
+      case 'e':		/* escape (quote) character */
+	verbose = 0;
+	if (argv[i][++j]) {
+	  formatch[1] = argv[i][j];
+	  if (isdigit(formatch[1]))
+	    formatch[1] = atoi(argv[i]+j);
+	  break;
+	}
+	else if (argv[i + 1]) {
+	  formatch[1] = atoi(argv[++i]);
 	  break;
 	}
 	break;
@@ -111,6 +123,7 @@ Usage:	sql [options] [script]\n\
 	-q	quiet mode - suppress banners & prompts\n\
 	-x	echo statements before executing\n\
 	-f n	set format & field separator\n\
+	-e n	set escape (quote) character\n\
 	-E n	write error lines prefixed by ascii(n) to stdout\n\
 	-p 's'	set prompt to s\n\
 	script	script file for batch processing\n\
@@ -255,11 +268,11 @@ static void sqlexec(const struct sql_stmt *cmd) {
 	do2(t,print,TITLE,formatch);
 	do2(t,print,SCORE,formatch);
       }
-      if (noquotes)
+      if (!formatch[1])
         t->_class->print = uniplex_print;
       if (do0(t,first) == 0) {
 	do
-	  do2(t,print,formatch == ' ' ? VALUE : DATA,formatch);
+	  do2(t,print,formatch[0] == ' ' ? VALUE : DATA,formatch);
 	while (do0(t,next) == 0 && !cancel);
       }
     }
@@ -300,7 +313,7 @@ static void sqlexec(const struct sql_stmt *cmd) {
       if (do0(t,first) == 0) {
 	do {
 	  if (debug)
-	    do2(t,print,formatch == ' ' ? VALUE : DATA,formatch);
+	    do2(t,print,formatch[0] == ' ' ? VALUE : DATA,formatch);
 	  for (x = cmd->dst->select_list; (x = x->u.opd[1]) != 0; ) {
 	    sql e = x->u.opd[0],c,res;
 	    int rc;

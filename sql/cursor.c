@@ -8,8 +8,9 @@
 #include "cursor.h"
 #include "coldate.h"
 
-void Cursor_print(Cursor *c,enum Column_type type,int sep) {
-  char quote = '\'';
+void Cursor_print(Cursor *c,enum Column_type type,const char *s) {
+  char sep = s[0];
+  char quote = s[1];
   int i = 0;
   if (type < VALUE && sep != ' ') return;
   if (type == TITLE)

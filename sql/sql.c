@@ -510,11 +510,15 @@ struct sqlform sql_form[] = {
 };
 
 static const char *dump_num(const sconst *n) {
-  MONEY m;
   int fix = n->fix;
   static char buf[32];
   char *p = buf, *q = buf;
-  m = n->val;
+  char sign = 0;
+  MONEY m = n->val;
+  if (sgnM(&m) < 0) {
+    mulM(&m,-1,0);
+    sign = '-';
+  }
   if (fix > 0) {
     while (fix)
       *p++ = (char)divM(&m,10) + '0', --fix;
@@ -524,6 +528,7 @@ static const char *dump_num(const sconst *n) {
     *p++ = '0';
   while (sgnM(&m))
     *p++ = (char)divM(&m,10) + '0';
+  if (sign) *p++ = sign;
   *p = 0;
   while (p > q) {
     char c = *--p;

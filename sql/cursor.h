@@ -10,7 +10,7 @@ struct Cursor_class {
   int (*next)	(Cursor *);
   /* find the first record ge the key columns */
   int (*find)	(Cursor *);
-  void (*print) (Cursor *, enum Column_type, int );
+  void (*print) (Cursor *, enum Column_type, const char * );
   /* updating cursor */
   int (*insert) (Cursor *);
   int (*update) (Cursor *);
@@ -39,7 +39,7 @@ Cursor *Directory_init(const char *,int);
 struct btflds;
 void getdict(Cursor *, const char *, char *, const struct btflds *);
 /* needed for method tables */
-void Cursor_print(Cursor *, enum Column_type, int);
+void Cursor_print(Cursor *, enum Column_type, const char *);
 void Cursor_optim(Cursor *, Column **, int, int);
 int Cursor_fail(Cursor *);
 /* join.c */

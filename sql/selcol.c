@@ -43,7 +43,7 @@ static int Selcol_find(Cursor *c) {
   return do0(((Selcol *)cur)->rel,first);
 }
 
-static void Selcol_print(Cursor *c,enum Column_type type,int sel) {
+static void Selcol_print(Cursor *c,enum Column_type type,const char *sel) {
   Selcol *cur = (Selcol *)c;
   if (type < VALUE && cur->rel == &System_table) return;
   Cursor_print(c,type,sel);
