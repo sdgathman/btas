@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.12  2000/09/21 02:47:59  stuart
+ * handle network byte order for loopback port/IP
+ *
  * Revision 2.11  1998/10/05  17:57:07  stuart
  * bug with read mode
  *
@@ -42,6 +45,7 @@ static const char id[] = "$Id$";
 
 #define TRACE
 #include <stdio.h>
+#include <sys/times.h>
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
@@ -140,8 +144,16 @@ static int server() {
     int mode = ldshort(r.mode);
     int auxlen = 0;
     isrecnum = ldlong(r.recnum);
-    if (trace > 0)
+    if (trace > 0) {
+      struct tms tbuf;
+      clock_t ts = times(&tbuf);
+      char tsbuf[12];
+      stlong(ts,tsbuf);
+      stlong(tbuf.tms_utime,tsbuf+4);
+      stlong(tbuf.tms_stime,tsbuf+8);
+      write(trace,tsbuf,sizeof tsbuf);
       write(trace,(char *)&r,sizeof r);
+    }
     if (p1len) {
       while (p1len > MAXRLEN) { read(0,p1.buf,MAXRLEN); p1len -= MAXRLEN; }
       read(0,p1.buf,p1len);
@@ -190,9 +202,11 @@ static int server() {
 	break;
     case ISSTART:
 	ldkeydesc(&d.desc,p2.buf);
+	isrange(r.fd,0,0);
 	i = isstart(r.fd,&d.desc,len,p1.buf,mode);
 	break;
     case ISSTARTN:
+	isrange(r.fd,0,0);
 	i = isstartn(r.fd,p2.buf,len,p1.buf,mode);
 	break;
     case ISREAD: case ISREADREC:
@@ -282,10 +296,13 @@ static int server() {
     case ISDELCURR:
 	i = isdelcurr(r.fd);
 	break;
-    case ISUNIQUEID:
-	stshort(sizeof p1.id,res.p1);
-	i = isuniqueid(r.fd,&p1.id);
+    case ISUNIQUEID: {
+	long id;
+	i = isuniqueid(r.fd,&id);
+	stlong(id,p1.buf);
+	stshort(4,res.p1);
 	break;
+      }
     case ISINDEXINFO:
 	i = isindexinfo(r.fd,&d.desc,mode);
 	if (mode)
@@ -337,6 +354,13 @@ static int server() {
     res.isstat1 = isstat1;
     res.isstat2 = isstat2;
     if (trace > 0) {
+      struct tms tbuf;
+      clock_t ts = times(&tbuf);
+      char tsbuf[12];
+      stlong(ts,tsbuf);
+      stlong(tbuf.tms_utime,tsbuf+4);
+      stlong(tbuf.tms_stime,tsbuf+8);
+      write(trace,tsbuf,sizeof tsbuf);
       write(trace,(char *)&res,sizeof res);
       if (ldshort(res.p1)) write(trace,p1.buf,ldshort(res.p1));
       if (auxlen > 0) write(trace,auxbuf,auxlen);
