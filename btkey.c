@@ -29,10 +29,15 @@ btkey:	verify()		locate record with a given key.
 	addrec()		add user record, check for DUPKEY
 	delrec()		delete user record, caller locates first
  * $Log$
+ * Revision 1.3  1993/08/25  22:53:06  stuart
+ * fix partial key bug, new bttrace interface
+ *
  * Revision 1.2  1993/05/28  19:40:28  stuart
  * isolated partial key searches to btfirst(), btlast()
  *
  */
+
+static const char what[] = "$Id$";
 
 #include "btbuf.h"
 #include "node.h"
