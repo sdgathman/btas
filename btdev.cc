@@ -211,7 +211,6 @@ int DEV::open(const char *name,bool rdonly) {
 	if (fd == -1) {
 	  rc = errno ? errno : BTERMBLK;
 	  --j;
-openerr:
 	  while (j-- >= 0) ::_close((*p--).fd);
 	  blksize = 0;
 	  return rc;
@@ -224,14 +223,18 @@ openerr:
 	int rc = fstat(fd,&st);		/* can we stat the file ? */
 	if (rc == -1) {
 	  rc = errno;
-	  goto openerr;
+	  while (j-- >= 0) ::_close((*p--).fd);
+	  blksize = 0;
+	  return rc;
 	}
 	/* Check ulimit for a regular file. */
 	if (S_ISREG(st.st_mode)) {
 	  t_block ulim = blk_sects(j,rlim.rlim_cur/SECT_SIZE);
 	  if (ulim < p->d.eod) {
 	    rc = BTERFULL;
-	    goto openerr;
+	    while (j-- >= 0) ::_close((*p--).fd);
+	    blksize = 0;
+	    return rc;
 	  }
 	  if (ulim < p->d.eof || p->d.eof == 0) {
 	    if (p->d.eof > 0)

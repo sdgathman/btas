@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.12  2001/12/13 16:37:24  stuart
+ * Track total update bytes in server stats
+ *
  * Revision 1.11  2001/02/28 21:46:59  stuart
  * local nap() prototype
  *
@@ -164,7 +167,7 @@ int main(int argc,char **argv) {
 syntax:
       fputs(
 "\
-Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
+Usage:	btserve [-b blksize] [-c cachesize] [-d] [-e] [-f] [filesys ...]\n\
 	-b ddd	maximum blocksize in bytes\n\
 	-d	daemon/debugging flag, do not run in background\n\
 	-e	disable safe EOF processing for OS files\n\
@@ -216,7 +219,8 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
 
   while (i < argc) {		/* mount listed filesystems */
     const char *s = argv[i++];
-    if (server.mount(s))
+    rc = server.mount(s);
+    if (rc)
       fprintf(stderr,"Error %d mounting %s\n",rc,s);
     else
       fprintf(stderr,"%s mounted on /\n",s);
