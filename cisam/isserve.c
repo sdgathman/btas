@@ -1,5 +1,9 @@
 /*
  * $Log$
+ * Revision 2.7  1997/11/21  01:55:39  stuart
+ * command line trace file
+ * fix field table get/set bugs
+ *
  * Revision 2.6  1997/08/13  15:23:07  stuart
  * SETRANGE and fieldtable
  *
@@ -107,6 +111,7 @@ static int server() {
     int p1len = ldshort(r.p1);
     int p2len = ldshort(r.p2);
     int len = ldshort(r.len);
+    int mode = ldshort(r.mode);
     int auxlen = 0;
     isrecnum = ldlong(r.recnum);
     if (trace > 0)
@@ -135,12 +140,12 @@ static int server() {
     case ISBUILD:
 	ldkeydesc(&d.desc,p2.buf);
 	if (len == 0)
-	  i = isbuildx(p1.buf,len,&d.desc,ldshort(r.mode),0);
+	  i = isbuildx(p1.buf,len,&d.desc,mode,0);
 	else
-	  i = isbuild(p1.buf,len,&d.desc,ldshort(r.mode));
+	  i = isbuild(p1.buf,len,&d.desc,mode);
 	break;
     case ISOPEN:
-	i = isopen(p1.buf,ldshort(r.mode));
+	i = isopen(p1.buf,mode);
 	if (i >= 0) {
 	  isindexinfo(i,&d.desc,0);
 	  iserrno = d.dict.di_recsize;
@@ -159,39 +164,48 @@ static int server() {
 	break;
     case ISSTART:
 	ldkeydesc(&d.desc,p2.buf);
-	i = isstart(r.fd,&d.desc,len,p1.buf,ldshort(r.mode));
+	i = isstart(r.fd,&d.desc,len,p1.buf,mode);
 	break;
     case ISSTARTN:
-	i = isstartn(r.fd,p2.buf,len,p1.buf,ldshort(r.mode));
+	i = isstartn(r.fd,p2.buf,len,p1.buf,mode);
 	break;
-    case ISREAD:
+    case ISREAD: case ISREADREC:
 	if (p1len == 0)
 	  p1len = isreclen(r.fd);
-	stshort(p1len,res.p1);
-	if (ldshort(r.mode) == ISLESS) {
-	  stshort(ISPREV,r.mode);
+	else if (p1len >= isreclen(r.fd) + 4) {
+	  p1len -= 4;
+	  isrecnum = ldlong(p1.buf + p1len);
+	}
+	if (mode == ISLESS) {
+	  mode = ISPREV;
 	  i = isread(r.fd,p1.buf,ISGTEQ);
 	  if (i) {
 	    if (iserrno != ENOREC) break;
-	    stshort(ISLAST,r.mode);
+	    mode = ISLAST;
 	  }
 	}
-	if (ldshort(r.mode) == ISLTEQ) {
-	  stshort(ISPREV,r.mode);
+	if (mode == ISLTEQ) {
+	  mode = ISPREV;
 	  i = isread(r.fd,p1.buf,ISGREAT);
 	  if (i) {
 	    if (iserrno != ENOREC) break;
-	    stshort(ISLAST,r.mode);
+	    mode = ISLAST;
 	  }
 	}
-	i = isread(r.fd,p1.buf,ldshort(r.mode));
+	i = isread(r.fd,p1.buf,mode);
+	if (r.fxn == ISREADREC) {
+	  stlong(isrecnum,p1.buf + p1len);
+	  p1len += 4;
+	}
+	stshort(p1len,res.p1);
 	if (i == 0 && len > 0) {
-	  int mode = ISNEXT;
-	  switch (ldshort(r.mode)) {
+	  switch (mode) {
 	  case ISLESS: case ISLTEQ: case ISPREV: case ISLAST:
 	    mode = ISPREV; break;
 	  case ISGREAT: case ISGTEQ: case ISNEXT: case ISFIRST:
 	    mode = ISNEXT; break;
+	  default:
+	    mode = ISNEXT;
 	  }
 	  auxlen = --len * p1len;
 	  if (auxlen > auxmax) {
@@ -199,8 +213,12 @@ static int server() {
 	    auxmax = auxlen;
 	    auxbuf = malloc(auxlen);
 	  }
-	  for (i = 0; i < len; ++i)
+	  for (i = 0; i < len; ++i) {
+	    char *buf = auxbuf + i * p1len;
 	    if (isread(r.fd,auxbuf + i * p1len,mode)) break;
+	    if (r.fxn == ISREADREC)
+	      stlong(isrecnum,buf + p1len - 4);
+	  }
 	  auxlen = i++ * p1len;
 	}
 	break;
@@ -208,6 +226,10 @@ static int server() {
 	i = iswrite(r.fd,p1.buf);
 	break;
     case ISREWRITE:
+	if (p1len >= isreclen(r.fd) + 4) {
+	  p1len -= 4;
+	  isrecnum = ldlong(p1.buf + p1len);
+	}
 	i = isrewrite(r.fd,p1.buf);
 	break;
     case ISWRCURR:
@@ -223,6 +245,10 @@ static int server() {
 	i = isdelrec(r.fd,isrecnum);
 	break;
     case ISDELETE:
+	if (p1len >= isreclen(r.fd) + 4) {
+	  p1len -= 4;
+	  isrecnum = ldlong(p1.buf + p1len);
+	}
 	i = isdelete(r.fd,p1.buf);
 	break;
     case ISDELCURR:
@@ -233,14 +259,14 @@ static int server() {
 	i = isuniqueid(r.fd,&p1.id);
 	break;
     case ISINDEXINFO:
-	i = isindexinfo(r.fd,&d.desc,ldshort(r.mode));
-	if (ldshort(r.mode))
+	i = isindexinfo(r.fd,&d.desc,mode);
+	if (mode)
 	  stshort(stkeydesc(&d.desc,p1.buf),res.p1);
 	else
 	  stshort(stdictinfo(&d.dict,p1.buf),res.p1);
 	break;
     case ISAUDIT:
-	i = isaudit(r.fd,p1.buf,ldshort(r.mode));
+	i = isaudit(r.fd,p1.buf,mode);
 	break;
     case ISERASE:
 	i = iserase(p1.buf);
