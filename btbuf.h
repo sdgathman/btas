@@ -1,27 +1,37 @@
-extern "C" {
-#include "btserve.h"
-}
+#pragma interface
 #include "node.h"
-#include "btdev.h"
+//#include "btdev.h"
+#include "hash.h"
 
-enum { MAXFLUSH = 60 };
+class BlockCache: public BufferPool {
+  t_block root;			/* current root node */
+  class FDEV *dev;		/* current file system */
+  char *pool;			/* buffer storage */
+  int poolsize;			/* number of buffers */
+  unsigned nsize;		/* sizeof a buffer */
+  BLOCK *getblock(int i) { return (BLOCK *)(pool + i * nsize); }
+public:
+  bool safe_eof;
+  const int maxrec;
+  BlockCache(int bsize,unsigned cachesize);
+  void btcheck();		/* write pre-image checkpoint if required */
+  void btspace(int needed);	/* check free space */
+  int flush();		/* flush all buffers */
+  int btroot(t_block root, short mid);	/* declare current root */
+  BLOCK *btbuf(t_block blk);		/* read block */
+  BLOCK *btread(t_block blk);		/* read block no root check */
+  int writebuf(BLOCK *);		/* write block */
+  BLOCK *btnew(short flags);		/* allocate block */
+  void btfree(BLOCK *);			/* free block */
+  short mount(const char *);		/* mount fs, return mid */
+  int unmount(short mid);		/* unmount fs */
+  static void dumpbuf(const BLOCK *);
+  int newcnt;				/* counts new/deleted blocks */
+  ~BlockCache();
+};
 
-/* btbuf.c */
-int btroot(t_block, short);	/* declare current root */
-BLOCK *btbuf(t_block);		/* read block */
-BLOCK *btread(t_block);	/* read block no root check */
-BLOCK *btnew(short);		/* allocate block */
-extern int newcnt;				/* counts new/deleted blocks */
-extern long curtime;				/* BTAS time */
-void btfree(BLOCK *);		/* free block */
-int btumount(short);		/* unmount fs */
-int btflush(void);		/* flush all buffers */
-int writebuf(BLOCK *);
-void btspace(void);		/* check free space */
-void btdumpbuf(const BLOCK *);
-
-extern class BufferPool *bufpool;
 extern const char version[];
+extern const int version_num;
 
 #ifdef __MSDOS__
 #define btget(i) bufpool->get(i,__FILE__,__LINE__)
