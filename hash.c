@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.4  1995/05/31  20:42:24  stuart
+ * prioritize buffer with BLK_LOW
+ *
  * Revision 1.3  1994/03/28  20:08:59  stuart
  * log where btget errors occur
  *
@@ -6,85 +9,117 @@
  * failsafe/improved modified buffer handling
  *
  */
+#pragma implementation
 #include <stdio.h>
 #include <assert.h>
 #include <alloc.h>
-#include "btbuf.h"
 #include "hash.h"
+#include "btdev.h"
 
-/* NOTE, hmask not required if we force an unsigned shift.  This is not
-   safe, however, unless we know the exact size on an unsigned long. */
-
-#define hash(v)	((v) * 781316125L >> hshift & hmask)
-
-static BLOCK *mru, **hashtbl;
-static BLOCK *inuse[MAXBUF];
-#ifdef FAILSAFE
-static BLOCK *touched[MAXBUF];
-static int numtouch = 0;
+#ifndef ASSERTFCN
+#define ASSERTFCN _assert
+extern "C" _assert(const char *,const char *,int);
 #endif
-static int lastcnt = 0;
-
-static int hshift, hmask;
-int curcnt = 0;
 
 /* allocate hash table, and initialize chain */
 
-int begbuf(char *pool,int nsize,int size) {
-  int hsize;
-  endbuf();
-  hsize = size * 3 / 2;
+BufferPool::BufferPool(int size) {
+  numtouch = 0;
+  modcnt = 0;
+  lastcnt = 0;
+  curcnt = 0;
+  mru = 0;
+  maxtouch = size;
+  if (maxtouch > MAXFLUSH * 2)
+    maxtouch = MAXFLUSH * 2;
+  int hsize = size * 3 / 2;
   for (hmask = 16, hshift = 28; hmask < hsize; hmask <<= 1, --hshift);
-  hashtbl = (BLOCK **)calloc(hmask,sizeof *hashtbl);
-  if (hashtbl == 0) return -1;
-  mru = (BLOCK *)pool;
-  serverstats.bufs = size;
+  hashtbl = new BLOCK *[hmask];
+  inuse = new BLOCK *[MAXBUF];
+  touched = new BLOCK *[maxtouch];
+  for (int i = 0; i < hmask; ++i)
+    hashtbl[i] = 0;
   serverstats.hsize = hmask--;
-  mru->mru = mru->lru = mru;
-  while (--size > 0) {
-    BLOCK *bp = (BLOCK *)(pool += nsize);
+}
+
+void BufferPool::put(BLOCK *bp) {
+  if (mru) {
     bp->mru = mru->mru;
     mru->mru->lru = bp;
     mru->mru = bp;
     bp->lru = mru;
     mru = bp;
   }
-  return 0;
-}
-
-void endbuf() {
-  if (hashtbl) {
-    free(hashtbl);
-    hashtbl = 0;
+  else {
+    mru = bp;
+    mru->mru = mru->lru = mru;
   }
 }
 
-#ifdef btget
-#undef btget
-static const char *curfile;
-static int curline;
-void btget_deb(int cnt,const char *file,int line) {
+BufferPool::~BufferPool() {
+  delete [] hashtbl;
+  delete [] inuse;
+  delete [] touched;
+}
+
+void BufferPool::get(int cnt,const char *file,int line) {
   curfile = file;
   curline = line;
-  btget(cnt);
+  get(cnt);
 }
-#endif
 
 /* reserve cnt buffers */
-void btget(int cnt) {
+void BufferPool::get(int cnt) {
   while (lastcnt > 0) {
     BLOCK *bp = inuse[--lastcnt];
 #ifdef FAILSAFE
-    /* block is modified but not checkpointed or already touched */
-    if ((bp->flags & (BLK_MOD | BLK_CHK | BLK_TOUCH)) == BLK_MOD) {
+#if 0  // using TOUCH was unreliable, don't know why yet
+    /* block is modified but not already touched */
+    switch (bp->flags & (BLK_MOD | BLK_TOUCH | BLK_CHK)) {
+    case BLK_MOD:
+      int i;
+      for (i = 0; i < numtouch; ++i)
+	if (touched[i] == bp) {
+	  btdumpbuf(bp);
+	  bp->flags |= BLK_TOUCH;
+	  break;
+	}
+      if (i < numtouch) break;
+      assert(numtouch < maxtouch);
       touched[numtouch++] = bp;
+      // fall through since also newly modified
+    case BLK_MOD | BLK_CHK:
       bp->flags |= BLK_TOUCH;
+      ++modcnt;
+      assert(modcnt <= numtouch);
+      break;
     }
+#else	// add to touched array if not already there
+    if ((bp->flags & (BLK_MOD | BLK_TOUCH)) == BLK_MOD) {
+      int mcnt = 0;
+      int i;
+      bp->flags |= BLK_TOUCH;
+      for (i = 0; i < numtouch; ++i) {
+	BLOCK *p = touched[i];
+	if (p == bp) break;
+	if (p->flags & BLK_MOD)
+	  ++mcnt;
+      }
+      if (i == numtouch) {
+	assert(numtouch < maxtouch);
+	touched[numtouch++] = bp;
+	modcnt = mcnt;
+      }
+      ++modcnt;
+    }
+#endif
 #endif
     if (bp->flags & BLK_LOW)
       mru = mru->lru->lru;
     /* insert block in circular chain just after mru block in mru direction
        assume chain is never empty */
+    /* FIXME: an assert for chain not empty should be simple, but
+	      I can't think of it right now. */
     bp->mru = mru->mru;
     mru->mru->lru = bp;
     mru->mru = bp;
@@ -98,12 +133,16 @@ void btget(int cnt) {
       mru = bp;
   }
   curcnt = cnt;
+  if (cnt == 0 && (modcnt > maxtouch / 2 || numtouch > maxtouch - MAXLEV)) {
+    assert(numtouch > 0);
+    sync(touched[0]->mid);
+  }
 }
 
-BLOCK *getbuf(t_block blk,short mid) {
-  register BLOCK *bp;
+BLOCK *BufferPool::find(t_block blk,short mid) {
+  BLOCK *bp;
   int hval;
-  register int h;
+  int h;
   if (lastcnt >= curcnt) {
     char buf[64];
     sprintf(buf,"lastcnt(%d) < curcnt(%d)",lastcnt,curcnt);
@@ -130,33 +169,38 @@ BLOCK *getbuf(t_block blk,short mid) {
     if (--hval < 0) hval = hmask;
   }
 
-  bp = mru->mru;
+  bp = mru->mru;	// least recently used buffer
 #ifdef FAILSAFE
-  while (bp->flags & BLK_MOD) {
-    if (bp->flags & BLK_CHK) {
-      writebuf(bp);	/* OK to update if checkpointed */
-      break;
-    }
-    assert(bp != mru);
+  while (bp->flags & (BLK_MOD | BLK_CHK)) {
     bp = bp->mru;
+    assert(bp != mru);
   }
 #else
   if (bp->flags & BLK_MOD)
     writebuf(bp);
 #endif
   /* remove from chain and install new hash entry */
-  hashtbl[hval] = bp;
   mru = bp->mru->lru = bp->lru;
   bp->lru->mru = bp->mru;
 
   h = hash(bp->blk+bp->mid);		/* compute old hash value */
+  hashtbl[hval] = bp;
   bp->blk = blk;	/* set new key so hash delete works */
   bp->mid = mid;
+  rehash(bp,h,hval);
+  return inuse[lastcnt++] = bp;
+}
 
-  /* remove old value from hash table */
+void BufferPool::clear(BLOCK *bp) {
+  assert((bp->flags & BLK_MOD) == 0);
+  int h = hash(bp->blk+bp->mid);		/* compute old hash value */
+  rehash(bp,h,-1);
+}
+
+void BufferPool::rehash(BLOCK *bp,int h,int hval) {
   while (hashtbl[h]) {
-    if (h != hval && hashtbl[h] == bp) {	/* find old entry */
-      register int hval2;
+    if (hashtbl[h] == bp && h != hval) {	/* find old entry */
+      int hval2;
       hashtbl[hval2 = h] = 0;
       for (;;) {
 	BLOCK *np;
@@ -174,24 +218,73 @@ BLOCK *getbuf(t_block blk,short mid) {
     if (--h < 0) h = hmask;
   }
   bp->blk = 0;		/* flag no match */
-  return inuse[lastcnt++] = bp;
 }
 
 /* effectively swap contents of two blocks by just swapping pointers */
 /* NOTE: mid must be same! */
 
-void swapbuf(BLOCK *np,BLOCK *bp) {
-  int hval;
+void BufferPool::swap(BLOCK *np,BLOCK *bp) {
+  int hval, hval2;
   long blk;
   hval = hash(np->blk+np->mid);
   while (hashtbl[hval] && hashtbl[hval] != np)
     if (--hval < 0) hval = hmask;
+  hval2 = hash(bp->blk+bp->mid);
+  while (hashtbl[hval2] && hashtbl[hval2] != bp)
+    if (--hval2 < 0) hval2 = hmask;
   hashtbl[hval] = bp;
-  hval = hash(bp->blk+bp->mid);
-  while (hashtbl[hval] && hashtbl[hval] != bp)
-    if (--hval < 0) hval = hmask;
-  hashtbl[hval] = np;
+  hashtbl[hval2] = np;
   blk = np->blk;
   np->blk = bp->blk;
   bp->blk = blk;
+}
+
+// purge fully checkpointed buffers from touched list
+int BufferPool::wait(short mid) {
+  assert(mid >= 0);
+  int rc = devtbl[mid].wait();
+  assert(lastcnt == 0);
+  /* if (lastcnt != 0) abort(); */
+  if (rc == 0) {
+    int newcnt = 0;
+    int mcnt = 0;
+    for (int i = 0; i < numtouch; ++i,++newcnt) {
+      BLOCK *bp = touched[i];
+      if (bp->flags & BLK_MOD)
+	++mcnt;
+      if (i > newcnt)
+	touched[newcnt] = bp;
+      if (bp->mid == mid) {
+	bp->flags &= ~BLK_CHK;
+	if ((bp->flags & BLK_MOD) == 0)
+	  --newcnt;
+      }
+    }
+    modcnt = mcnt;
+    /* if (numtouch != newcnt) */
+      /* fprintf(stderr,"%d buffers released\n",numtouch - newcnt); */
+    numtouch = newcnt;
+  }
+  return rc;
+}
+
+int BufferPool::sync(short mid) {
+  int rc = wait(mid);
+  if (rc) return rc;
+  int cnt = 0;
+  for (int i = 0; i < numtouch; ++i) {
+    BLOCK *bp = touched[i];
+    if (bp->mid == mid && (bp->flags & BLK_MOD)) {
+      int res = writebuf(bp);
+      if (res == 0)
+	++cnt;
+      else
+	rc = res;
+    }
+  }
+  modcnt -= cnt;
+  int res = devtbl[mid].sync();
+  if (res)
+    rc = res;
+  return rc;
 }
