@@ -43,7 +43,7 @@ class CisamTestCase(unittest.TestCase):
     self.failUnless(di[3] == 1)
     ki = fd.indexinfo(1)
     self.failUnless(ki == (0,((0,8,0),),8))
-    self.failUnless(map(ord,fd.fldtbl) == list(flds))
+    self.failUnless(map(ord,fd.getflds()) == list(flds))
 
     # test appending fields to record
     fd.addflds(array('B',[BT_NUM,4]))
