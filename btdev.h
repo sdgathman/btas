@@ -53,7 +53,8 @@ private:
   static t_block mk_blk(short i,long offset) { return (long(i)<<24)|offset; }
   long blkoffset;	// offset in bytes of first data block
   long extoffset;	// offset of first data block in extents
-  long blk_pos(t_block b) const;
+  long blk_pos(t_block b) const;	// byte offset of block
+  long blk_sects(int ext,unsigned long sects) const;
   int newspace;	// blocks reallocated from OS
 };
 

@@ -3,6 +3,8 @@
 const char what[] = "$Revision$";
 #endif
 #include <stdio.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
@@ -136,10 +138,13 @@ int DEV::open(const char *name,bool rdonly) {
     struct btfs d;	/* file system header */
   } u;
   int mode = rdonly ? O_RDONLY + O_BINARY : O_RDWR + O_BINARY;
+  struct rlimit rlim;
+  int rc = getrlimit(RLIMIT_FSIZE,&rlim);
+  if (rc == -1) return errno;
 
   int fd = ::_open(name,mode);	/* can we open the file ? */
   if (fd == -1) return errno;
-  int rc = ::_read(fd,u.buf,sizeof u.buf);/* can we read the superblock ? */
+  rc = ::_read(fd,u.buf,sizeof u.buf);/* can we read the superblock ? */
 
   /* does the super block seem reasonable ? */
   superoffset = 0;
@@ -176,6 +181,7 @@ int DEV::open(const char *name,bool rdonly) {
     rc = BTERMTBL;		/* extent table full */
 
   else {
+    
     /* everything seems OK, mount the filesystem */
     (btfhdr &)*this = u.d.hdr;	/* install new table entry */
     server = index;		/* set server ID */
@@ -204,11 +210,37 @@ int DEV::open(const char *name,bool rdonly) {
 	fd = ::_open(p->d.name,mode);
 	if (fd == -1) {
 	  rc = errno ? errno : BTERMBLK;
-	  while (--j) ::_close((*--p).fd);
+	  --j;
+openerr:
+	  while (j-- >= 0) ::_close((*p--).fd);
 	  blksize = 0;
 	  return rc;
 	}
 	/* might want to read header & verify */
+      }
+      /* check ulimit */
+      if (rlim.rlim_cur != RLIM_INFINITY) {
+	struct stat st;
+	int rc = fstat(fd,&st);		/* can we stat the file ? */
+	if (rc == -1) {
+	  rc = errno;
+	  goto openerr;
+	}
+	/* Check ulimit for a regular file. */
+	if (S_ISREG(st.st_mode)) {
+	  t_block ulim = blk_sects(j,rlim.rlim_cur/SECT_SIZE);
+	  if (ulim < p->d.eod) {
+	    rc = BTERFULL;
+	    goto openerr;
+	  }
+	  if (ulim < p->d.eof || p->d.eof == 0) {
+	    if (p->d.eof > 0)
+	      space -= p->d.eof - ulim;
+	    else
+	      space += ulim - p->d.eod;
+	    p->d.eof = ulim;
+	  }
+	}
       }
       p->fd = fd;
     }
@@ -303,6 +335,7 @@ int DEV::wait() {
   return 0;
 }
 
+/** Return byte offset of block. */
 long DEV::blk_pos(t_block b) const {
   long offset = blkoffset;
   if (blk_dev(b)) {
@@ -310,4 +343,15 @@ long DEV::blk_pos(t_block b) const {
     offset = extoffset;
   }
   return (b - 1) * blksize + offset;
+}
+
+/** Return the most blocks that will fit in sectors for an extent. */
+t_block DEV::blk_sects(int ext,unsigned long sects) const {
+  long offset = ext ? extoffset : blkoffset;
+  int sectsperblk = blksize/SECT_SIZE;
+#if 0
+  fprintf(stderr,"sects = %ld, offset = %ld, sectsperblk = %d\n",
+     sects,offset/SECT_SIZE,sectsperblk);
+#endif
+  return (sects - offset/SECT_SIZE) / sectsperblk;
 }
