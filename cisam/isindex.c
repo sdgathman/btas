@@ -3,11 +3,14 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.2  1994/02/24  22:13:18  stuart
+ * isfixindex
+ *
  * Revision 1.1  1994/02/24  20:06:49  stuart
  * Initial revision
  *
  */
-
+#include <malloc.h>
 #include "cisam.h"
 #include <stdio.h>
 #include <errenv.h>
@@ -61,7 +64,7 @@ static int isfix(struct cisam *r,struct cisam_key *p,const char *name) {
 }
 
 int isaddindex(int fd,const struct keydesc *k) {
-  int idx, rc, rlen;
+  int idx, rc;
   struct cisam *r;
   struct cisam_key *p;
   struct keydesc kn;
@@ -72,6 +75,7 @@ int isaddindex(int fd,const struct keydesc *k) {
   if (r == 0) return iserr(ENOTOPEN);
   c = r->idx;		/* we don't auto-create .idx yet */
   if ( r->f == 0 || c == 0) return iserr(ENOTEXCL);
+  if (k->k_flags & ISCLUSTER) return iserr(EPRIMKEY);
   kn = *k;
   fp = isconvkey(r->key.f,&kn,1);	/* compute field table */
   if (fp == 0) return iserr(EBADMEM);
