@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 2.1  1996/12/17  16:44:12  stuart
+ * C++ bufpool interface
+ *
  * Revision 1.4  1995/05/31  20:42:24  stuart
  * prioritize buffer with BLK_LOW
  *
@@ -14,6 +17,7 @@
 #include <assert.h>
 #include <alloc.h>
 #include "hash.h"
+#include "node.h"
 #include "btdev.h"
 
 #ifndef ASSERTFCN
@@ -24,6 +28,7 @@ extern "C" _assert(const char *,const char *,int);
 /* allocate hash table, and initialize chain */
 
 BufferPool::BufferPool(int size) {
+  memset(&serverstats,0,sizeof serverstats);
   numtouch = 0;
   modcnt = 0;
   lastcnt = 0;
@@ -135,7 +140,7 @@ void BufferPool::get(int cnt) {
   curcnt = cnt;
   if (cnt == 0 && (modcnt > maxtouch / 2 || numtouch > maxtouch - MAXLEV)) {
     assert(numtouch > 0);
-    sync(touched[0]->mid);
+    sync(touched[0]->mid,MAXLEV);
   }
 }
 
@@ -224,19 +229,23 @@ void BufferPool::rehash(BLOCK *bp,int h,int hval) {
 /* NOTE: mid must be same! */
 
 void BufferPool::swap(BLOCK *np,BLOCK *bp) {
-  int hval, hval2;
-  long blk;
-  hval = hash(np->blk+np->mid);
-  while (hashtbl[hval] && hashtbl[hval] != np)
-    if (--hval < 0) hval = hmask;
-  hval2 = hash(bp->blk+bp->mid);
-  while (hashtbl[hval2] && hashtbl[hval2] != bp)
-    if (--hval2 < 0) hval2 = hmask;
+  assert(np->mid == bp->mid);
+  int hval = indexOf(np);
+  int hval2 = indexOf(bp);
   hashtbl[hval] = bp;
   hashtbl[hval2] = np;
-  blk = np->blk;
+  long blk = np->blk;
   np->blk = bp->blk;
   bp->blk = blk;
+}
+
+/* return index in hashtbl of a BLOCK *.  WARNING: infinite loop results
+ * if the BLOCK is not in fact in the hashtbl. */
+int BufferPool::indexOf(BLOCK *np) const {
+  int hval = hash(np->blk+np->mid);
+  while (hashtbl[hval] && hashtbl[hval] != np)
+    if (--hval < 0) hval = hmask;
+  return hval;
 }
 
 // purge fully checkpointed buffers from touched list
@@ -268,9 +277,14 @@ int BufferPool::wait(short mid) {
   return rc;
 }
 
-int BufferPool::sync(short mid) {
+int BufferPool::sync(short mid,int lim) {
   int rc = wait(mid);
   if (rc) return rc;
+  FDEV *dev = devtbl + mid;
+  if (lim == 0)
+    lim = numtouch;
+  else if (dev->max() > 0)
+    lim = dev->max();	// limit does not apply to failsafe
   int cnt = 0;
   for (int i = 0; i < numtouch; ++i) {
     BLOCK *bp = touched[i];
@@ -280,10 +294,14 @@ int BufferPool::sync(short mid) {
 	++cnt;
       else
 	rc = res;
+      if (cnt > lim) {
+	modcnt -= cnt;
+	return rc;
+      }
     }
   }
   modcnt -= cnt;
-  int res = devtbl[mid].sync();
+  int res = dev->sync(serverstats.checkpoints);
   if (res)
     rc = res;
   return rc;
