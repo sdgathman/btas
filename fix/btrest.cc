@@ -3,6 +3,9 @@
 	Copyright 1991 Business Management Systems, Inc.
 */
 // $Log$
+// Revision 1.4  1995/11/25  02:32:57  stuart
+// support converting to checkpoint format
+//
 // Revision 1.3  1995/11/08  19:36:46  stuart
 // oops
 //
@@ -10,14 +13,12 @@
 // rearrange RCS id
 //
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
-#include <io.h>
 #include "fs.h"
 
 // FIXME: can only restore one extent
-
-enum { SECT_SIZE = 512 };
 
 int main(int argc,char **argv) {
   bool convert68k = false;	// convert from 68k format
@@ -89,25 +90,21 @@ Usage:	btrest [-6] [-cchksize] osfile <archive\n\
       btfs f;
       char buf[SECT_SIZE];
     };
-    bool seekable = false;
-    if (chk) {
-      long superoffset = SECT_SIZE;
-      seekable = true;
-      if (fseek(outf,superoffset,0)) {
-	memset(buf,0,sizeof buf);
-	if (fwrite(buf,sizeof buf,1,outf) != 1) {
-	  perror(outputname);
-	  return 1;
-	}
+    long superoffset = SECT_SIZE;
+    bool seekable = true;
+    if (fseek(outf,superoffset,0)) {
+      seekable = false;
+      memset(buf,0,sizeof buf);
+      if (fwrite(buf,sizeof buf,1,outf) != 1) {
+	perror(outputname);
+	return 1;
       }
-      f = *fs.hdr();
-      f.hdr.root = (superoffset + SECT_SIZE) / SECT_SIZE + chk;
-      int blksects = f.hdr.blksize / SECT_SIZE;
-      if (f.hdr.root % blksects)
-	f.hdr.root += blksects - f.hdr.root % blksects;
     }
-    else
-      f = *fs.hdr();
+    f = *fs.hdr();
+    f.hdr.root = (superoffset + SECT_SIZE) / SECT_SIZE + chk;
+    int blksects = f.hdr.blksize / SECT_SIZE;
+    if (f.hdr.root % blksects)
+      f.hdr.root += blksects - f.hdr.root % blksects;
     long rootpos = f.hdr.root * SECT_SIZE;
     f.hdr.magic = BTMAGIC;
     if (fwrite(buf,sizeof buf,1,outf) != 1) {
