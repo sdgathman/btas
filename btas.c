@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.4";
+static char what[] = "@(#)btas.c	1.5";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -102,9 +102,8 @@ int btas(b,opcode)
       if (rlen > b->rlen) {
 	node_dup = b->rlen;
 	node_copy(bp,sp->slot,b->lbuf,rlen);
-	(void)node_replace(bp,sp->slot,b->lbuf,b->rlen);
       }
-      else if (node_replace(bp,sp->slot,b->lbuf,b->rlen)) {
+      if (node_replace(bp,sp->slot,b->lbuf,b->rlen)) {
 	--sp->slot;
 	btadd(b->lbuf,b->rlen);
       }
@@ -214,6 +213,23 @@ int btas(b,opcode)
     if (btroot(b->root,b->mid)) return BTERMID;
     b->rlen = gethdr(devtbl + b->mid, b->lbuf, MAXREC);
     return 0;
+  case BTTOUCH:
+    btget(1);
+    bp = btbuf(b->root);
+    if (b->rlen >= sizeof (struct btstat)) {
+      struct btstat st;
+      (void)memcpy((char *)&st,b->lbuf,sizeof st);
+      bp->buf.r.stat.atime = st.atime;
+      bp->buf.r.stat.mtime = st.mtime;
+      if (b->u.id.user == bp->buf.r.stat.id.user || b->u.id.user == 0) {
+	st.id.mode ^= (st.id.mode ^ bp->buf.r.stat.id.mode) & ~07777;
+	bp->buf.r.stat.id = st.id;
+      }
+      bp->flags |= BLK_MOD;
+      (void)memcpy(b->lbuf,(char *)&bp->buf.r.stat,sizeof st);
+      return 0;
+    }
+    return BTERKLEN;
   case BTFLUSH:
     btflush();
     return 0;
