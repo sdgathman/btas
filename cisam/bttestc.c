@@ -5,12 +5,13 @@
 	Author: Stuart D. Gathman
 */
 
-static char what[] = "@(#)bttestc.c	1.3";
+static char what[] = "@(#)bttestc.c	1.5";
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <ctype.h>
 #include <isamx.h>
 #include <ischkerr.h>
 #include <ftype.h>
@@ -69,12 +70,13 @@ void verrec(rec)
       printf("Invalid record read, %ld.\n",ldlong(rec->seq));
 }
 
-void usage() {
+static void usage(void) {
   puts("C-isam emulator exerciser version 1.2");
   puts("Usage:	btteste [-cefk] cnt");
   puts("	-c	test character field compression");
   puts("	-f	test fast emulation (no record numbers, etc.)");
   puts("	-e	test exact emulation (default)");
+  puts("	-r	use record numbers as primary key");
   puts("	-k	keep test files (don't iserase)");
   exit(1);
 }
@@ -83,9 +85,11 @@ struct {
   int exact:1;
   int compress:1;
   int keep:1;
-} opt = { 1, 0, 0 };
+  int recnum:1;
+} opt = { 1, 0, 0, 0 };
 
 char *filename = "/tmp/testfile";
+char *newname = "/tmp/newfile";
 
 int main(argc, argv)
   char **argv;
@@ -95,6 +99,7 @@ int main(argc, argv)
   long idx;
   long cnt = 0L;
   int errs, i;
+  struct keydesc *primary = &Ktest;
 
   for (i = 1; i < argc && *argv[i] == '-'; ++i) {
     while (*++argv[i]) {
@@ -111,6 +116,9 @@ int main(argc, argv)
       case 'k':
 	opt.keep = 1;
 	break;
+      case 'r':
+	opt.recnum = 1;
+	break;
       default:
 	usage();
       }
@@ -121,11 +129,16 @@ int main(argc, argv)
   cnt = atol(argv[i]);
   if (cnt <= 0) cnt = 1000L;
 
-  printf("Options in effect: EXACT: %c, COMPRESS: %c, KEEP: %c\n",
+  printf(
+    "Options in effect: EXACT: %c, COMPRESS: %c, KEEP: %c, RECNUM: %c\n",
     (opt.exact) ? 'Y' : 'N',
     (opt.compress) ? 'Y' : 'N',
-    (opt.keep) ? 'Y' : 'N'
+    (opt.keep) ? 'Y' : 'N',
+    (opt.recnum) ? 'Y' : 'N'
   );
+
+  if (opt.recnum)
+    primary = &Krec;
 
 #ifndef NOCOMPRESS
   if (opt.compress) {
@@ -138,17 +151,24 @@ int main(argc, argv)
       perror("malloc");
       return 1;
     }
-    fd = isbuildx(filename,sizeof t,&Ktest,ISINOUT + ISEXCLLOCK,fcb);
+    fd = isbuildx(filename,sizeof t,primary,ISINOUT + ISEXCLLOCK,fcb);
     free((PTR)fcb);
   }
   else
 #endif
-    fd = isbuild(filename,sizeof t,&Ktest,ISINOUT + ISEXCLLOCK);
+    fd = isbuild(filename,sizeof t,primary,ISINOUT + ISEXCLLOCK);
   if (fd == -1) {
     (void)printf("isbuild failed, rc = %d\n",iserrno);
     return 1;
   }
-
+  if (primary != &Ktest) {
+    if (isaddindex(fd,&Ktest)) {
+      (void)printf("isaddindex failed, rc = %d\n",iserrno);
+      return 1;
+    }
+    (void)chk(isstart(fd,&Ktest,0,(PTR)&t,ISFIRST),0);
+  }
+    
   stshort(0,t.rnd);
   memset(t.txt,' ',sizeof t.txt);
   (void)memset(t.pad,0xff,sizeof t.pad);
@@ -175,7 +195,7 @@ int main(argc, argv)
   stop_timer(cnt);
 
   start_timer("Addindex");
-  chk(isaddindex(fd,&Ktxt),0);
+  (void)chk(isaddindex(fd,&Ktxt),0);
   stop_timer(cnt + cnt);
 
 #ifndef NOCOMPRESS
@@ -189,7 +209,7 @@ int main(argc, argv)
       /* isrewrec should not change key position */
       if (ldshort(t.rnd) == 0) {
 	stshort(-1,t.rnd);
-	chk(isrewrec(fd,isrecnum,&t),0);
+	(void)chk(isrewrec(fd,isrecnum,&t),0);
       }
     }
     rc = chk(isread(fd,(char *)&t,ISNEXT),ISEOF);
@@ -207,7 +227,7 @@ int main(argc, argv)
       /* isstart sets key position */
       stshort(-1,t.rnd);
       if (!chk(isstart(fd,&Ktest,0,(PTR)&t,ISEQUAL),ISNOKEY)) {
-	chk(isread(fd,(PTR)&t,ISCURR),0);
+	(void)chk(isread(fd,(PTR)&t,ISCURR),0);
 	if (ldlong(t.seq) != key || ldshort(t.rnd) != -1)
 	  puts("wrong record");
 	verrec(&t);
@@ -256,13 +276,14 @@ int main(argc, argv)
   for (i = 0; i < 10; ++i) {
     long seq = rand() % cnt;
     int cnt1, cnt2;
-    (void)printf("Partial key = %ld\n",seq);
+    /* printf("Partial key = %ld\n",seq); */
     stlong(seq,t.seq);
     isstart(fd,&Ktest,4,(PTR)&t,ISGTEQ);
     cnt1 = 0;
     while (chk(isread(fd,(PTR)&t,ISNEXT),ISEOF) == 0 && ldlong(t.seq) == seq) {
       ++cnt1;
       verrec(&t);
+      /* printf("	%d\n",ldshort(t.rnd)); */
       if (opt.exact) {
 	int j;
 	for (j = 0; j < sizeof t.txt; ++j)
@@ -332,15 +353,17 @@ int main(argc, argv)
 
   (void)isclose(fd);
 
-  /* see if isdelindex() worked */
+  chk(isrename(filename,newname),0);
+
+  /* see if isdelindex() and isrename() worked */
   {
     char buf[80];
     sprintf(buf,"btutil 'di %s*' 'du %s.idx'; ls -l %s*",
-	filename,filename,filename);
+	newname,newname,newname);
     system(buf);
   }
 
   if (!opt.keep)
-    iserase(filename);
+    iserase(newname);
   return 0;
 }
