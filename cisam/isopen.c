@@ -128,6 +128,7 @@ void cdecl iscloseall() {
   startsearch = 0;
   isamfdsize = 0;
   isamfdptr = 0;
+  iscleanup(0);	/* retry failed erases one last time */
 }
 
 int isopen(const char *name,int mode) {

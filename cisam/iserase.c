@@ -15,20 +15,42 @@ static struct elist {
   char name[1];
 } *list;
 
-static void cdecl cleanup(void) {
+/* Retry failed erases.  Return number remaining. */
+int iscleanup(const char *fname) {
+  int cnt = 0;
   if (list) {
-    struct elist *p, *next;
+    struct elist **p, *cur;
     BTCB *savdir = btasdir;
-    iscloseall();			/* make sure all our files are closed */
-    for (p = list; p; p = next) {
-      next = p->next;
-      btasdir = p->btcb;
-      iserase(p->name);		/* retry failed iserase calls */
-      btclose(btasdir);
-      free((PTR)p);
+    for (p = &list; *p; ) {
+      cur = *p;
+      if (fname == 0 || strcmp(fname,cur->name) == 0) {
+	*p = cur->next;	/* remove from list */
+	btasdir = cur->btcb;
+	iserase(cur->name);		/* retry failed iserase calls */
+	btclose(btasdir);
+	if (*p && strcmp((*p)->name,cur->name) == 0) {
+	  /* retry didn't work */
+	  if (fname == 0) {
+	    /* cleanup all - give up completely */
+	    free(cur);
+	    cur = *p;
+	    *p = cur->next;
+	    btclose(cur->btcb);
+	  }
+	  else
+	    p = &cur->next;	/* try again later */
+	  ++cnt;
+	}
+	free(cur);
+      }
+      else {
+	p = &cur->next;
+	++cnt;
+      }
     }
     btasdir = savdir;
   }
+  return cnt;
 }
 
 static void addlist(BTCB *b,const char *name) {
@@ -38,9 +60,15 @@ static void addlist(BTCB *b,const char *name) {
     p->next = list;
     p->btcb = b;
     strcpy(p->name,name);
-    if (!list) atexit(cleanup);
     list = p;
   }
+}
+
+static int endswith(const char *s,const char *e) {
+  int lens = strlen(s);
+  int lene = strlen(e);
+  if (lene > lens) return 0;
+  return strcmp(s + lens - lene,e) == 0;
 }
 
 int iserase(const char *name) {
@@ -77,7 +105,7 @@ int iserase(const char *name) {
 	ldchar(frec.name,sizeof frec.name,btasdir->lbuf);
 	btasdir->klen = strlen(btasdir->lbuf) + 1;
 	btasdir->rlen = btasdir->klen;
-	(void)btas(btasdir,BTDELETE + NOKEY);
+	btas(btasdir,BTDELETE + NOKEY);
 	b->klen = b->rlen;
 	b->rlen = sizeof frec;
       }
@@ -87,18 +115,20 @@ int iserase(const char *name) {
     else
       errpost(b->op);
     btclose(b);
+    b = 0;
     free((PTR)f);
     strcpy(btasdir->lbuf,fname);
     btasdir->klen = strlen(btasdir->lbuf) + 1;
     btasdir->rlen = btasdir->klen;
-    (void)btas(btasdir,BTDELETE + NOKEY);
+    btas(btasdir,BTDELETE + NOKEY);
     rc = 0;
   }
   enverr
-    (void)btclose(b);
+    btclose(b);
     if (f) free((PTR)f);
-    if (rc == BTERLOCK) { 	/* delete at end of program */
-      fname[strlen(fname) - sizeof idx + 1] = 0;
+    if (rc == BTERDEL) { 	/* file open, delete at end of program */
+      if (endswith(fname,idx))
+	fname[strlen(fname) - sizeof idx + 1] = 0;
       addlist(btasdir,fname);
       btasdir = savdir;
       return iserr(0);

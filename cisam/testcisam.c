@@ -18,7 +18,7 @@ struct trec {		/* test record */
 };
 
 static struct keydesc Ktest = {
-  0, 2, { { 0, 4, CHARTYPE }, { 4, 2, CHARTYPE }, { 6, 26 , CHARTYPE } }
+  0, 3, { { 0, 4, CHARTYPE }, { 4, 2, CHARTYPE }, { 6, 26 , CHARTYPE } }
 };
 
 static const char ftbl[] = {
@@ -71,13 +71,12 @@ static void verrec(const struct trec *rec) {
 }
 
 #define chk(rc,err) \
-  (fail_unless(rc == 0 || iserrno == err,"unexpected cisam error"),rc)
+  ((rc == 0) ? 0 : (fail_unless(iserrno == err,"unexpected cisam error"),-1))
 
 START_TEST(bttesty) {
   long *ar = (long *)malloc(cnt * 2 * sizeof *ar);
   int i;
   int fd;
-  int errs;
   int idx;
   int rc;
   struct trec t;
@@ -86,16 +85,15 @@ START_TEST(bttesty) {
     ar[i+cnt] = ar[i] = i + 1; /* initialize array */
   shuffle(ar,cnt * 2);
 
-  fd = isbuild("testfile",sizeof t,&Ktest,ISINOUT + ISMANULOCK);
+  iserase(fname);
+  fd = isbuild(fname,sizeof t,&Ktest,ISINOUT + ISMANULOCK);
   fail_unless(fd >= 0,"isbuild failed");
 
-  stshort(0,t.rnd);
-  stlong(0L,t.ver);
-
-  errs = 0;
-  start_timer("Random deletes/writes",cnt);
+  start_timer("\nRandom deletes/writes",cnt);
   for (idx = 0L; idx < cnt; ++idx) {
     stlong(ar[idx],t.seq);
+    stshort(0,t.rnd);
+    stchar("bttesty",t.txt,sizeof t.txt);
     if (chk(isdelete(fd,(char *)&t),ENOREC)) {
       int plen = randrange(200,404,1);
       memset(t.pad,~0,plen);
@@ -120,7 +118,6 @@ START_TEST(bttesty) {
 
   shuffle(ar,idx);
   start_timer("Random read",idx);
-  errs = 0;
   for (i = 0L; i < idx; ++i) {
     stlong(ar[i],t.seq);
     stshort(0,t.rnd);
@@ -129,10 +126,11 @@ START_TEST(bttesty) {
   }
   stop_timer(idx);
 
-  errs = 0;
   start_timer("Random deletes/writes",cnt);
   for (idx = 0L; idx < cnt; ++idx) {
     stlong(ar[cnt + idx],t.seq);
+    stshort(0,t.rnd);
+    stchar("bttesty",t.txt,sizeof t.txt);
     if (chk(isdelete(fd,(char *)&t),ENOREC)) {
       int plen = randrange(200,404,1);
       memset(t.pad,~0,plen);
@@ -142,8 +140,140 @@ START_TEST(bttesty) {
     }
   }
   stop_timer(cnt);
+  free(ar);
 
-  isclose(fd);
+  { struct dictinfo di;
+    fail_unless(isindexinfo(fd,(struct keydesc *)&di,0) == 0,
+	"indexinfo failed");
+    if (di.di_nrecords != 0)
+      printf("%d records remaining\n",di.di_nrecords);
+    fail_unless(di.di_nrecords == 0,"file not empty");
+  }
+
+  fail_unless(isclose(fd) == 0,"close failed");
+  fail_unless(iserase(fname) == 0,"erase failed");
+
+} END_TEST
+
+START_TEST(bttestx) {
+  int i;
+  long *ar = (long *)malloc(cnt * sizeof *ar);
+  int fd;
+  int rc;
+  int idx;
+  struct trec t;
+
+  for (i = 0;i < cnt;i++) ar[i] = i + 1;	/* initialize array */
+  shuffle(ar,cnt);
+
+  fd = isbuild(fname,sizeof t,&Ktest,ISINOUT + ISMANULOCK);
+  fail_unless(fd >= 0,"isbuild failed");
+
+  stshort(0,t.rnd);
+  stchar("bttestx",t.txt,sizeof t.txt);
+  memset(t.pad,0xff,sizeof t.pad);
+  start_timer("\nSequential write",cnt);
+  for (idx = 1L; idx <= cnt; ++idx) {
+    stlong(idx,t.seq);
+    stlong(-idx,t.ver);	/* simple way to verify records */
+    fail_unless(iswrite(fd,(char *)&t) == 0,"write failed");
+  }
+  stop_timer(cnt);
+
+  start_timer("Random delete",cnt);
+  for (idx = 0L; idx < cnt; ++idx) {
+    stlong(ar[idx],t.seq);
+    fail_unless(isdelete(fd,(char *)&t) == 0,"delete failed");
+  }
+  stop_timer(cnt);
+
+  { struct dictinfo di;
+    fail_unless(isindexinfo(fd,(struct keydesc *)&di,0) == 0,
+	"indexinfo failed");
+    if (di.di_nrecords != 0)
+      printf("%d records remaining\n",di.di_nrecords);
+    fail_unless(di.di_nrecords == 0,"file not empty");
+  }
+
+  shuffle(ar,cnt);
+  start_timer("Random write",cnt);
+  for (idx = 0L; idx < cnt; ++idx) {
+    long seq;
+    seq = ar[idx];
+    stlong(seq,t.seq);
+    stshort((short)idx,t.rnd);
+    stlong(-seq,t.ver);
+    fail_unless(iswrite(fd,(char *)&t) == 0,"write failed");
+  }
+  stop_timer(cnt);
+
+  start_timer("Sequential read",cnt);
+  idx = 0L;
+  rc = chk(isread(fd,(char *)&t,ISFIRST),EENDFILE);
+  while (rc == 0) {
+    ++idx;
+    verrec(&t);
+    rc = chk(isread(fd,(char *)&t,ISNEXT),EENDFILE);
+  }
+  stop_timer(cnt);
+  printf("\t%ld records read.\n",idx);
+
+  shuffle(ar,cnt);
+  start_timer("Random read",cnt);
+  for (idx = 0L; idx < cnt; ++idx) {
+    stlong(ar[idx],t.seq);
+    stshort(0,t.rnd);
+    fail_unless(isstart(fd,&Ktest,4,(char *)&t,ISEQUAL) == 0,"isstart failed");
+    fail_unless(isread(fd,(char *)&t,ISNEXT) == 0,"read NEXT failed");
+    verrec(&t);
+  }
+  stop_timer(cnt);
+  free(ar);
+
+  start_timer("Sequential read and delete",cnt);
+  idx = 0L;
+  rc = chk(isread(fd,(char *)&t,ISFIRST),EENDFILE);
+  while (rc == 0) {
+    ++idx;
+    verrec(&t);
+    fail_unless(isdelcurr(fd) == 0,"delcurr failed");
+    rc = chk(isread(fd,(char *)&t,ISNEXT),EENDFILE);
+  }
+  stop_timer(cnt);
+  printf("\t%ld records deleted.\n",idx);
+
+  { struct dictinfo di;
+    fail_unless(isindexinfo(fd,(struct keydesc *)&di,0) == 0,
+	"indexinfo failed");
+    if (di.di_nrecords != 0)
+      printf("%d records remaining\n",di.di_nrecords);
+    fail_unless(di.di_nrecords == 0,"file not empty");
+  }
+
+  fail_unless(isclose(fd) == 0,"close failed");
+  fail_unless(iserase(fname) == 0,"erase failed");
+
+} END_TEST
+
+/* Test isindexinfo() with small record lengths.  */
+START_TEST(test_dictinfo) {
+  static struct keydesc Ktest = { 0, 1, { { 0, 4, CHARTYPE } } };
+  static const char ftbl[] = { 0,1,BT_NUM,4 };
+  int fd;
+  struct btflds *f;
+  struct dictinfo di;
+  iserase(fname);
+  f = ldflds(0,ftbl,sizeof ftbl);
+  fd = isbuildx(fname,4,&Ktest,ISINOUT + ISMANULOCK,f);
+  free(f);
+  fail_unless(isindexinfo(fd,(struct keydesc *)&di,0) == 0, "indexinfo failed");
+  fail_unless(di.di_nkeys == 1,"should be only 1 index");
+  fail_unless(di.di_recsize == 4,"rlen not 4");
+  fail_unless(di.di_nrecords == 0,"file not empty");
+  /* file should be erased later */
+  fail_unless(iserase(fname) == 0,"erase failed");
+  fail_unless(isclose(fd) == 0,"close failed");
+  fail_unless(iscleanup(0) == 0,"cleanup failed");
 } END_TEST
 
 /* Collect all the tests.  This will make more sense when tests are
@@ -153,14 +283,18 @@ Suite *cisam_suite (void) {
   TCase *tc_api = tcase_create ("API");
 
   suite_add_tcase (s, tc_api);
+  tcase_add_test (tc_api, bttestx);
   tcase_add_test (tc_api, bttesty);
+  tcase_add_test (tc_api, test_dictinfo);
   return s;
 }
 
-int main (void) {
+int main (int argc,char **argv) {
   int nf;
   Suite *s = cisam_suite ();
   SRunner *sr = srunner_create (s);
+  if (argc > 1)
+    cnt = atoi(argv[1]);
   srandom(5910911L);
   srunner_run_all (sr, CK_NORMAL);
   nf = srunner_ntests_failed (sr);

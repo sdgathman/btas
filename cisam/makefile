@@ -12,7 +12,7 @@ test:	bttestc btteste
 	btteste $R | tee -a log
 
 testcisam:	testcisam.o $L
-	$(CC) testcisam.o $(LDFLAGS) -lbtas -lbms -lcheck -o testcisam
+	$(CC) testcisam.o $(LDFLAGS) $L -lbms -lcheck -ldmalloc -o testcisam
 
 btteste:	bttestc.o $L
 	$(CC) bttestc.o $(LDFLAGS) -lbtas -lbms -o btteste
