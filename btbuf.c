@@ -6,6 +6,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+ * Revision 2.3  1997/06/23  15:28:13  stuart
+ * move static vars to a BlockCache object
+ *
  * Revision 2.2  1997/01/27  15:50:56  stuart
  * release buffers before unmount
  *
@@ -122,7 +125,7 @@ BlockCache::BlockCache(int size,unsigned psize):
     put(new(getblock(i)) BLOCK);
   serverstats.bufs = poolsize;
   btserve::curtime = time(&serverstats.uptime);
-  serverstats.version = 112;
+  serverstats.version = version_num;
 }
 
 BlockCache::~BlockCache() {
