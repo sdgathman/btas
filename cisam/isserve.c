@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.11  1998/10/05  17:57:07  stuart
+ * bug with read mode
+ *
  * Revision 2.10  1998/06/24  16:38:48  stuart
  * simplify socket setup
  *
@@ -123,6 +126,8 @@ static int server() {
     char name[64];
     char *p = getenv("ISTRACE");
     if (p) {
+      //sprintf(name,"%s/islog.%d",p,getpid());
+      //freopen(name,"w",stderr);
       sprintf(name,"%s/istrace.%d",p,getpid());
       trace = open(name,O_WRONLY+O_CREAT+O_TRUNC,0666);
     }
@@ -401,8 +406,9 @@ Usage:	isserve [-a] [-ftracedir] [tcpport]\n",stderr);
   }
   saddr.sin_family = AF_INET;
   saddr.sin_addr.s_addr = INADDR_ANY;
-  saddr.sin_port = port;
+  saddr.sin_port = htons(port);
   if (callback) {
+    saddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     if (connect(fd,(struct sockaddr *)&saddr,sizeof saddr) < 0) {
       perror("connect");
       return 1;
