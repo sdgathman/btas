@@ -42,11 +42,12 @@ void btserve::setSafeEof(bool f) {
   bufpool->safe_eof = f;
 }
 
-void btserve::incTrans() {
+void btserve::incTrans(int msglen) {
   long cnt = iocnt;
   iocnt = bufpool->serverstats.preads + bufpool->serverstats.pwrites;
   cnt = iocnt - cnt;
   bufpool->serverstats.sum2 += cnt * cnt;
+  bufpool->serverstats.lwriteb += msglen;
   ++bufpool->serverstats.trans;
 }
 

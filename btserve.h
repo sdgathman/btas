@@ -13,7 +13,7 @@ public:
   void sync();
   int flush();
   void setSafeEof(bool);
-  void incTrans();	// increment transaction statistics
+  void incTrans(int msglen = 0); // increment transaction statistics
   static long curtime;
   //virtual void message(const char *msg); // display a diagnostic message
   ~btserve();

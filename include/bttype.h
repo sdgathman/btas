@@ -81,6 +81,7 @@ struct btpstat {		/* performance statistics */
   long uptime;			/* time server started */
   long version;			/* server version */
   int dirty;			/* dirty buffers in server */
+  long lwriteb;			/* total bytes in update requests */
 };
 
 #define BTMAGIC		0x0911

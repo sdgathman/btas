@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.11  2001/02/28 21:46:59  stuart
+ * local nap() prototype
+ *
  * Revision 1.10  2000/04/27 12:42:36  stuart
  * more time stamps in log
  * make BTERDIR trappable with 0xF00
@@ -242,27 +245,27 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
   Alarm alarm;
 
   for (;;) {
-    int len, op;
-
-    server.incTrans();
     rc = msgrcv(btasreq,(struct msgbuf *)reqp,
 		reqsiz - sizeof reqp->msgident, 0L, MSG_NOERROR);
     if (rc == -1) {
       if (alarm.check(&server)) break;
       continue;
     }
+    int op = reqp->op;			// request op code
+    int opflags = btopflags[op&31];	// type of op code
+    server.incTrans( (opflags & BT_UPDATE) ? rc : 0 );
 #if TRACE > 1
     fprintf(stderr,"rmlen=%d,op=%x,klen=%d,rlen=%d,\n",
-	rc,reqp->op,reqp->klen,reqp->rlen);
+	rc,op,reqp->klen,reqp->rlen);
 #endif
-    rc = reqp->op = server.btas(reqp,op = reqp->op);	/* execute request */
+    rc = reqp->op = server.btas(reqp,op);	/* execute request */
 
     /* add allowed trap flags to error code */
     if (reqp->op >= 200 && reqp->op < sizeof btflags + 200)
       reqp->op |= btflags[reqp->op - 200] << 8;
 
-    len = sizeof *reqp - sizeof reqp->msgident - sizeof reqp->lbuf;
-    if (btopflags[op&31] != BT_UPDATE)
+    int len = sizeof *reqp - sizeof reqp->msgident - sizeof reqp->lbuf;
+    if (opflags != BT_UPDATE)
       len += reqp->rlen;
     else if (reqp->op & NOKEY)
       len += reqp->klen;	/* report why nokey failed */

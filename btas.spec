@@ -1,8 +1,8 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.10.1
+%define version 2.10.2
 Version: %{version}
-Release: 6
+Release: 1
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -143,6 +143,8 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
+* Thu Nov 22 2001 Stuart Gathman <stuart@bmsi.com>
+- sql bugfixes
 * Wed Oct 17 2001 Stuart Gathman <stuart@bmsi.com>
 - fix dyn lib packaging for AIX
 - auto add btas user

@@ -1,4 +1,4 @@
-VERS = 2.10.1
+VERS = 2.10.2
 
 OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
 	btfile.o btkey.o assert.o server.o btdev.o fsdev.o alarm.o	\

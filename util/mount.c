@@ -139,6 +139,7 @@ int pstat() {		/* report performance statistics */
     double stddev = sqrt(avg2 - (avg * avg));
     printf("\nMessages = %ld, Avg = %f, StdDev = %f, StdDev/Avg = %f\n",
 	  stat.trans,avg,stddev,stddev/avg);
+    printf("Update bytes = %ld\n",stat.lwriteb);
   }
   if (stat.uptime) {
     long uptime = time(0) - stat.uptime;

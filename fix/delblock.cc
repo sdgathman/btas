@@ -3,6 +3,9 @@
 void btasFS::clear() {		/* clear free space */
   struct btfs *f = &fs->u.f;
   f->hdr.free = 0;
+  f->hdr.server = 0;
+  f->hdr.mount_time = 0;
+  f->hdr.mcnt = 0;
   f->hdr.space = 0;
   f->hdr.droot = 0;
   f->hdr.errcnt = 0;
