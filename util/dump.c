@@ -2,6 +2,9 @@
 	Dump records using fcb from directory record
  *
  * $Log$
+ * Revision 1.3  1993/11/09  19:31:01  stuart
+ * make du/e display uncompressed EBCDIC records
+ *
  * Revision 1.2  1993/10/26  16:25:40  stuart
  * fix alignment of timestamp dump
  *
@@ -322,8 +325,12 @@ int getdata(const char *s,char *obuf,struct btfrec *f,int n) {
       buf += f->len;
       break;
     case BT_NUM:
-    default:
       (void)strtomny(",.-",p,&m,f->type - BT_NUM);
+      stnum(m,buf,f->len);
+      buf += f->len;
+      break;
+    default:
+      (void)strtomny(",.-",p,&m,0);
       stnum(m,buf,f->len);
       buf += f->len;
       break;
