@@ -1,4 +1,5 @@
-/*	iswrite.c
+/* $Log$
+	iswrite.c
 
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
@@ -8,12 +9,9 @@
 #include "cisam.h"
 #include <btas.h>
 
-static int iswr(/**/ struct cisam *, const PTR /**/);
+static int iswr(struct cisam *, const PTR);
 
-int iswrite(fd,rec)
-  int fd;
-  const PTR rec;
-{
+int iswrite(int fd,const PTR rec) {
   struct cisam *r;
   BTCB *b,bt;
   int rc;
@@ -27,24 +25,19 @@ int iswrite(fd,rec)
   return rc;
 }
 
-int iswrcurr(fd,rec)
-  int fd;
-  const PTR rec;
-{
+int iswrcurr(int fd,const PTR rec) {
   struct cisam *r;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
   return iswr(r,rec);
 }
 
-static int iswr(r,rec)
-  struct cisam *r;
-  const PTR rec;
-{
+static int iswr(struct cisam *r,const PTR rec) {
   register struct cisam_key *kp;
   register BTCB *b;
   int rc = 0;
-  if (kp = r->recidx) {	/* assign new isrecnum */
+  kp = r->recidx;
+  if (kp != 0) {	/* assign new isrecnum */
     b = kp->btcb;
     for (;;) {
       /* this should work first time for the most part */
