@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.2  1998/12/04  22:30:39  stuart
+ * Mark primary key in .idx
+ *
  * Revision 1.1  1995/04/07  22:52:21  stuart
  * Initial revision
  *
@@ -59,20 +62,22 @@ int isbuildx(
   struct keydesc kd;
   char idxname[128];
   struct keydesc kr;
-  char recno = 0;
-  char needrecnum;
+  char needrecnum;	// true if recnum key needed
   int rc, len = strlen(name);
   const char *fname;
   if (len + sizeof CTL_EXT > sizeof idxname) return iserr(EFNAME);
+  if (k->k_flags & ISDUPS) return iserr(EBADKEY);
   kd = *k;
   iskeynorm(&kd);
+
+  strcpy(idxname,name);
+  fname = basename(idxname);
+
+  // check if user field table includes a recno field
   needrecnum = (kd.k_nparts > 0 && f && isrlen(f) != btrlen(f));
 
-  /* create .idx file */
-#ifdef 1 /* OPTIDX */
-  if (needrecnum || kd.k_nparts > 1 || kd.k_start > 0)	/* create .idx file */
-#endif
-  {
+  /* create .idx file if needed */
+  if (needrecnum || kd.k_nparts != 1 || kd.k_start > 0) {
     static const char idxf[] = { 0, 1,		/* idxname, klen */
       BT_CHAR, 32, BT_NUM, 1, BT_NUM,  1,	/* name, ISDUPS, k_nparts */
       BT_NUM, 2, BT_NUM, 2, BT_NUM, 2,		/* pos, len, type */
@@ -86,7 +91,6 @@ int isbuildx(
     };
     BTCB * volatile ctlf = 0;
     struct fisam idxrec;
-    strcpy(idxname,name);
     fcb = ldflds((struct btflds *)0,idxf,sizeof idxf);
     if (fcb == 0) return iserr(EBADMEM);
     catch(rc)
@@ -94,11 +98,6 @@ int isbuildx(
       rc = btcreate(idxname,fcb,0666);	/* create .idx file */
       if (rc) errpost(rc);
       ctlf = btopen(idxname,BTRDWR,sizeof idxrec);
-      fname = strrchr(idxname,'/');
-      if (fname == 0)
-	fname = idxname;
-      else
-	++fname;
       idxname[len] = 0;
       isstkey(fname,k,&idxrec);
       idxrec.flag |= ISCLUSTER;	/* mark as primary key */
@@ -111,7 +110,6 @@ int isbuildx(
 	isstkey(fname,&kr,&idxrec);
 	u2brec(fcb->f,(char *)&idxrec,sizeof idxrec,ctlf,sizeof idxrec.name);
 	btas(ctlf,BTWRITE);	/* write isrecnum key record */
-	recno = 1;	/* flag recidx created */
       }
     envend
     free((char *)fcb);
@@ -120,10 +118,10 @@ int isbuildx(
   }
 
   /* create default field table if needed */
-  if (!f) f = makeflds(k,rlen,!k->k_nparts?4:0);
+  if (!f) f = makeflds(k,rlen ? rlen : kd.k_len,!k->k_nparts?4:0);
 
   /* create files */
-  if (recno) {		/* if recidx created */
+  if (needrecnum) {		/* if recidx created */
     fcb = isconvkey(f,&kr,1);
     if (fcb == 0) return iserr(EBADMEM);
     rc = btcreate(idxname,fcb,0666);	/* create recnum file */
