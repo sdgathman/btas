@@ -3,6 +3,7 @@
 #include "btbuf.h"
 #include "btfile.h"
 #include "btdev.h"
+#include "LockTable.h"
 
 // FIXME: should be part of bufpool
 jmp_buf btjmp;		// jump target for btpost
@@ -11,6 +12,7 @@ btserve::btserve(int maxblk,unsigned cachesize,char id) {
   iocnt = 0L;
   bufpool = new BlockCache(maxblk,cachesize);
   engine = new btfile(bufpool);
+  locktbl = new LockTable;
   DEV::index = id;
 }
 
