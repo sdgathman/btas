@@ -10,6 +10,9 @@ that is needed by btar and btutil.  Please review the proposed command
 line options for btar and send your comments.
  *
  * $Log$
+ * Revision 1.1  1996/01/04  21:32:26  stuart
+ * Initial revision
+ *
  */
 
 #include <stdio.h>
@@ -53,13 +56,12 @@ static struct namelist *filelist = 0, *dirlist = 0;
 static struct namelist *add_list(struct namelist *p,const char *n) {
   struct namelist *q = obstack_alloc(&h,sizeof *p);
   q->name = n;
-  if (!p) {
+  if (!p)
     p = q;
-    p->next = q;
-  }
-  q->next = p->next;
+  else
+    q->next = p->next;
   p->next = q;
-  return p;
+  return q;
 }
 
 static struct namelist *read_listfile(struct namelist *p,const char *n) {
@@ -129,7 +131,7 @@ static int ldf(const char *dir,const char *r,int ln,const struct btstat *st) {
 }
 
 static int dirf(const char *dir,const char *r,int ln,const struct btstat *st) {
-  char buf1[18], buf2[18], buf3[18];
+  char buf1[18], buf2[18], buf3[13];
 #ifndef __MSDOS__
   static struct passwd *pw;
   static struct group *gr;
@@ -148,6 +150,7 @@ static int dirf(const char *dir,const char *r,int ln,const struct btstat *st) {
   itoa(st->id.group,buf2,10);
 #endif
   timemask(st->mtime,"Nnn DD CCCCC",buf3);
+  buf3[12] = 0;
   printf("%s %8s %8s %8ld %s %s%s%s\n",
     permstr(st->id.mode),buf1,buf2,st->rcnt,buf3,
     dir,*dir ? "/" : "",r
@@ -267,12 +270,14 @@ int main(int argc,char **argv) {
     if (btar_opennew(arfile,seekable)) return 1;
     for (s = dirlist; s && !cancel; ) {
       s = s->next;
+      fprintf(stderr,"%s%s%s\n","EMPTY ",expand_dir ? "EXPAND " : "",s->name);
       if (btar_add(s->name,true,expand_dir))
 	rc = 1;
       if (s == dirlist) break;
     }
     for (s = filelist; s && !cancel; ) {
       s = s->next;
+      fprintf(stderr,"%s%s\n",expand_dir ? "EXPAND " : "",s->name);
       if (btar_add(s->name,false,expand_dir))
 	rc = 1;
       if (s == filelist) break;

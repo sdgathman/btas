@@ -4,18 +4,24 @@
 
 	FIXME: load() should continue reading archive after some (but
 	not all) errors.
-*/
+ *
+ * $Log$
+ */
 
 #include <stdio.h>
 #include <fcntl.h>
 #include <errenv.h>
 #include <string.h>
-#include "btutil.h"
+#include <btas.h>
+#include <bttype.h>
+#include "btar.h"
 #include <ftype.h>	/* portable file formats */
 #include <block.h>
 #include <io.h>
 #include <mem.h>
 #include <bterr.h>
+
+extern volatile int cancel;
 
 struct ar_hdr;
 
@@ -178,52 +184,56 @@ static struct {
   char name[MAXKEY];
 } lastpath;
 
-int archive() {
-  int rc;
-  char *s = readtext("Filename: ");
-  char *t = readtext("Output file: ");
+int btar_opennew(const char *t,int seekflag) {
   /* char buf[8192];		/* big I/O buffer */
-  struct btff ff;
   f = fopen(t,"wb");
+  seekable = seekflag;
   if (f == 0 /* || setvbuf(f,buf,_IOFBF,sizeof buf) */) {
     perror(t);
-    return 0;
+    return -1;
   }
-  seekable = !strchr(switch_char,'t');	/* tape device flag */
-  dironly = !!strchr(switch_char,'d');	/* no data records */
-
   /* this test does not really work on System V.  How can we test for
      a seekable device? */
-  if (seekable)	/* verify that devices seems to really support seeks */
+  if (seekable)	/* verify that device seems to really support seeks */
     seekable = !lseek(fileno(f),0L,0);
   if (!seekable)
-    printf(
+    fprintf(stderr,
       "Media does not support seeks.  Archive will be in sequential format.\n"
     );
-
-  if (strchr(switch_char,'s') && !strcmp(s,"*")) {
-    s = "[!.]*";
-  }
   lastpath.len = 0;
   lastpath.pos = -1L;
+  return 0;
+}
+
+int btar_close() {
+  puteof();
+  return fclose(f);
+}
+
+static const char *ffdirname;
+
+int btar_add(const char *s,int dirflag,int subdirs) {
+  int rc;
+  struct btff ff;
+  dironly = dirflag;
   catch(rc)
     rc = findfirst(s,&ff);
     while (rc == 0 && cancel == 0) {
-      if (strchr(switch_char,'s'))
-	btwalk(ff.b->lbuf,arcone);
-      else
+      if (subdirs) {
+	if (strcmp(ff.b->lbuf,"..") && strcmp(ff.b->lbuf,"."))
+	  btwalk(ff.b->lbuf,arcone);
+      }
+      else {
+	ffdirname = ff.dir;
 	arcone(ff.b->lbuf,0);
+      }
       rc = findnext(&ff);
     }
     rc = 0;
   enverr
     finddone(&ff);
   envend
-  puteof();
-  (void)fclose(f);
-  if (rc) 
-    (void)printf("Fatal error %d\n",rc);
-  return 0;
+  return rc;
 }
 
 static int arcone(const char *name,const struct btstat *stp) {
@@ -234,6 +244,7 @@ static int arcone(const char *name,const struct btstat *stp) {
   struct ar_hdr hdr;
   struct fstat st;
   struct btstat s;
+  int plen;
 
   if (cancel) return -1;
   fprintf(stderr,"%s: ",name);
@@ -247,7 +258,28 @@ static int arcone(const char *name,const struct btstat *stp) {
   dtf->rlen = sizeof s;
   if (stp) {
     const char *p = strrchr(name,'/');
-    int plen = p ? p - name : 0;
+    plen = p ? p - name : 0;
+    s = *stp;
+  }
+  else {
+    name = ffdirname;
+    plen = name ? strlen(name) : 0;
+    rc = btas(dtf,BTSTAT);
+    if (rc) {
+      fputs("couldn't stat, ",stderr);
+      btclose(dtf);
+      dtf = 0;
+      errpost(rc);
+    }
+    memcpy((char *)&s,dtf->lbuf,sizeof s);
+    if (s.id.mode & BT_DIR) {
+      btclose(dtf);
+      dtf = 0;
+      errpost(BTERDIR);
+    }
+  }
+
+  {
     /* check if chdir needed */
     if (plen != lastpath.len || memcmp(lastpath.name,name,plen)) {
       stshort(chdir_MAGIC,hdr.magic);
@@ -258,7 +290,7 @@ static int arcone(const char *name,const struct btstat *stp) {
 	else {
 	  stlong(newpos,hdr.next);		/* link to next header */
 	  puthdr(&hdr,lastpath.name,lastpath.len);
-	  (void)fseek(f,newpos,0);
+	  fseek(f,newpos,0);
 	}
       }
       stlong(0L,hdr.next);
@@ -267,24 +299,7 @@ static int arcone(const char *name,const struct btstat *stp) {
       lastpath.pos = newpos;		/* save current position */
       puthdr(&hdr,name,plen);		/* output chdir */
     }
-    s = *stp;
   }
-  else {
-    rc = btas(dtf,BTSTAT);
-    if (rc) {
-      (void)fputs("couldn't stat, ",stderr);
-      (void)btclose(dtf);
-      dtf = 0;
-      errpost(rc);
-    }
-    (void)memcpy((char *)&s,dtf->lbuf,sizeof s);
-    if (s.id.mode & BT_DIR) {
-      (void)btclose(dtf);
-      dtf = 0;
-      errpost(BTERDIR);
-    }
-  }
-
   /* build portable stat structure */
 
   stlong(s.rcnt,st.rcnt);
@@ -348,118 +363,134 @@ static int arcone(const char *name,const struct btstat *stp) {
   return 0;		/* successful */
 }
 
-int load() {
-  char *s = readtext("Filename: ");
-  char *t = readtext("Archive: ");
-  char *d = readtext((char *)0);	/* dir option */
-  char dirflag = 0;
+static BTCB *b = 0;
+
+int
+btar_extract(
+  const char *dir,const char *drec,int rlen,const struct btstat *bst) {
+  BTCB *savdir = btasdir;
+  BTCB *dtf = 0;
+  int dirlen = strlen(dir);
+  int rc;
+  long recs = 0L, dups = 0L;
+  volatile int done = 0;
+  catch (rc)
+  if (dirlen != lastpath.len || memcmp(dir,lastpath.name,dirlen)) {
+    btclose(b);
+    b = 0;
+  }
+  if (!b) {
+    b = btopen(dir,BTWRONLY+BTDIROK,MAXREC);
+    memcpy(lastpath.name,dir,dirlen);
+    lastpath.len = dirlen;
+  }
+  btasdir = b;
+  /* make sure we can write to it */
+  b->u.id.user = geteuid();
+  b->u.id.group = getegid();
+  if (bst->id.mode & BT_DIR)
+    b->u.id.mode = 0700 + BT_DIR;
+  else
+    b->u.id.mode = 0600;
+  memcpy(b->lbuf,drec,(unsigned)rlen);
+  b->rlen = rlen;
+  b->klen = strlen(drec) + 1;
+  rc = btas(b,BTCREATE+DUPKEY);
+  if (rc)
+    fprintf(stderr," rewriting, ");
+  else
+    fprintf(stderr," creating,  ");
+  dtf = btopen(b->lbuf,BTWRONLY+BTDIROK,MAXREC);
+  if (dtf) {
+    if ((bst->id.mode & BT_DIR) && rc == 0) {
+      strcpy(dtf->lbuf,".");
+      dtf->klen = dtf->rlen = 2;
+      dtf->u.cache.node = dtf->root;
+      btas(dtf,BTLINK);
+      strcpy(dtf->lbuf,"..");
+      dtf->klen = dtf->rlen = 3;
+      dtf->u.cache.node = b->root;
+      btas(dtf,BTLINK);
+    }
+    while ( (dtf->rlen = getdata(dtf->lbuf,MAXREC)) > 0) {
+      dtf->klen = dtf->rlen;
+      if (btas(dtf,BTWRITE+DUPKEY))
+	++dups;
+      ++recs;
+    }
+    done = 1;
+    memcpy(dtf->lbuf,bst,sizeof *bst);
+    dtf->klen = dtf->rlen = sizeof *bst;
+    dtf->u.id.user = geteuid();
+    rc = btas(dtf,BTTOUCH);
+  }
+  enverr
+    if (!done) {	// skip 
+      long skipped = 0L;
+      while (getdata(dtf->lbuf,MAXREC) > 0)
+	++skipped;
+      fprintf(stderr,"	%ld records skipped.\n",skipped);
+    }
+    switch (rc) {
+    case 202:
+      fprintf(stderr,"out of BTAS space");
+      cancel = 1;
+      break;
+    default:
+      fprintf(stderr,"error %d",rc);
+    }
+    fprintf(stderr,", permissions not restored.\n");
+  envend
+  btasdir = savdir;
+  btclose(dtf);
+  fprintf(stderr,"%ld records loaded, %ld duplicates\n",recs,dups);
+  return rc;
+}
+
+static struct ar_hdr hdr;
+
+long btar_skip(long recs) {
+  long pos = ldlong(hdr.next);
+  if (!pos || fseek(f,pos,0)) {		/* if no seek possible */
+    char buf[MAXREC];
+    recs = 0;
+    while (getdata(buf,MAXREC) >= 0)
+      ++recs;
+  }
+  return recs;
+}
+
+int btar_load(const char *t,loadf *userf) {
   /* char buf[8192]; */
-  struct ar_hdr hdr;
   union {
     struct fstat st;
     char dir[MAXREC];
   } u;
+  static char prefix[MAXREC];
   int rc, rlen;
-  BTCB *savdir = btasdir;
   f = fopen(t,"rb");
   if (!f /* || setvbuf(f,buf,_IOFBF,sizeof buf) */) {
     perror(t);
-    return 0;
+    return -1;
   }
-  if (d)
-    dirflag = 1;
-
   catch(rc)
   while ((rlen = gethdr(&hdr,u.dir,sizeof u)) >= 0) {
     int magic = ldshort(hdr.magic);
     if (magic == chdir_MAGIC) {
       u.dir[rlen] = 0;
-      (void)fprintf(stderr,"Chdir: %s\n",u.dir);
-      if (!dirflag) {
-	btclose(b);
-	btasdir = savdir;
-	b = btopen(u.dir,BTWRONLY+BTDIROK,MAXREC);
-	btasdir = b;
-      }
+      strcpy(prefix,u.dir);
     }
     else if (magic == fstat_MAGIC) {
+      struct btstat bst;
       rlen -= sizeof u.st - sizeof u.st.rec;
-      (void)fprintf(stderr,"%s: ",u.st.rec); (void)fflush(stderr);
-      if (!dirflag && match(u.st.rec,s)) {	/* if it matches pattern */
-	BTCB *dtf;
-	struct btstat bst;
-	/* save original permissions */
-	bst.id.user = ldshort(u.st.user);
-	bst.id.group = ldshort(u.st.group);
-	bst.id.mode = ldshort(u.st.mode);
-	bst.atime = bst.mtime = ldlong(u.st.mtime);
-	/* make sure we can write to it */
-	b->u.id.user = geteuid();
-	b->u.id.group = getegid();
-	if (bst.id.mode & BT_DIR)
-	  b->u.id.mode = 0700 + BT_DIR;
-	else
-	  b->u.id.mode = 0600;
-	memcpy(b->lbuf,u.st.rec,(unsigned)rlen);
-	b->rlen = rlen;
-	b->klen = strlen(u.st.rec) + 1;
-	rc = btas(b,BTCREATE+DUPKEY);
-	if (rc)
-	  fprintf(stderr," rewriting, ");
-	else
-	  fprintf(stderr," creating,  ");
-	dtf = btopen(b->lbuf,BTWRONLY+BTDIROK,MAXREC);
-	if (dtf) {
-	  long recs = 0L, dups = 0L;
-	  volatile char done = 0;
-	  envelope
-	    if ((bst.id.mode & BT_DIR) && rc == 0) {
-	      strcpy(dtf->lbuf,".");
-	      dtf->klen = dtf->rlen = 2;
-	      dtf->u.cache.node = dtf->root;
-	      btas(dtf,BTLINK);
-	      strcpy(dtf->lbuf,"..");
-	      dtf->klen = dtf->rlen = 3;
-	      dtf->u.cache.node = b->root;
-	      btas(dtf,BTLINK);
-	    }
-	    while ( (dtf->rlen = getdata(dtf->lbuf,MAXREC)) > 0) {
-	      dtf->klen = dtf->rlen;
-	      if (btas(dtf,BTWRITE+DUPKEY))
-		++dups;
-	      ++recs;
-	    }
-	    done = 1;
-	    (void)memcpy(dtf->lbuf,(char *)&bst,sizeof bst);
-	    dtf->klen = dtf->rlen = sizeof bst;
-	    dtf->u.id.user = geteuid();
-	    rc = btas(dtf,BTTOUCH);
-	  enverr
-	    fprintf(stderr,"Error code %d, permissions not restored.\n",errno);
-	    if (!done) {	// skip 
-	      long skipped = 0L;
-	      while (getdata(dtf->lbuf,MAXREC))
-		++skipped;
-	      fprintf(stderr,"	%ld records skipped.\n",skipped);
-	    }
-	  envend
-	  btclose(dtf);
-	  fprintf(stderr,"%ld records loaded, %ld duplicates\n",recs,dups);
-	}
-      }
-      else {
-	long pos = ldlong(hdr.next);
-	long recs;
-	fprintf(stderr," skipping, ");
-	if (!pos || fseek(f,pos,0)) {		/* if no seek possible */
-	  recs = 0;
-	  while (getdata(b->lbuf,MAXREC) >= 0)
-	    ++recs;
-	}
-	else
-	  recs = ldlong(u.st.rcnt);
-	fprintf(stderr,"%ld records\n",recs);
-      }
+      /* save original permissions */
+      bst.id.user = ldshort(u.st.user);
+      bst.id.group = ldshort(u.st.group);
+      bst.id.mode = ldshort(u.st.mode);
+      bst.atime = bst.mtime = ldlong(u.st.mtime);
+      bst.rcnt = ldlong(u.st.rcnt);
+      bst.bcnt = 0L;
+      if (userf(prefix,u.st.rec,rlen,&bst)) break;
     }
     else {
       fprintf(stderr,"bad magic\n");
@@ -476,8 +507,7 @@ int load() {
       break;
     }
   envend
-  btasdir = savdir;
-  if (fclose(f) == 0)
-    fprintf(stderr,"Archive file closed.\n");
-  return 0;
+  btclose(b);
+  b = 0;
+  return fclose(f);
 }
