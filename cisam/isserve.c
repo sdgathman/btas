@@ -1,4 +1,4 @@
-static char id[] = "@(#)isserve.c 1.7 2/9/94";
+static char id[] = "@(#)isserve.c 1.8 2/9/94";
 
 #include <isam.h>
 #include "isreq.h"
@@ -51,6 +51,20 @@ main()
 	i = isstart(r.fd,&p2.desc,r.len,p1.buf,r.mode); break;
     case ISREAD:
 	res.p1 = r.p1;
+	if (r.mode == ISLESS) {
+	  r.mode = ISPREV;
+	  if (i = isread(r.fd,p1.buf,ISGTEQ)) {
+	    if (iserrno != ENOREC) break;
+	    r.mode = ISLAST;
+	  }
+	}
+	if (r.mode == ISLTEQ) {
+	  r.mode = ISPREV;
+	  if (i = isread(r.fd,p1.buf,ISGREAT)) {
+	    if (iserrno != ENOREC) break;
+	    r.mode = ISLAST;
+	  }
+	}
 	i = isread(r.fd,p1.buf,r.mode); break;
     case ISWRITE:
 	i = iswrite(r.fd,p1.buf); break;
