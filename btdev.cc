@@ -7,7 +7,6 @@ const char what[] = "$Revision$";
 #include <malloc.h>
 #include <string.h>
 #include <fcntl.h>
-#include <io.h>
 #include <errno.h>
 #include <time.h>
 #include <bterr.h>
