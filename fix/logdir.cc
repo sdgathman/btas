@@ -1,3 +1,4 @@
+#pragma implementation
 #include <stdio.h>
 #include <Obstack.h>
 extern "C" {
@@ -7,17 +8,14 @@ extern "C" {
 #include "logdir.h"
 /* #define TRACE /**/
 
-#define treeflag 0
+enum { treeflag = false };
 
 struct dir_n {
-  struct root_n *file;
+  Logdir::root_n *file;
   struct dir_n *next;
   short rlen;
   char buf[MAXREC];
 };
-
-static TREE t;
-static Obstack h;
 
 static int cmp(const PTR a, const PTR b) {
   if (*(t_block *)a > *(t_block *)b) return 1;
@@ -25,10 +23,22 @@ static int cmp(const PTR a, const PTR b) {
   return 0;
 }
 
-static struct root_n *addroot(long blk, const struct btstat *st) {
-  register struct root_n *r;
-  PTR *p;
-  p = tsearch(&blk,&t,cmp);
+Logdir::Logdir(): h(*new Obstack) {
+  t = 0;
+  lostcnt = 0L;
+  path = (char *)h.alloc(MAXKEY + 2);
+  memset(path,0,sizeof path);
+}
+
+Logdir::~Logdir() {
+  delete &h;
+}
+
+void Logdir::doroot(root_n *) { }
+
+Logdir::root_n *Logdir::addroot(long blk, const struct btstat *st) {
+  root_n *r;
+  PTR *p = tsearch(&blk,&t,cmp);
   if (*p == &blk) {
     *p = r = (root_n *)h.alloc(sizeof *r);
     if (!st)
@@ -49,27 +59,24 @@ static struct root_n *addroot(long blk, const struct btstat *st) {
   return r;
 }
 
-void logroot(t_block blk,const struct btstat *st) {
-  struct root_n *r;
-  r = addroot(blk,st);
+void Logdir::logroot(t_block blk,const struct btstat *st) {
+  root_n *r = addroot(blk,st);
 #ifdef TRACE
   printf("%ld %05o %4d %4d\n",
 	r->root,r->st.id.mode,r->st.id.user,r->st.id.group);
 #endif
 }
 
-void logrecs(t_block blk,int cnt) {
-  struct root_n *r;
-  r = addroot(blk,0);
+void Logdir::logrecs(t_block blk,int cnt) {
+  root_n *r = addroot(blk,0);
   ++r->bcnt;
   if (cnt > 0)
     r->rcnt += cnt;
 }
 
-void logdir(t_block root,const char *buf,int len,t_block blk) {
-  struct root_n *r;
+void Logdir::logdir(t_block root,const char *buf,int len,t_block blk) {
   struct dir_n *n, **p;
-  r = addroot(root,0);
+  root_n *r = addroot(root,0);
   n = (dir_n *)h.alloc(sizeof *n - sizeof n->buf + len + 1);
   n->rlen = len;
   memcpy(n->buf,buf,len);
@@ -93,11 +100,7 @@ void logdir(t_block root,const char *buf,int len,t_block blk) {
 #endif
 }
 
-static long printroot(struct root_n *, int, const char *);
-
-static char path[MAXKEY + 2];
-
-static long printroot(struct root_n *r,int lev,const char *name) {
+long Logdir::printroot(struct root_n *r,int lev,const char *name) {
   struct dir_n *d;
   long cnt;
   if (treeflag)
@@ -148,19 +151,19 @@ static void loghdr(const char *title) {
     "Root","Mode","Owner","Group","Blocks","Links",title);
 }
 
-static long lostcnt = 0L;
+static Logdir *log;
 
-static void logchk(PTR p) {
-  struct root_n *r = (root_n *)p;
+void Logdir::logchk(PTR p) {
+  root_n *r = (root_n *)p;
   if (r->path == 0) {
     puts("");
     loghdr("DISCONNECTED TREE");
     ++r->links;
-    lostcnt += printroot(r,0,"?");
+    log->lostcnt += log->printroot(r,0,"?");
   }
 }
 
-void logprint(t_block root) {
+void Logdir::logprint(t_block root) {
   struct root_n *r = (root_n *)tfind(&root,&t,cmp);
   if (r) {
     long cnt;
@@ -169,6 +172,9 @@ void logprint(t_block root) {
     cnt = printroot(r,0,"/");
     printf("\n%8ld blocks in accessible files and directories.\n",cnt);
   }
+  // FIXME: not thread safe
+  log = this;
   tsort(t,logchk);
+  log = 0;
   printf("\n%8ld blocks in lost files and directories.\n",lostcnt);
 }
