@@ -2,7 +2,7 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.10.1
 Version: %{version}
-Release: 1
+Release: 2
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -61,8 +61,14 @@ cp fix/btsave fix/btddir fix/btreload fix/btfree fix/btrcvr fix/btrest \
 	$RPM_BUILD_ROOT/bms/bin
 cp util/btutil util/btpwd util/btar util/btdu $RPM_BUILD_ROOT/bms/bin
 mkdir -p $RPM_BUILD_ROOT/bms/lib
+%ifos aix4.1
+mkdir -p $RPM_BUILD_ROOT/bms/slib
+cp lib/libbtas.a $RPM_BUILD_ROOT/bms/slib
+cp lib/libbtas.so $RPM_BUILD_ROOT/bms/lib/libbtas.a
+%else
 cp lib/libbtas.a $RPM_BUILD_ROOT/bms/lib
 cp lib/libbtas.so $RPM_BUILD_ROOT/bms/lib
+%endif
 mkdir -p $RPM_BUILD_ROOT/bms/include
 cp include/[a-z]*.h $RPM_BUILD_ROOT/bms/include
 mkdir -p $RPM_BUILD_ROOT/bms/fbin
@@ -74,18 +80,24 @@ cp cisam/isserve cisam/bcheck cisam/addindex cisam/indexinfo	\
 	$RPM_BUILD_ROOT/bms/bin
 
 { cd $RPM_BUILD_ROOT/bms/bin
-  strip btserve btinit btstop
-  strip btsave btddir btreload btfree btrcvr btrest
-  strip btutil btar btdu btpwd sql
-  strip isserve bcheck
+  strip btserve btinit btstop || true
+  strip btsave btddir btreload btfree btrcvr btrest || true
+  strip btutil btar btdu btpwd sql || true
+  strip isserve bcheck || true
   ln addindex delindex
 }
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
+%pre
+%ifos aix4.1
+mkuser -a id=711 pgrp=bms home=/bms \
+	gecos="BTAS/X File System" btas 2>/dev/null || true
+%endif
+
 %files
-%defattr(-,bms,bms)
+%defattr(-,btas,bms)
 %dir /bms/bin
 %config /bms/bin/btstart
 /bms/bin/btar
@@ -110,13 +122,13 @@ rm -rf $RPM_BUILD_ROOT
 /bms/bin/indexinfo
 %attr(2755,bms,bms)/bms/bin/isserve
 %dir /bms/lib
-/bms/lib/libbtas.so
+/bms/lib/libbtas.a
 %dir /bms/fbin
 /bms/fbin/btcd
 
 %files devel
-%defattr(-,bms,bms)
-/bms/lib/libbtas.a
+%defattr(-,btas,bms)
+/bms/slib/libbtas.a
 /bms/include/*.h
 
 %changelog
