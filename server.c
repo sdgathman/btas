@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.2  1993/05/14  16:21:08  stuart
+ * return key information on NOKEY so that symlink works
+ *
  * Flush buffer on timer - SDG 03-19-89
  */
 
@@ -218,29 +221,36 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
     }
     reqp->op = btas(reqp,op = reqp->op);	/* execute request */
     len = sizeof *reqp - sizeof reqp->msgident - sizeof reqp->lbuf;
-    if (reqp->op >= 200 && reqp->op < sizeof btflags + 200) {
-      reqp->op |= btflags[reqp->op - 200] << 8;
-#if TRACE > 0
-      if (reqp->op != 217 && (reqp->op & BTERR) == 0) {	/* if fatal error */
-	int i, n;
-	fprintf(stderr,
-	  "BTCB:\tpid=%ld root=%08lX mid=%d flgs=%04X rc=%d op=%d\n",
-	  reqp->msgident,reqp->root,reqp->mid,reqp->flags,reqp->op,op
-	);
-	fprintf(stderr,"\tklen = %d rlen = %d\n",reqp->klen,reqp->rlen);
-	n = reqp->rlen; if (n > MAXREC) n = MAXREC;
-	for (i = 0; i < n; ++i) {
-	  fprintf(stderr,"%02X%c",
-		reqp->lbuf[i]&0xff, ((i&15) == 15) ? '\n' : ' ');
-	}
-	if (i & 15) putc('\n',stderr);
-      }
-#endif
-    }
     if (btopflags[op&31] != BT_UPDATE)
       len += reqp->rlen;
     else if (reqp->op & NOKEY)
       len += reqp->klen;	/* report why nokey failed */
+
+    if (reqp->op >= 200 && reqp->op < sizeof btflags + 200) {
+      reqp->op |= (btflags[reqp->op - 200] << 8) & op & BTERR;
+#if TRACE > 0
+      if ((reqp->op & BTERR) == 0) {	/* if fatal error */
+	int i, n;
+	switch (reqp->op) {
+	case 214: case 212: case 217: case 210:	/* cases we don't care about */
+	  break;
+	default:
+	  fprintf(stderr,
+	    "%sBTCB:\tpid=%ld root=%08lX mid=%d flgs=%04X rc=%d op=%d\n",
+	    ctime(&curtime),
+	    reqp->msgident,reqp->root,reqp->mid,reqp->flags,reqp->op,op
+	  );
+	  fprintf(stderr,"\tklen = %d rlen = %d\n",reqp->klen,reqp->rlen);
+	  n = len; if (n > MAXREC) n = MAXREC;
+	  for (i = 0; i < n; ++i) {
+	    fprintf(stderr,"%02X%c",
+		  reqp->lbuf[i]&0xff, ((i&15) == 15) ? '\n' : ' ');
+	  }
+	  if (i & 15) putc('\n',stderr);
+	}
+      }
+#endif
+    }
 #if TRACE > 1
     fprintf(stderr,"smlen=%d\n",len);
 #endif
