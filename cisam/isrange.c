@@ -61,7 +61,7 @@ isvwsel(struct cisam_key *kp,const char *min,const char *max,
 	if (i == 0) return BTEREOF;
 	for (j = i; j < key->k_nparts; ++j)
 	  memset(nxt+key->k_part[j].kp_start,~0,key->k_part[j].kp_leng);
-	u2brec(kp->f->f,nxt,rlen,b,kp->klen);
+	u2brec(kp->f->f,nxt,rlen,b,kp->k.k_len);
 	b->rlen = krlen;
 	rc = btas(b,BTREADGT + NOKEY);
 	if (rc) return rc;
@@ -76,7 +76,7 @@ isvwsel(struct cisam_key *kp,const char *min,const char *max,
       size = key->k_part[i++].kp_leng;
       memcpy(nxt+offset,min+offset,size);
     }
-    u2brec(kp->f->f,nxt,rlen,b,kp->klen);
+    u2brec(kp->f->f,nxt,rlen,b,kp->k.k_len);
     b->rlen = krlen;
     rc = btas(b,BTREADGE + NOKEY);
   }
@@ -103,7 +103,7 @@ isvwrev(struct cisam_key *kp,const char *min,const char *max,
 	if (i == 0) return BTEREOF;
 	for (j = i; j < key->k_nparts; ++j)
 	  memset(nxt+key->k_part[j].kp_start,0,key->k_part[j].kp_leng);
-	u2brec(kp->f->f,nxt,rlen,b,kp->klen);
+	u2brec(kp->f->f,nxt,rlen,b,kp->k.k_len);
 	b->rlen = krlen;
 	rc = btas(b,BTREADLT + NOKEY);
 	if (rc) return rc;
@@ -117,7 +117,7 @@ isvwrev(struct cisam_key *kp,const char *min,const char *max,
       size = key->k_part[i++].kp_leng;
       memcpy(nxt+offset,max+offset,size);
     }
-    u2brec(kp->f->f,nxt,rlen,b,kp->klen);
+    u2brec(kp->f->f,nxt,rlen,b,kp->k.k_len);
     b->rlen = krlen;
     rc = btas(b,BTREADLE + NOKEY);
   }
