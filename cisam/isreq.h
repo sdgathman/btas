@@ -2,6 +2,9 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.5  2003/03/12 22:41:53  stuart
+ * Create isreq encapsulated C-isam call interface.
+ *
  * Revision 1.4  2002/03/20 20:07:14  stuart
  * Support ISMKDIR/ISRMDIR in isserve.
  * Include istrace in package.
@@ -108,6 +111,8 @@ enum isreqOp {
   ISMKDIR
 };
 
+int isreq(int fd,int op,int *l1,int l2,char *,char *,int mode,int len);
+
 #ifndef __cplusplus
 enum {
   MAXFD	 = 63,	/* maximum user file descriptors */
@@ -115,6 +120,4 @@ enum {
   MAXRLEN= 1024,/* maximum record length supported */
   MAXNAME= 128	/* maximum file name supported */
 };
-
-int isreq(int fd,enum isreqOp,int *l1,int l2,char *,char *,int mode,int len);
 #endif

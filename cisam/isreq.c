@@ -1,6 +1,42 @@
 #include <isamx.h>
 #include <btas.h>
+#include <btflds.h>
 #include "isreq.h"
+
+static int addflds(int fd,const char *buf,int len) {
+  int n = len/2;
+  int i;
+  struct btfrec *f = alloca(sizeof *f * n);
+  for (i = 0; i < n; ++i) {
+    f[i].type = *buf++;
+    f[i].len = *buf++;
+  }
+  return isaddflds(fd,f,n);
+}
+
+static int cmprec(const void *a,const void *b) {
+  const struct btfrec *fa = a;
+  const struct btfrec *fb = b;
+  return fa->pos - fb->pos;
+}
+
+static int getflds(int fd,char *buf) {
+  struct btflds *f = isflds(fd);
+  int i, n;
+  struct btfrec *fa;
+  if (!f) return 0;
+  // sort by position, first copy 
+  n = f->rlen;
+  fa = alloca(sizeof *fa * n);
+  for (i = 0; i < n; ++i)
+    fa[i] = f->f[i];
+  qsort(fa,n,sizeof *fa,cmprec);
+  for (i = 0; i < n; ++i) {
+    *buf++ = fa[i].type;
+    *buf++ = fa[i].len;
+  }
+  return n * 2;
+}
 
 /** Execute an encapsulated C-isam request.  Returns the C-isam result code
  * of the operation plus p1len, p1buf, and C-isam globals (iserrno, etc.).
@@ -8,7 +44,7 @@
  * and Virtual Machines like Java.
  */
 
-int isreq(int rfd,enum isreqOp fxn, int *p1lenp, int p2len,
+int isreq(int rfd,int fxn, int *p1lenp, int p2len,
     char *p1buf, char *p2buf, int mode,int len) {
     int i;
     int p1len = *p1lenp;

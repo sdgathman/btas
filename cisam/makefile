@@ -31,8 +31,8 @@ bttests:	bttestcs.o
 
 bttestcs.o:	bttestcs.c bttestc.c
 
-isserve:	isserve.o isparm.o $L
-	$(CC) isserve.o isparm.o $(LDFLAGS) $L -lbtas -lbms -o isserve
+isserve:	isserve.o $L
+	$(CC) isserve.o $(LDFLAGS) $L -lbtas -lbms -o isserve
 
 istrace:	istrace.o
 	$(CC) istrace.o $(LDFLAGS) -lbtas -lbms -o istrace
@@ -58,4 +58,6 @@ $L:	$L(isopen.o)	\
 	$L(rotate.o)	\
 	$L(isrange.o)	\
 	$L(isdict.o)	\
-	$L(isunique.o)
+	$L(isunique.o)	\
+	$L(isreq.o)	\
+	$L(isparm.o)
