@@ -65,7 +65,7 @@ public:
     char buf[SECT_SIZE];	/* sector buffer for superblock */
   } u;
   int (*typex)(const void *, t_block);
-  enum { FS_RDONLY = 1, FS_BGND = 2 };
+  enum { FS_RDONLY = 1, FS_BGND = 2, FS_SWAP = 4 };
   fstbl(fsio *,int flag);
   void *get();
   void *get(t_block blk);

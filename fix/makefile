@@ -15,6 +15,7 @@ $F:	$F(getblock.o)	\
 	$F(logdir.o)	\
 	$F(rcvr.o)	\
 	$F(fs.o)	\
+	$F(Obstack.o)	\
 	$F(../util/utilio.o)
 
 #	$F(s1fs.o)	\
@@ -48,7 +49,7 @@ btsave: btsave.o $F
 	$(CC) $(LDFLAGS) btsave.o $F $L -lbms -o btsave
 
 btrest:	btrest.o $F
-	$(CC) $(LDFLAGS) btrest.o $F $L -lg++ -lbms -o btrest
+	$(CC) $(LDFLAGS) btrest.o $F $L -lbms -o btrest
 
 btundup btzap btlink: %: %.o
 	$(CC) $(LDFLAGS) $^ $L -lbms -o $@

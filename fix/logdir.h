@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.3  2001/02/28 22:53:45  stuart
+/* virtual dtor
+/*
  * Revision 1.2  2000/10/31  22:01:05  stuart
  * Make an object
  */
@@ -27,7 +30,6 @@ public:
   /** Print the directory tree starting with a given root. */
   void logprint(t_block root);
   virtual ~Logdir();
-protected:
   struct root_n {
     long root;
     struct dir_n *dir, *last;
@@ -36,6 +38,7 @@ protected:
     long bcnt, rcnt;	/* actual blocks & records that we count */
     short links;	/* actual links we've seen */
   };
+protected:
   virtual void doroot(root_n *);
 private:
   root_n *addroot(long blk, const struct btstat *st);

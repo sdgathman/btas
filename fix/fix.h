@@ -39,7 +39,7 @@ struct fstbl {
 };
 
 /* flags used by fsopen() */
-enum { FS_RDONLY = 1, FS_BGND = 2 };
+enum { FS_RDONLY = 1, FS_BGND = 2, FS_SWAP = 4 };
 
 enum blk_type { BLKERR, BLKDEL = 1, BLKROOT = 2, BLKSTEM = 4, BLKLEAF = 8,
       BLKCOMPAT =	0x0F,	/* mask for compatible types */

@@ -1,4 +1,8 @@
 /*
+ * $Log$
+ */
+
+/*
 	traverse blocks in a BTAS/X filesystem sequentially
 	and perform other low level I/O
 
@@ -14,6 +18,63 @@ enum { FIXNBLK = 30 };	/* blocks per read, larger numbers don't work on 68k */
 #else
 enum { FIXNBLK = 100 };
 #endif
+
+static void swap(unsigned short &w) {
+  unsigned short t = w;
+  unsigned char b0 = (t >> 8) & 255;
+  unsigned char b1 = t & 255;
+  w = (b1 << 8) | b0;
+}
+
+static void swap(short &w) {
+  short t = w;
+  unsigned char b0 = (t >> 8) & 255;
+  unsigned char b1 = t & 255;
+  w = (b1 << 8) | b0;
+}
+
+static void swap(t_block &w) {
+  t_block t = w;
+  unsigned char b0 = (t >> 24) & 255;
+  unsigned char b1 = (t >> 16) & 255;
+  unsigned char b2 = (t >> 8) & 255;
+  unsigned char b3 = t & 255;
+  w = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+}
+
+static void swap(struct btstat &st) {
+  swap(st.bcnt);
+  swap(st.rcnt);
+  swap(st.atime);
+  swap(st.ctime);
+  swap(st.mtime);
+  swap(st.links);
+  swap(st.opens);
+  swap(st.id.user);
+  swap(st.id.group);
+  swap(st.id.mode);
+}
+
+static void swap(short *tab) {
+  swap(tab[0]);
+  int cnt = tab[0] & 0x7FFF;
+  for (int i = 1; i <= cnt; ++i)
+    swap(tab[i]);
+}
+
+static void swap(void *buf) {
+  union btree *b = (union btree *)buf;
+  swap(b->r.root);
+  swap(b->r.son);
+  if (b->r.root < 0) {
+    swap(b->r.stat);
+    swap(b->r.data);
+  }
+  else {
+    swap(b->s.lbro);
+    swap(b->s.data);
+  }
+}
 
 fstbl::fstbl(fsio *ioob,int flag) {
   bcnt = 0;
@@ -67,6 +128,8 @@ void *fstbl::get(t_block blk) {
       seek = true;	/* sequential logic needs to reseek at end of buffer */
     if (rc != u.f.hdr.blksize)
       last_buf = 0;	/* read failed */
+    else if (flags & FS_SWAP)
+      swap(last_buf);
   }
   return last_buf;
 }
@@ -154,6 +217,9 @@ void *fstbl::get() {
 	      curext,base + bcnt,eod);
       eod = base + bcnt;
     }
+    if (flags & FS_SWAP)
+      for (int i = 0; i < bcnt; ++i)
+	swap(buf + i * u.f.hdr.blksize);
   } while (base >= eod);
   last_buf = buf + cur * u.f.hdr.blksize;
   last_blk = mk_blk(curext,base + ++cur);
@@ -176,7 +242,36 @@ unsigned long fstbl::blk_pos(t_block b) const {
   return pos * u.f.hdr.blksize + offset;
 }
 
+static void swap(btfhdr &hdr) {
+  swap(hdr.free);
+  swap(hdr.droot);
+  swap(hdr.root);
+  swap(hdr.space);
+  swap(hdr.mount_time);
+  swap(hdr.blksize);
+  swap(hdr.mcnt);
+  swap(hdr.dcnt);
+  swap(hdr.magic);
+}
+
+static void swap(btdev &hdr) {
+  swap(hdr.eod);
+  swap(hdr.eof);
+}
+
+static void swap(btfs &fs) {
+  swap(fs.hdr);
+  for (int i = 0; i < fs.hdr.dcnt; ++i)
+    swap(fs.dtbl[i]);
+}
+
 bool fstbl::validate(int supoff) {
+  short sm = u.f.hdr.magic;
+  swap(sm);
+  if (sm == BTSAVE_MAGIC && (flags & FS_RDONLY)) {
+    swap(u.f);
+    flags |= FS_SWAP;
+  }
   if ((u.f.hdr.magic != BTMAGIC && (u.f.hdr.magic != BTSAVE_MAGIC || supoff))
     || u.f.hdr.blksize % SECT_SIZE || u.f.hdr.blksize == 0) {
     return false;	
