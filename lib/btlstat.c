@@ -1,6 +1,5 @@
 #include <btas.h>
 #include <errenv.h>
-#include <mem.h>
 
 int btlstat(const BTCB *btcb,struct btstat *p,struct btlevel *l) {
   BTCB bt;
