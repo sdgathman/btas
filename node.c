@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 2.3  1997/06/23 15:39:52  stuart
+ * use local workrec
+ *
  * Revision 2.2  1996/12/17  17:00:57  stuart
  * fix comment syntax
  *
@@ -163,4 +166,16 @@ int BLOCK::replace(int idx,const char *rec,int len) {
   /* a really lazy implementation for now */
   del(idx);
   return insert(idx-1,rec,len);
+}
+
+void BLOCK::dump() const {
+  fprintf(stderr,"blk = %08lX, mid = %d, cnt = %d,%s%s%s%s%s\n",
+    blk, mid, cnt(),
+    (flags & BLK_MOD) ? " BLK_MOD" : "",
+    (flags & BLK_TOUCH) ? " BLK_TOUCH" : "",
+    (flags & BLK_ROOT) ? " BLK_ROOT" : "",
+    (flags & BLK_STEM) ? " BLK_STEM" : "",
+    (flags & BLK_CHK) ? " BLK_CHK" : ""
+  );
+  fprintf(stderr,"root = %08lX, son/rbro = %08lX\n", buf.r.root, buf.r.son);
 }
