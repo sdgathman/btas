@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.17";
+static char what[] = "@(#)btree.c	1.20";
 #endif
 
 #include "btbuf.h"
@@ -102,7 +102,7 @@ void btadd(urec,ulen)
 	if (node_move(dp,bp,sp->slot,cnt,1))
 	  node_stptr(bp,++cnt,&np->buf.s.son);
 	else
-	  rc = -1;
+	  rc = -1;		/* need dadkey left later */
       }
 
       /* if key left ok, try to rotate with brother first */
@@ -117,10 +117,10 @@ void btadd(urec,ulen)
 	  ulen = getkey(bp,np,insrec,&sp[1].node);
 	  if (node_replace(dp,sp->slot,insrec,ulen) == 0) return;
 	  urec = insrec;
-	  --sp->slot;
+	  --sp->slot;		/* replace failed */
 	  continue;		/* insert on another iteration */
 	}
-	rc = 0;
+	rc = 0;			/* dadkey already moved left */
       }
 
       assert(idx <= node_count(np));
@@ -144,12 +144,12 @@ void btadd(urec,ulen)
 	node_delete(bp,i,cnt);
       }
       else cnt = 0;
-      if (rc) {		/* if we still need to move key left */
+      /* cnt is now number of records in node ap */
+      if (rc) {		/* if we still need to move dadkey left */
 	rc = node_move(dp,ap,sp->slot,cnt,1);
 	assert(rc == 1);
 	node_stptr(ap,++cnt,&np->buf.s.son);
       }
-      /* cnt should have current number of records in ap node */
       if (idx && (acnt = node_move(np,ap,1,cnt,idx))) {
 	node_delete(np,1,acnt);
 	idx -= acnt;
@@ -159,16 +159,22 @@ void btadd(urec,ulen)
       --savstk;
       if (savstk->slot)
 	ulen = getkey(bp,ap,insrec,&ap->blk);
-      else
-	ulen = getkey(bp,ap,insrec,&sp[1].node);
+      else {
+	t_block chk;
+	node_ldptr(dp,sp->slot,&chk);	/* get current dad ptr */
+	assert(chk == sp[1].node);
+	ulen = getkey(bp,ap,insrec,&chk);
+      }
       if (node_replace(dp,sp->slot,insrec,ulen)) {
-	t_block new;
-	new = ap->blk;
+	t_block apblk = ap->blk, npblk = np->blk;
 	--sp->slot;
-	btadd(insrec,ulen);
+	btadd(insrec,ulen);	/* nasty recursive insert */
 	btget(3);
-	ap = btbuf(new);
-	np = btbuf(savstk[1].node);
+	/* continue where we left off, this depends on the node stack
+	   being correctly maintained */
+	assert(npblk == savstk[1].node);
+	ap = btbuf(apblk);
+	np = btbuf(npblk);
 	if (savstk->slot)
 	  dp = btbuf(savstk->node);
       }
@@ -344,6 +350,12 @@ void btdel()
   }
 }
 
+/* Insert a record after position idx in node np.  If idx < 0, insert
+   in node bp instead.  If idx == 0, insert in whichever node it will
+   fit.  If the insert succeeds, update lp to point to the new record
+   location, otherwise point lp to the record after which the new record
+   still needs to be inserted.  Return 0 for success. */
+
 static int insert(bp,np,idx,urec,ulen,lp)
   BLOCK *bp,*np;
   short idx;
@@ -352,27 +364,21 @@ static int insert(bp,np,idx,urec,ulen,lp)
   struct btlevel *lp;
 {
   int rc;
-
-  if (idx <= 0) {		/* insert new record in one of the nodes */
+  if (idx <= 0) {
     rc = node_insert(bp,idx + node_count(bp),urec,ulen);
     if (idx < 0) {
       lp->node = bp->blk;
-      idx += node_count(bp);
-      if (rc) --idx;
+      lp->slot = idx + node_count(bp);
+      return rc;
     }
-    else {
-      idx = 0;
-      if (rc) {
-	rc = node_insert(np,idx,urec,ulen);
-	if (rc == 0) ++idx;
-      }
+    /* if idx == 0, it is still 0 after a successful insert in bp */
+    if (rc == 0) {
+      lp->slot = idx;
+      return rc;
     }
   }
-  else {
-    rc = node_insert(np,idx,urec,ulen);
-    if (rc == 0) ++idx;
-  }
-
+  rc = node_insert(np,idx,urec,ulen);
+  if (rc == 0) ++idx;
   lp->slot = idx;
   return rc;
 }
@@ -395,7 +401,7 @@ static int getkey(bp,np,urec,blkp)
     node_copy(bp,i,urec,ulen);
     node_delete(bp,i,1);
   }
-  else {			/* contruct unique key for leaf nodes */
+  else {			/* construct unique key for leaf nodes */
     short size; unsigned char *p;
     size = node_size(np->np,1);
     ulen = node_size(bp->np,i);
@@ -410,7 +416,6 @@ static int getkey(bp,np,urec,blkp)
     }
   }
   assert(ulen <= MAXKEY);
-  (void)memcpy(urec+ulen,(char *)blkp,sizeof *blkp);
-  ulen += sizeof *blkp;		/* add block pointer to complete record */
+  ulen += stptr(*blkp,urec + ulen);
   return ulen;
 }
