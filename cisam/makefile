@@ -2,17 +2,17 @@
 L = ../lib/$Mlibbtas.a
 R = 100
 
+all:	bttests bttestc btteste isserve istrace
+
 cisam.so:	cisammodule.c
 	python2 setup.py build
-
-all:	bttests bttestc btteste isserve istrace
 
 test:	bttestc btteste
 	bttestc $R | tee log
 	btteste $R | tee -a log
 
 btteste:	bttestc.o $L
-	$(CC) bttestc.o $(LDFLAGS) $L -lbtas -lbms -o btteste
+	$(CC) bttestc.o $(LDFLAGS) -lbtas -lbms -o btteste
 
 bcheck:	bcheck.o $L
 	$(CC) bcheck.o $(LDFLAGS) -lbtas -lbms -o bcheck

@@ -151,7 +151,20 @@ int main(argc, argv)
       perror("malloc");
       return 1;
     }
+#if 0
+    {
+      struct keydesc *k = primary;
+      printf("nflds = %d rlen = %d\n",fcb->rlen,fcb->f[fcb->rlen].pos);
+      printf("kflag = %d\n",k->k_flags);
+      for (i = 0; i < k->k_nparts; ++i) {
+	struct keypart *kp = k->k_part + i;
+	printf("start=%d leng=%d type=%d\n",
+	    kp->kp_start,kp->kp_leng,kp->kp_type);
+      }
+    }
+#endif
     fd = isbuildx(filename,sizeof t,primary,ISINOUT + ISEXCLLOCK,fcb);
+    //printf("isreclen=%d\n",isreclen(fd));
     free((PTR)fcb);
   }
   else

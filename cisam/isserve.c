@@ -1,5 +1,9 @@
 /*
  * $Log$
+ * Revision 2.15  2002/03/20 20:07:14  stuart
+ * Support ISMKDIR/ISRMDIR in isserve.
+ * Include istrace in package.
+ *
  * Revision 2.14  2001/10/16 19:26:28  stuart
  * send key only on ISREAD in isserve.c, minor release
  *
@@ -105,7 +109,7 @@ static int getflds(int fd,char *buf) {
     *buf++ = fa[i].type;
     *buf++ = fa[i].len;
   }
-  return i * 2;
+  return n * 2;
 }
 
 static volatile int stop = 0;

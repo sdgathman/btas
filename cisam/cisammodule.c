@@ -1,5 +1,8 @@
 /* 
  * $Log$
+ * Revision 1.2  2003/02/23 03:09:37  stuart
+ * More functions.
+ *
  * Revision 1.1  2003/02/22 00:50:19  stuart
  * Python interface to cisam emulation.
  *
@@ -31,8 +34,8 @@ cisam_dealloc(PyObject *s) {
   int fd = self->fd;
   if (fd >= 0)
     isclose(fd);
-  Py_DECREF(self->buf);
-  Py_DECREF(self->filename);
+  Py_XDECREF(self->buf);
+  Py_XDECREF(self->filename);
 }
 
 static const char *
@@ -55,6 +58,7 @@ iserrstr(int err) {
     case EFNAME: return "file name too long";
     case ENOLOK: return "can't create lock file";
     case EBADMEM: return "can't alloc memory";
+    case 211: return "File already exists";
   }
   return "Cisam error";
 }
@@ -64,7 +68,7 @@ static PyObject *
 _generic_return(cisam_Object *self,int val) {
   self->isrecnum = isrecnum;
   self->iserrno = iserrno;
-  if (val == 0) {
+  if (val >= 0) {
     Py_INCREF(Py_None);
     return Py_None;
   } else {
@@ -151,20 +155,36 @@ isbuildfp(const char *fname,struct keydesc *k,int mode,
   int n = fplen/2;
   int i;
   int pos = 0;
-  struct btflds *f = (struct btflds *)alloca(
-	      sizeof *f - sizeof f->f + (n+1) * sizeof f->f[0]);
-  struct btfrec *fp = f->f;
-  f->klen = 0;
+  struct btflds *f;
+  struct btfrec *fp;
+  int fsize = sizeof *f - sizeof f->f + (n+1) * sizeof f->f[0];
+  f = (struct btflds *)alloca(fsize);
+  if (f == 0) {
+    iserrno = ENOMEM;
+    return -1;
+  }
+  f->klen = 2;
   f->rlen = n;
+  fp = f->f;
   for (i = 0; i < n; ++i) {
     fp[i].type = *buf++;
     fp[i].len = *buf++;
+    fp[i].pos = pos;
     pos += fp[i].len;
   }
   fp[n].type = 0;
   fp[n].len = 0;
   fp[n].pos = pos;
-  return isbuildx(fname,pos,k,mode,f);
+#if 0
+  printf("fsize = %d nflds = %d rlen = %d\n",fsize,f->rlen,f->f[f->rlen].pos);
+  printf("kflag = %d\n",k->k_flags);
+  for (i = 0; i < k->k_nparts; ++i) {
+    struct keypart *kp = k->k_part;
+    printf("start=%d leng=%d type=%d\n",kp->kp_start,kp->kp_leng,kp->kp_type);
+  }
+#endif
+  i = isbuildx(fname,pos,k,mode,f);
+  return i;
 }
 
 /** Convert a keydesc represented as a python tuple:
@@ -402,6 +422,36 @@ cisam_indexinfo(PyObject *isamfile, PyObject *args) {
   return Py_FromKeydesc(&kd);
 }
 
+static char cisam_addflds__doc__[] =
+"addflds(buf) -> None\n\
+  Append additional fields to record.";
+
+static PyObject *
+cisam_addflds(PyObject *isamfile, PyObject *args) {
+  cisam_Object *self = (cisam_Object *)isamfile;
+  char *buf;
+  int len;
+  int n;
+  int i;
+  struct btfrec *f;
+  if (!PyArg_ParseTuple(args, "s#:indexinfo",&buf,&len)) return NULL;
+  n = len/2;
+  f = alloca(sizeof *f * n);
+  if (!f) return PyErr_NoMemory();
+  for (i = 0; i < n; ++i) {
+    f[i].type = *buf++;
+    f[i].len = *buf++;
+  }
+  i = isaddflds(self->fd,f,n);
+  n = isreclen(self->fd);
+  if (n != self->rlen) {
+    self->rlen = n;
+    Py_XDECREF(self->buf);
+    self->buf = PyBuffer_New(n);
+  }
+  return _generic_return(self,i);
+}
+
 static PyMethodDef isamfile_methods[] = {
   { "read",    cisam_read,    METH_VARARGS, cisam_read__doc__},
   { "write",   cisam_write,   METH_VARARGS, cisam_write__doc__},
@@ -409,9 +459,16 @@ static PyMethodDef isamfile_methods[] = {
   { "delete",  cisam_delete,  METH_VARARGS, cisam_delete__doc__},
   { "getfld",  cisam_getfld,  METH_VARARGS, cisam_getfld__doc__},
   { "indexinfo",cisam_indexinfo,METH_VARARGS, cisam_indexinfo__doc__},
+  { "addflds", cisam_addflds, METH_VARARGS, cisam_addflds__doc__},
   { "close",   cisam_close,   METH_VARARGS, cisam_close__doc__},
   { NULL, NULL }
 };
+
+static int cmprec(const void *a,const void *b) {
+  const struct btfrec *fa = a;
+  const struct btfrec *fb = b;
+  return fa->pos - fb->pos;
+}
 
 static PyObject *
 cisam_getattr(PyObject *isamfile, char *name) {
@@ -436,6 +493,33 @@ cisam_getattr(PyObject *isamfile, char *name) {
   if (strcmp(name,"rlen") == 0) {
     cisam_Object *self = (cisam_Object *)isamfile;
     return Py_BuildValue("i",self->rlen);
+  }
+  if (strcmp(name,"fldtbl") == 0) {
+    cisam_Object *self = (cisam_Object *)isamfile;
+    struct btflds *f = isflds(self->fd);
+    int i, n;
+    struct btfrec *fa;
+    PyObject *s;
+    char *buf;
+    if (!f) {
+      iserrno = ENOTOPEN;
+      return _generic_return(self,-1);
+    }
+    // sort by position, first copy 
+    n = f->rlen;
+    fa = alloca(sizeof *fa * n);
+    if (!fa) return PyErr_NoMemory();
+    s = PyString_FromStringAndSize(NULL,n*2);
+    if (s == NULL) return NULL;
+    buf = PyString_AS_STRING(s);
+    for (i = 0; i < n; ++i)
+      fa[i] = f->f[i];
+    qsort(fa,n,sizeof *fa,cmprec);
+    for (i = 0; i < n; ++i) {
+      *buf++ = fa[i].type;
+      *buf++ = fa[i].len;
+    }
+    return s;
   }
   return Py_FindMethod(isamfile_methods, isamfile, name);
 }
@@ -482,7 +566,7 @@ initcisam(void) {
    m = Py_InitModule4("cisam", cisam_methods, cisam_documentation,
 		      (PyObject*)NULL, PYTHON_API_VERSION);
    d = PyModule_GetDict(m);
-   CisamError = PyErr_NewException("cisam.error", NULL, NULL);
+   CisamError = PyErr_NewException("cisam.error", PyExc_EnvironmentError, NULL);
    PyDict_SetItemString(d,"error", CisamError);
 #define CONST(n) PyDict_SetItemString(d,#n, PyInt_FromLong((long) n))
    CONST(ISFIRST); CONST(ISLAST);
@@ -497,4 +581,8 @@ initcisam(void) {
    CONST(ISDIROK); CONST(ISAUTOLOCK);
    CONST(ISMANULOCK); CONST(ISEXCLLOCK);
    CONST(READONLY); CONST(UPDATE);
+   CONST(BT_CHAR); CONST(BT_DATE); CONST(BT_TIME); CONST(BT_BIN);
+   CONST(BT_PACK); CONST(BT_RECNO); CONST(BT_FLT); CONST(BT_RLOCK);
+   CONST(BT_SEQ); CONST(BT_BITS); CONST(BT_EBCDIC); CONST(BT_REL);
+   CONST(BT_VNUM); CONST(BT_NUM);
 }
