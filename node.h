@@ -1,6 +1,9 @@
 /*
 	interface to node functions
  * $Log$
+ * Revision 2.2  2000/05/03 19:13:10  stuart
+ * handle configurable block size
+ *
  * Revision 2.1  1996/12/17  16:55:34  stuart
  * C++ node interface
  *
@@ -150,4 +153,6 @@ public:
      dir ==  1	end of source to start of destination
      dir == -1    start of source to end of destination */
   short move(BLOCK *dst,int from,int to,int cnt) const;
+  /** dump header fields to stderr for debugging. */
+  void dump() const;
 };
