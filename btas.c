@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.5";
+static char what[] = "@(#)btas.c	1.6";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -148,7 +148,13 @@ int btas(b,opcode)
 	b->u.cache = *sp;
       }
     }
-    if (b->u.cache.slot <= 0) return BTEREOF;
+    if (b->u.cache.slot <= 0) {
+      if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L) return BTEREOF;
+      b->u.cache.node = bp->buf.l.lbro;
+      btget(1);
+      bp = btbuf(b->u.cache.node);
+      b->u.cache.slot = node_count(bp);
+    }
     break;
   case BTREADLT:
     bp = verify(b,1);
@@ -231,8 +237,7 @@ int btas(b,opcode)
     }
     return BTERKLEN;
   case BTFLUSH:
-    btflush();
-    return 0;
+    return btflush();
   /* system maintenance functions */
   case BTFREE:		/* add block to free space */
     btget(1);
