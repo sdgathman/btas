@@ -1,6 +1,7 @@
 /*
 	Basic BTAS/2 utility
-*/
+ * $Log$
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -27,16 +28,14 @@ extern unsigned short getuid(), getgid();
 #include <memory.h>
 #endif
 
-static void docmd(/**/ char * /**/);
-static char *permstr(/**/ int /**/);
-int btsync(/**/ void /**/);
-static void cdecl handler(/**/ int /**/);
+static void docmd(char *);
+static char *permstr(short);
+int btsync(void);
+static void cdecl handler(int);
 char prompt[] = "COMMAND(?): ";
 char *switch_char;		/* special command options */
 
-int cdecl main(argc,argv)
-  char **argv;
-{
+int cdecl main(int argc,char **argv) {
   if (argc > 1) {		/* get commands from arguments */
     while (--argc) {
       docmd(*++argv);
@@ -95,14 +94,11 @@ static char wsp[] = " \t\n";
 volatile int cancel = 0;
 
 /*ARGSUSED*/
-static void cdecl handler(sig)
-{
+static void cdecl handler(int sig) {
   cancel = 1;
 }
 
-static void docmd(line)
-  char *line;
-{
+static void docmd(char *line) {
   char *cmd;
   struct cmdlist *p;
   cmd = gettoken(line,wsp);
@@ -152,9 +148,7 @@ static void docmd(line)
   puts("For help, type HELP.");
 }
 
-static char *permstr(mode)
-  short mode;
-{
+static char *permstr(short mode) {
   static char pstr[11];
   static struct {
     short mask;
@@ -234,12 +228,18 @@ int dir() {
       continue;
     }
     do {
+      int rc;
       struct btstat st;
       struct btlevel fa;
       if (lflag == '1')
 	printf("%s\n",ff.b->lbuf);
-      else if (ff.b->klen = strlen(ff.b->lbuf),btlstat(ff.b,&st,&fa))
-	printf("%s <no access>\n", ff.b->lbuf);
+      else if (ff.b->klen = strlen(ff.b->lbuf),rc = btlstat(ff.b,&st,&fa))
+	if (rc == BTERLINK) {
+	  ff.b->lbuf[ff.b->rlen] = 0;
+	  printf("%s --> %s\n",ff.b->lbuf,ff.b->lbuf+strlen(ff.b->lbuf)+1);
+	}
+	else
+	  printf("%s <no access>\n", ff.b->lbuf);
       else if (dflag && !(st.id.mode & BT_DIR))
 	continue;
       else if (lflag == 'f') {
