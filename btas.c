@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 1.18  1995/05/31  20:49:51  stuart
+ * rename serverstats
+ *
  * Revision 1.17  1994/10/17  19:03:41  stuart
  * support mounting on a bare drive letter (no mount directory)
  *
@@ -32,7 +35,7 @@ static char what[] =
 "$Id$";
 #endif
 
-#include "btbuf.h"		/* buffer, btree operations */
+#include "hash.h"		/* buffer, btree operations */
 #include "node.h"		/* node operations */
 #include <bterr.h>		/* user error codes */
 #include <btas.h>		/* user interface */
@@ -106,7 +109,8 @@ int btas(BTCB *b,int opcode) {
       if (b->rlen > maxrec - sizeof (t_block))
 	b->rlen = maxrec - sizeof (t_block);
       node_ldptr(bp,sp->slot,&root);
-      b->rlen += stptr(root,b->lbuf + b->rlen);
+      stptr(root,b->lbuf + b->rlen);
+      b->rlen += PTRLEN;
     }
     switch (opcode) {
     case BTREWRITE:
@@ -287,7 +291,7 @@ int btas(BTCB *b,int opcode) {
   /* system maintenance functions */
   case BTFREE:		/* add block to free space */
     btget(1);
-    bp = getbuf(b->u.cache.node,b->mid);
+    bp = bufpool->find(b->u.cache.node,b->mid);
     bp->blk = b->u.cache.node;
     bp->flags = 0;
     btfree(bp);
