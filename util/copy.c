@@ -196,6 +196,10 @@ static void copy1(BTCB *srcf,BTCB *dstf) {
     dsttbl = ftbldup(dstf->lbuf,dstf->rlen);
     klen = bt_klen(dstf->lbuf);
     buf = malloc(rlen);
+    if (!buf || !dsttbl || !srctbl) {
+      puts("*** out of memory ***\n");
+      cancel = 1;
+    }
   }
 
   srcf->klen = 0;
@@ -205,10 +209,6 @@ static void copy1(BTCB *srcf,BTCB *dstf) {
     rc = 212;		/* pretend file is empty */
   else
     rc = btas(srcf,BTREADGE+NOKEY);
-  if (!buf || !dsttbl || !srctbl) {
-    puts("*** out of memory ***\n");
-    cancel = 1;
-  }
   while (rc == 0 && !cancel) {
     if (econvert) {
       b2erec(srctbl,buf,rlen,srcf->lbuf,srcf->rlen);
