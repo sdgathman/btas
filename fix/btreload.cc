@@ -1,3 +1,5 @@
+/* $Log$
+ */
 #include <stdio.h>
 #include <String.h>
 #include <VHMap.h>
@@ -63,6 +65,10 @@ void FileTable::link(rcvr *parent,const char *buf,int len,rcvr *p) {
 }
 
 void FileTable::link(rcvr *p,const char *buf,int len,t_block root) {
+  if (root == 0L) {	// symlink
+    p->link(buf,len,root);
+    return;
+  }
   rcvr *f = tbl[root];
   if (!f) {
     Xrcvr *t = new Xrcvr(p,buf,len);
