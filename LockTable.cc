@@ -1,34 +1,18 @@
 // $Log$
-#pragma implementation "Set.h"
-#include <Set.h>
-#include <Set.cc>
-#pragma implementation "VHSet.h"
-#include <VHSet.h>
-#include <VHSet.cc>
-#pragma implementation "Map.h"
-#include <Map.h>
-#include <Map.cc>
-#pragma implementation "VHMap.h"
-#include <VHMap.h>
-#include <VHMap.cc>
+// Revision 1.2  2001/02/28 21:48:19  stuart
+// record lock table
+//
 #pragma implementation "LockTable.h"
 #include "LockTable.h"
+#include <stdio.h>
 #include <errno.h>
 #include <btas.h>
 #include <signal.h>
 
-static inline unsigned int hash(const long &x) { return x; }
-static inline unsigned int hash(const LockEntry::Ref &r) { return r.hash(); }
+static hash<const char *> H;
 
 unsigned LockEntry::hash() const {
-  return root ^ mid ^ key.hash();
-}
-
-unsigned LockEntry::string::hash() const {
-  unsigned tot = 0;
-  for (int i = 0; i < len; ++i)
-    tot += buf[i];
-  return tot;
+  return root ^ mid ^ H(key.c_str());
 }
 
 LockEntry::LockEntry() {
@@ -36,29 +20,6 @@ LockEntry::LockEntry() {
   root = 0;
   mid = 0;
   next = 0;
-}
-
-void LockEntry::string::operator=(const string &r) {
-  if (r.len > len) {
-    delete[] buf;
-    buf = new char[r.len + 1];
-  }
-  len = r.len;
-  memcpy(buf,r.buf,len);
-  buf[len] = 0;
-}
-
-void LockEntry::string::init(const char *b,int n) {
-  if (b && n) {
-    buf = new char[n + 1];
-    len = n;
-    memcpy(buf,b,n);
-    buf[n] = 0;
-  }
-  else {
-    buf = 0;
-    len = 0;
-  }
 }
 
 LockEntry::LockEntry(const BTCB *b):
@@ -78,7 +39,7 @@ LockEntry::LockEntry(const LockEntry &r): key(r.key) /*,ident(r.ident) */ {
   next = 0;
 }
 
-LockEntry::string LockEntry::toString() const {
+string LockEntry::toString() const {
   char *buf = (char *)alloca(80 + key.length() * 3);
   sprintf(buf,"pid=%d root=%X mid=%d key=%d,",
     pid,root,mid,key.length());
@@ -101,10 +62,6 @@ void LockEntry::operator=(const LockEntry &r) {
 
 LockEntry::~LockEntry() { }
 
-bool LockEntry::string::operator==(const string &r) const {
-  return len == r.len && memcmp(buf,r.buf,len) == 0;
-}
-
 bool LockEntry::operator==(const LockEntry &r) const {
   return root == r.root && mid == r.mid && key == r.key;
 }
@@ -117,19 +74,19 @@ bool LockEntry::isValid() {
 #endif
 }
 
-template class Set<LockEntry::Ref>;
-template class VHSet<LockEntry::Ref>;
-template class Map<long,LockEntry *>;
-template class VHMap<long,LockEntry *>;
+template class hash_set<LockEntry::Ref>;
+typedef hash_set<LockEntry::Ref>::iterator lock_iter;
+template class hash_map<long,LockEntry *>;
+typedef hash_map<long,LockEntry *>::iterator pid_iter;
 
-LockTable::LockTable(): pidtbl((LockEntry *)0,100) { }
+LockTable::LockTable() { }
 LockTable::~LockTable() { }
 
 bool LockTable::addLock(const BTCB *b) {
   LockEntry e(b);
-  Pix l = tbl.seek(&e);
-  if (l != 0) {
-    LockEntry &cur = *tbl(l);
+  lock_iter l = tbl.find(LockEntry::Ref(&e));
+  if (l != tbl.end()) {
+    LockEntry &cur = **l;
     if (cur.pid == e.pid)
       return true;		// already locked by us
     if (cur.isValid())
@@ -138,7 +95,7 @@ bool LockTable::addLock(const BTCB *b) {
   }
   // add new lock entry
   LockEntry *newentry = new LockEntry(e);
-  tbl.add(newentry);
+  tbl.insert(newentry);
   LockEntry *&first = pidtbl[newentry->pid];
   newentry->next = first;
   first = newentry;
@@ -147,20 +104,15 @@ bool LockTable::addLock(const BTCB *b) {
 }
 
 void LockTable::delLock(long pid) {
-  LockEntry *p = pidtbl[pid];
-  if (!p) return;
-  pidtbl.del(pid);
+  pid_iter i = pidtbl.find(pid);
+  if (i == pidtbl.end()) return;
+  LockEntry *p = i->second;
+  pidtbl.erase(i);
   while (p) {
     LockEntry *n = p->next;
-    tbl.del(p);		// remove reference from lock set
+    tbl.erase(p);	// remove reference from lock set
     //fprintf(stderr,"UnLock %s\n",p->toString().c_str());
     delete p;		// remove lock entry
     p = n;
   }
 }
-
-static void error(const char *mod,const char *msg) {
-  fprintf(stderr,"%s: %s\n",mod,msg);
-}
-
-void (*lib_error_handler)(const char *mod,const char *msg) = error;

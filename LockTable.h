@@ -1,8 +1,10 @@
 #pragma interface
-#include <VHMap.h>
-#include <VHSet.h>
+#include <string>
+#include <hash_map>
+#include <hash_set>
 
 struct BTCB;
+
 struct LockEntry {
   LockEntry();
   LockEntry(const LockEntry &);
@@ -13,6 +15,7 @@ struct LockEntry {
   long getPid() const { return pid; }
   unsigned hash() const;
   ~LockEntry();
+
   class Ref {
     LockEntry *lock;
   public:
@@ -21,21 +24,7 @@ struct LockEntry {
     unsigned hash() const { return lock->hash(); }
     LockEntry &operator*() const { return *lock; }
   };
-  class string {
-    char *buf;
-    int len;
-    void init(const char *,int);
-  public:
-    string(const char *b=0,int n=0) { init(b,n); }
-    string(const string &r) { init(r.buf,r.len); }
-    void operator=(const string &);
-    bool operator==(const string &) const;
-    unsigned hash() const;
-    int length() const { return len; }
-    char operator[](int i) const { return buf[i]; }
-    const char *c_str() const { return buf; }
-    ~string() { delete[] buf; }
-  };
+
   string toString() const;
 private:
   long root;
@@ -47,12 +36,17 @@ private:
   friend class LockTable;
 };
 
+struct hash<LockEntry::Ref> { 
+    size_t operator()(const LockEntry::Ref &__s) const { return __s.hash(); }
+};
+
+
 class LockTable {
   LockTable(const LockTable &);
   void operator=(const LockTable &);
   struct PidHead;	// defined in implementation
-  VHMap<long,LockEntry *> pidtbl;
-  VHSet<LockEntry::Ref> tbl;
+  hash_map<long,LockEntry *> pidtbl;
+  hash_set<LockEntry::Ref> tbl;
 public: 
   LockTable();
   bool addLock(const BTCB *);	// return true if lock succeeds
