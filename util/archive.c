@@ -6,6 +6,9 @@
 	not all) errors.
  *
  * $Log$
+ * Revision 1.4  1998/04/08  22:03:24  stuart
+ * Extended btar_extract options
+ *
  * Revision 1.3  1997/09/10  21:39:20  stuart
  * make intermediate directories
  *
@@ -15,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <errenv.h>
 #include <string.h>
@@ -29,7 +33,7 @@
 
 extern volatile int cancel;
 
-static int maxdat = 1024;
+static int maxdat = btmaxrec(1024);
 
 struct ar_hdr;
 
@@ -246,6 +250,20 @@ int btar_add(const char *s,int dirflag,int subdirs) {
   return rc;
 }
 
+static BTCB *checkMaxdat(BTCB *dtf) {
+  struct btfs f;
+  if (btfsstat(dtf->mid,&f) == 0) {
+    int nmax = btmaxrec(f.hdr.blksize);
+    if (nmax > maxdat) {
+      maxdat = nmax;
+      dtf = realloc(dtf,btsize(nmax));
+      if (!dtf)
+	errpost(ENOMEM);
+    }
+  }
+  return dtf;
+}
+
 static int arcone(const char *name,const struct btstat *stp) {
   int rc,len;
   BTCB * volatile dtf = 0;
@@ -259,7 +277,7 @@ static int arcone(const char *name,const struct btstat *stp) {
   if (cancel) return -1;
   fprintf(stderr,"%s: ",name);
   catch(rc)
-  dtf = btopen(name,BTRDONLY+4,MAXREC);
+  dtf = btopen(name,BTRDONLY+4,maxdat);
   len = dtf->rlen;
   memcpy(st.rec,dtf->lbuf,len);	/* save dir record */
 
@@ -328,14 +346,15 @@ static int arcone(const char *name,const struct btstat *stp) {
 
   /* output data records */
   if (!(s.id.mode & BT_DIR) && !dironly) {
+    dtf = checkMaxdat(dtf);
     dtf->klen = 0;
-    dtf->rlen = MAXREC;
+    dtf->rlen = maxdat;
     rc = btas(dtf,BTREADGE+NOKEY);
     while (rc == 0 && cancel == 0) {
       putdata(dtf->lbuf,dtf->rlen,dtf->klen);
       ++recs;
       dtf->klen = dtf->rlen;
-      dtf->rlen = MAXREC;
+      dtf->rlen = maxdat;
       rc = btas(dtf,BTREADGT+NOKEY);
     }
   }
@@ -459,6 +478,7 @@ int btar_extractx(
     flg &= ~FLAG_REPLACE;
   }
   dtf = btopen(b->lbuf,BTWRONLY+BTDIROK,maxdat);
+  dtf = checkMaxdat(dtf);
   if (dtf) {
     if ((bst->id.mode & BT_DIR) && rc == 0) {
       strcpy(dtf->lbuf,".");
@@ -528,9 +548,9 @@ static struct ar_hdr hdr;
 long btar_skip(long recs) {
   long pos = ldlong(hdr.next);
   if (!pos || fseek(f,pos,0)) {		/* if no seek possible */
-    char buf[MAXREC];
+    char buf[maxdat];
     recs = 0;
-    while (getdata(buf,MAXREC) >= 0)
+    while (getdata(buf,maxdat) >= 0)
       ++recs;
   }
   return recs;
