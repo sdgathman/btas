@@ -133,9 +133,7 @@ static const char *typestr(type)
 {
   static char tstr[5];
   if (type&BT_NUM) {
-    char tbuf[30];
-    tstr[0] = 'N';
-    strcpy(&tstr[1],ltoa((long)(type&0x0F),tbuf,10));
+    sprintf(tstr,"N%d",type&0x0F);
     return tstr;
   }
   switch (type) {
@@ -145,7 +143,7 @@ static const char *typestr(type)
     case BT_BIN: return "X";
   }
   /* we return the hex string for unknown types */
-  sprintf(tstr,"%X",type);
+  sprintf(tstr,"%2X",type & 0xFF);
   return tstr;
 }
 
