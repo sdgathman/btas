@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.5  1997/04/30  19:30:28  stuart
+ * a few missing ops
+ *
  * Revision 2.4  1997/02/17  21:26:02  stuart
  * TCPNODELAY
  * readn()
@@ -23,6 +26,7 @@ static const char id[] = "$Id$";
 #include <isamx.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <btflds.h>
 #include "isreq.h"
 
 int readFully(int fd,char *buf,int len) {
@@ -35,6 +39,27 @@ int readFully(int fd,char *buf,int len) {
   return cnt;
 }
 
+int addflds(int fd,const char *buf,int len) {
+  int n = len/2;
+  int i;
+  struct btfrec *f = alloca(len / 2);
+  for (i = 0; i < n; ++i) {
+    f->type = *buf++;
+    f->len = *buf++;
+  }
+  return isaddflds(fd,f,n);
+}
+
+int getflds(int fd,char *buf) {
+  struct btflds *f = isflds(fd);
+  if (!f) return 0;
+  for (i = 0; i < f->rlen; ++i) {
+    *buf++ = f->f[i].type;
+    *buf++ = f->f[i].len;
+  }
+  return i * 2;
+}
+
 int server() {
   int i, trace = -1, trout = -1;
   char *auxbuf = 0;
@@ -45,7 +70,7 @@ int server() {
   union { char buf[MAXRLEN+1];
 	  long id;
 	} p1;		/* parameter 1 */
-  union { char buf[MAXNAME+1];
+  union { char buf[MAXRLEN+1];
 	} p2;		/* parameter 2 */
 
   for (i=3;i<20;) close(i++);	/* close parent's files */
@@ -114,11 +139,9 @@ int server() {
 	break;
     case ISSTART:
 	ldkeydesc(&d.desc,p2.buf);
-	stshort(p1len,res.p1);
 	i = isstart(r.fd,&d.desc,len,p1.buf,ldshort(r.mode));
 	break;
     case ISSTARTN:
-	stshort(p1len,res.p1);
 	i = isstartn(r.fd,p2.buf,len,p1.buf,ldshort(r.mode));
 	break;
     case ISREAD:
@@ -211,6 +234,17 @@ int server() {
 	break;
     case ISRENAME:
 	i = isrename(p1.buf,p2.buf);
+	break;
+    case ISSETRANGE:
+	i = isrange(r.fd,p1len ? p1.buf : 0,p2len ? p2.buf : 0);
+	break;
+    case ISADDFLDS:
+	i = addflds(r.fd,p1.buf,p1len);
+	break;
+    case ISGETFLDS:
+	i = getflds(r.fd,p1.buf);
+	stshort(i,res.p1);
+	i = 0;
 	break;
     default:
 	i = -1;
