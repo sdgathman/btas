@@ -7,6 +7,7 @@
 
 struct nest {
   btwalk_fn userf;
+  btwalk_err errf;
   BTCB bt;
   char rpath[MAXKEY + 1];
 };
@@ -57,8 +58,13 @@ static int dodir(struct nest *n,int len,struct stk *prev) {
 	if (nlen >= sizeof n->rpath) return -1;
 	strcpy(n->rpath+len,n->bt.lbuf);
 	stk.cache= n->bt.u.cache;
-	if (rc = dodir(n,nlen,&stk))
-	  errpost(rc);
+	rc = dodir(n,nlen,&stk);
+	if (rc != 0) {
+	  if (n->errf != 0)
+	    rc = (*n->errf)(n->rpath,rc);
+	  if (rc != 0)
+	    errpost(rc);
+	}
 	n->bt.u.cache = stk.cache;
 	tag2btcb(&n->bt,&stk.tag);
 	n->rpath[nlen] = 0;
@@ -75,6 +81,10 @@ static int dodir(struct nest *n,int len,struct stk *prev) {
 }
 
 int btwalk(const char *path,btwalk_fn fn) {
+  return btwalkx(path,fn,0);
+}
+
+int btwalkx(const char *path,btwalk_fn fn,btwalk_err errf) {
   struct nest n;
   struct stk stk, *stkp = 0;
   BTCB * volatile savdir;
@@ -85,6 +95,7 @@ int btwalk(const char *path,btwalk_fn fn) {
     return -1;
   strcpy(n.rpath,path);
   n.userf = fn;
+  n.errf = errf;
   catch(rc)
   if (p = strrchr(n.rpath,'/')) {
     *p++ = 0;
