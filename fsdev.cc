@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <time.h>
 #include <bterr.h>
+#include "btserve.h"
 #include "btdev.h"
 #include "btbuf.h"
 #include <Sort.h>
@@ -24,15 +25,17 @@ FDEV::~FDEV() {
 int FDEV::open(const char *osname,bool rdonly) {
   nblks = 0;
   int rc = DEV::open(osname,rdonly);
-  if (rc == 0 && root > 2) {
+  if (rc == 0 && root > 32) {
     // compute maximum chkpoint size
     // checkpoint is old SB + blocklist (1 sector) + blocks + new SB
     long size = root * SECT_SIZE - superoffset;
     int max = (size - SECT_SIZE * 2) / blksize;
     if (max > blkmax)
       max = blkmax;
+#if 0	// this is wrong - needs to be maxtouch / 2
     if (max > serverstats.bufs)
       max = serverstats.bufs;
+#endif
     lastsize = chksize(max) + SECT_SIZE;
     if (max > maxblks) {
       delete [] buf;
@@ -40,8 +43,10 @@ int FDEV::open(const char *osname,bool rdonly) {
       blks = (long *)(buf + SECT_SIZE);
       maxblks = max;
     }
-    else if (max <= 0)
+    else if (max <= 0) {
+      delete [] buf;
       maxblks = 0;
+    }
     if (flag) {		// load checkpoint if valid
       rc = load_chkpoint();
       if (rc)
@@ -50,6 +55,7 @@ int FDEV::open(const char *osname,bool rdonly) {
     else
       gethdr(buf,SECT_SIZE);
   }
+  // FIXME: set maxblks for non-failsafe
   return rc;
 }
 
@@ -65,9 +71,9 @@ int FDEV::write(t_block blk,const char *bf) {
 
 /* detect a partial checkpoint
    An I/O error reading checkpoint will fail the mount.  If the drive "heals"
-   itself, retrying the mount will detect a partial checkpoint.
+   itself, retrying the mount should detect a partial checkpoint.
    The weakness of this scheme is that since the checkpoint is variable
-   length, a data block in a previous checkpoint might look like out super
+   length, a data block in a previous checkpoint might look like our super
    block (but very unlikely).  Worse, 256 short checkpoints followed by
    a long checkpoint could mistake an old CP for the latest.
 
@@ -132,9 +138,9 @@ int FDEV::load_chkpoint() {
   return wait();
 }
 
-int FDEV::sync() {
-  if (!nblks) return DEV::sync();
-  ++serverstats.checkpoints;
+int FDEV::sync(long &chkpntCount) {
+  if (!nblks) return DEV::sync(chkpntCount);
+  ++chkpntCount;
   int fd = ext(0).fd;
   unsigned size = chksize(nblks);
   flag = nblks;
@@ -142,7 +148,7 @@ int FDEV::sync() {
   gethdr(buf + size,SECT_SIZE);	// get current header
   btfs *g = (btfs *)(buf + size);	// new SB
   btfs *f = (btfs *)(buf);		// backup SB in case of partial CP
-  curtime = time(&g->hdr.mount_time);	// record time of checkpoint
+  btserve::curtime = time(&g->hdr.mount_time);	// record time of checkpoint
   if (flag < blkmax) blks[flag] = 0L;	// redundant end of blks mark
   f->hdr.flag = flag;
   size += SECT_SIZE;
@@ -191,5 +197,15 @@ int FDEV::wait() {
   }
   nblks = 0;
   gethdr(buf,SECT_SIZE);
+  return rc;
+}
+
+int FDEV::read(t_block blk,char *buf) {
+  int rc = DEV::read(blk,buf);
+  if (flag && nblks > 0) {
+    // start a write 
+    --nblks;
+    DEV::write(blks[nblks],this->buf + chksize(nblks));
+  }
   return rc;
 }
