@@ -28,7 +28,8 @@ btkey:	verify()		locate record with a given key.
 				DUPKEY if more than one.
 	addrec()		add user record, check for DUPKEY
 	delrec()		delete user record, caller locates first
-*/
+ * $Log$
+ */
 
 #include "btbuf.h"
 #include "node.h"
@@ -37,9 +38,22 @@ btkey:	verify()		locate record with a given key.
 #include "bterr.h"
 #include "btfile.h"
 
-BLOCK *uniquekey(b)
-  BTCB *b;
-{
+BLOCK *btfirst(BTCB *b) {
+  BLOCK *bp = bttrace(b->root,b->lbuf,b->klen,1);
+  if (sp->slot == 0 || node_dup < b->klen) return 0; /* not found */
+  b->u.cache = *sp;
+  return bp;
+}
+
+BLOCK *btlast(BTCB *b) {
+  BLOCK *bp = bttrace(b->root,b->lbuf,b->klen,-1);
+  if (sp->slot == node_count(bp)
+    || node_comp(bp,++sp->slot,b->lbuf,b->klen) < b->klen) return 0;
+  b->u.cache = *sp;
+  return bp;
+}
+
+BLOCK *uniquekey(BTCB *b) {
   BLOCK *bp, *dp;
   t_block rbro;
 
@@ -47,10 +61,8 @@ BLOCK *uniquekey(b)
      our callers often need to call btadd() or btdel() and they
      would have to check sp and call bttrace() themselves when necessary.
   */
-  bp = bttrace(b->root,b->lbuf,b->klen,1);
-
-  if (sp->slot == 0 || node_dup < b->klen) btpost(BTERKEY); /* not found */
-  b->u.cache = *sp;
+  bp = btfirst(b);
+  if (!bp) btpost(BTERKEY);
 
   /* check for unique key */
 
@@ -83,10 +95,7 @@ BLOCK *uniquekey(b)
    the caller does it currently.  The dir now supplied is just an optimization.
 */
 
-BLOCK *verify(b,dir)
-  BTCB *b;
-  int dir;				/* direction for bttrace() */
-{
+BLOCK *verify(BTCB *b,int dir) {
   register BLOCK *bp;
   if (b->u.cache.slot > 0) {		/* if cached location */
     btget(1);
@@ -102,14 +111,11 @@ BLOCK *verify(b,dir)
   }
   /* failed exam, retrace */
   bp = bttrace(b->root,b->lbuf,b->klen,dir);
-  b->u.cache.node = sp->node;
-  b->u.cache.slot = sp->slot;
+  b->u.cache = *sp;
   return bp;
 }
 
-int addrec(b)
-  BTCB *b;
-{
+int addrec(BTCB *b) {
   BLOCK *bp;
   bp = bttrace(b->root,b->lbuf,b->klen,1);
   if (node_dup == b->klen) {
@@ -134,10 +140,7 @@ int addrec(b)
   return 0;
 }
 
-void delrec(b,bp)
-  BTCB *b;
-  register BLOCK *bp;
-{
+void delrec(BTCB *b,BLOCK *bp) {
   if (b->flags & BT_DIR) {
     t_block root;
     int rc;
