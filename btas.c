@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 1.16  1994/03/28  20:13:20  stuart
+ * BTSTAT with pathname
+ *
  * Revision 1.15  1993/12/09  19:27:34  stuart
  * allow mount/unmount of a filesystem not on a directory
  *
@@ -69,6 +72,8 @@ int btas(BTCB *b,int opcode) {
       root = creatfile(b);		/* add root ptr to record */
     if (rc = addrec(b))
       (void)delfile(b,root);		/* unlink if can't write record */
+    else
+      b->rlen -= PTRLEN;
     return rc;
   case BTWRITE:				/* write unique key */
     if (b->flags & BT_DIR) return BTERDIR;
@@ -119,6 +124,8 @@ int btas(BTCB *b,int opcode) {
 	btdel();
       break;
     }
+    if (b->flags & BT_DIR)
+      b->rlen -= PTRLEN;
     btget(1);
     bp = btbuf(b->root);
     if (newcnt || bp->buf.r.stat.mtime != curtime) {
@@ -144,8 +151,10 @@ int btas(BTCB *b,int opcode) {
       bp = bttrace(b,b->klen,-1);
     if (node_dup >= b->klen) {
       if (--b->u.cache.slot <= 0) {
-	if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L) return BTEREOF;
+	if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L)
+	  return BTEREOF;
 	b->u.cache.node = bp->buf.l.lbro;
+	bp->flags |= BLK_LOW;
 	btget(1);
 	bp = btbuf(b->u.cache.node);
 	b->u.cache.slot = node_count(bp);
@@ -158,8 +167,10 @@ int btas(BTCB *b,int opcode) {
 	bp = bttrace(b,b->klen,-1);
     }
     if (b->u.cache.slot <= 0) {
-      if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L) return BTEREOF;
+      if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L)
+	return BTEREOF;
       b->u.cache.node = bp->buf.l.lbro;
+      bp->flags |= BLK_LOW;
       btget(1);
       bp = btbuf(b->u.cache.node);
       b->u.cache.slot = node_count(bp);
@@ -171,9 +182,11 @@ int btas(BTCB *b,int opcode) {
       bp = bttrace(b,b->klen,1);
     for (;;) {
       if (b->u.cache.slot == node_count(bp)) {
-	if (bp->flags & BLK_ROOT || bp->buf.l.rbro == 0L) return BTEREOF;
+	if (bp->flags & BLK_ROOT || bp->buf.l.rbro == 0L)
+	  return BTEREOF;
 	b->u.cache.slot = 0;
 	b->u.cache.node = bp->buf.l.rbro;
+	bp->flags |= BLK_LOW;
 	btget(1);
 	bp = btbuf(b->u.cache.node);
       }
@@ -218,7 +231,7 @@ int btas(BTCB *b,int opcode) {
   case BTUMOUNT:
     if (b->root)
       return btunjoin(b);	/* unmount filesystem */
-    if (devtbl[b->mid].mcnt) return BTERBUSY;
+    if (devtbl[b->mid].mcnt > 1) return BTERBUSY;
     return btumount(b->mid);
   case BTMOUNT:
     if (b->root)
@@ -230,12 +243,12 @@ int btas(BTCB *b,int opcode) {
     if (b->klen)
       return openfile(b,1);
     if (b->root) {
-      if (b->rlen >= sizeof (struct btstat)) {
-	struct btstat st;
+      if (b->rlen >= sizeof (long)) {
+	if (b->rlen > sizeof (struct btstat))
+	  b->rlen = sizeof (struct btstat);
 	btget(1);
 	bp = btbuf(b->root);
-	(void)memcpy(b->lbuf,(PTR)&bp->buf.r.stat,sizeof st);
-	b->rlen = sizeof st;
+	memcpy(b->lbuf,&bp->buf.r.stat,b->rlen);
 	return 0;
       }
       return BTERKLEN;
@@ -262,7 +275,12 @@ int btas(BTCB *b,int opcode) {
     }
     return BTERKLEN;
   case BTFLUSH:
-    return btflush();
+    do
+      rc = btflush();
+    while (rc == BTERBUSY && (b->op & BTEXCL));
+    if (rc == 0 && (b->op & BTEXCL))
+      return BTERLOCK;
+    return rc;
   /* system maintenance functions */
   case BTFREE:		/* add block to free space */
     btget(1);
