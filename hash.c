@@ -1,10 +1,14 @@
 /* $Log$
+ * Revision 1.3  1994/03/28  20:08:59  stuart
+ * log where btget errors occur
+ *
  * Revision 1.2  1993/12/09  19:20:50  stuart
  * failsafe/improved modified buffer handling
  *
  */
 #include <stdio.h>
 #include <assert.h>
+#include <alloc.h>
 #include "btbuf.h"
 #include "hash.h"
 
@@ -34,8 +38,8 @@ int begbuf(char *pool,int nsize,int size) {
   hashtbl = (BLOCK **)calloc(hmask,sizeof *hashtbl);
   if (hashtbl == 0) return -1;
   mru = (BLOCK *)pool;
-  stat.bufs = size;
-  stat.hsize = hmask--;
+  serverstats.bufs = size;
+  serverstats.hsize = hmask--;
   mru->mru = mru->lru = mru;
   while (--size > 0) {
     BLOCK *bp = (BLOCK *)(pool += nsize);
@@ -50,7 +54,7 @@ int begbuf(char *pool,int nsize,int size) {
 
 void endbuf() {
   if (hashtbl) {
-    cfree((PTR)hashtbl);
+    free(hashtbl);
     hashtbl = 0;
   }
 }
@@ -69,7 +73,7 @@ void btget_deb(int cnt,const char *file,int line) {
 /* reserve cnt buffers */
 void btget(int cnt) {
   while (lastcnt > 0) {
-    register BLOCK *bp = inuse[--lastcnt];
+    BLOCK *bp = inuse[--lastcnt];
 #ifdef FAILSAFE
     /* block is modified but not checkpointed or already touched */
     if ((bp->flags & (BLK_MOD | BLK_CHK | BLK_TOUCH)) == BLK_MOD) {
@@ -77,12 +81,21 @@ void btget(int cnt) {
       bp->flags |= BLK_TOUCH;
     }
 #endif
-    /* assume chain is never empty */
+    if (bp->flags & BLK_LOW)
+      mru = mru->lru->lru;
+    /* insert block in circular chain just after mru block in mru direction
+       assume chain is never empty */
     bp->mru = mru->mru;
     mru->mru->lru = bp;
     mru->mru = bp;
     bp->lru = mru;
-    mru = bp;
+    /* move low priority block to just before end of mru chain */
+    if (bp->flags & BLK_LOW) {
+      bp->flags &= ~BLK_LOW;
+      mru = bp->mru->mru;
+    }
+    else	/* make block most recently used */
+      mru = bp;
   }
   curcnt = cnt;
 }
@@ -98,12 +111,15 @@ BLOCK *getbuf(t_block blk,short mid) {
       ASSERTFCN(buf,curfile,curline);
     fprintf(stderr,"%s, %s, line %d\n",buf,curfile,curline);
     ++curcnt;
+    assert(lastcnt < curcnt);
   }
-  assert(lastcnt < curcnt);
   hval = hash(blk+mid);
-  ++stat.searches;
-  while (++stat.probes, bp = hashtbl[hval]) {
+  ++serverstats.searches;
+  while (++serverstats.probes, bp = hashtbl[hval]) {
     if (bp->blk == blk && bp->mid == mid) {
+      /* check if already in use */
+      for (h = 0; h < lastcnt; ++h)
+	if (inuse[h] == bp) return bp;
       /* remove from chain */
       if (bp == mru)
 	mru = bp->lru;
