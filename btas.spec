@@ -1,8 +1,8 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.10.3
+%define version 2.10.4
 Version: %{version}
-Release: 2
+Release: 1
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -119,6 +119,7 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/bin/btinit
 /bms/bin/btpwd
 /bms/bin/btreload
+/bms/bin/btrcvr
 %attr(6755,btas,bms)/bms/bin/btserve
 %attr(6755,btas,bms)/bms/bin/btstop
 %attr(6755,btas,bms)/bms/bin/btstat
@@ -156,6 +157,8 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
+* Fri Apr  4 2004 Stuart Gathman <stuart@bmsi.com>
+- fix isaddindex bug
 * Tue Mar  4 2003 Stuart Gathman <stuart@bmsi.com>
 - finish converting to STL and test
 * Tue Nov  5 2002 Stuart Gathman <stuart@bmsi.com>

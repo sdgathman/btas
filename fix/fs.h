@@ -103,7 +103,7 @@ public:
 /** An abstract class that handles BTAS/X filesystems, but I/O must 
     be specified by mixing in a class that implements fsio.
  */
-struct btasFS: btFS, virtual private fsio {
+struct btasFS: btFS, virtual fsio {
   btree *get(t_block blk = 0L);
   void del();
   int maxrec() const { return fs ? fs->u.f.hdr.blksize / 2 - 10 : 0; }
