@@ -2,7 +2,7 @@
 	Author: Stuart D. Gathman
 	Copyright 1991 Business Management Systems, Inc.
 */
-
+// $Log$
 #include <stdio.h>
 #include <fcntl.h>
 #include <io.h>
@@ -18,7 +18,7 @@ int main(int argc,char **argv) {
       convert68k = true;
   }
   if (i + 1 != argc) {
-    fputs("$Log$\n\
+    fputs("$Id$\n\
 Usage:	btrest [-6] osfile <archive\n\
 	-6	convert root nodes from 68k to RISC format (add padding)\n\
 	osfile	filesystem to overwrite, - for stdout\n",
