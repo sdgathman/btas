@@ -11,6 +11,9 @@
 	  c) the "u.id" structure contains security information for
 	     BTOPEN and BTCREATE
  * $Log$
+ * Revision 2.1  1996/12/17  16:43:28  stuart
+ * C++ node and bufpool interface
+ *
  * Revision 1.19  1995/08/03  20:04:07  stuart
  * hashtbl object
  *
@@ -39,38 +42,34 @@ static const char what[] =
 #endif
 #include <string.h>
 #include <assert.h>
-#include "hash.h"		/* buffer, btree operations */
 #include <bterr.h>		/* user error codes */
 extern "C" {
 #include <btas.h>		/* user interface */
 }
+#include "btserve.h"
+#include "btbuf.h"		/* buffer, btree operations */
 #include "btfile.h"		/* files and directories */
-#include "btkey.h"		/* key lookup */
 #include "btdev.h"
 
 /* NOTE - for historical reasons, higher keys and lower indexes are
 	  to the "left", lower keys and higher indexes to the "right".
 	  This may change.  */
 
-jmp_buf btjmp;		/* jump target for btpost */
-
 #ifdef TRACE
 #include <stdio.h>
 #endif
 
-extern "C" int btas(BTCB *b,int opcode) {
-  register BLOCK *bp;
-  int rlen,rc;
-  t_block root;
+int btserve::btas(BTCB *b,int opcode) {
+  BLOCK *bp;
 
-  if ((unsigned)b->klen > b->rlen || (unsigned)b->rlen > maxrec)
+  if ((unsigned)b->klen > b->rlen || (unsigned)b->rlen > bufpool->maxrec)
     return BTERKLEN;	/* invalid key or record length */
   if (b->klen > MAXKEY)
     b->klen = MAXKEY;	/* truncate long keys */
-  rc = setjmp(btjmp);
+  int rc = setjmp(btjmp);
   if (rc != 0)
     return rc;
-  if (b->root && btroot(b->root,b->mid)) return BTERMID;
+  if (b->root && bufpool->btroot(b->root,b->mid)) return BTERMID;
   b->op = opcode;
   opcode &= 31;
   if (btopflags[opcode] && (btopflags[opcode] & b->flags) == 0)
@@ -78,90 +77,55 @@ extern "C" int btas(BTCB *b,int opcode) {
   switch (opcode) {
   case BTLINK: case BTCREATE:
     if ( (b->flags & BT_DIR) == 0) return BTERDIR;
+    // append root ptr to record
+    t_block root;
     if (opcode == (int)BTLINK)
-      root = linkfile(b);		/* add root ptr to record */
+      root = engine->linkfile(b);	
     else
-      root = creatfile(b);		/* add root ptr to record */
-    rc = addrec(b);
+      root = engine->creatfile(b);
+    rc = engine->addrec(b);		// add record to dir
     if (rc != 0)
-      delfile(b,root);		/* unlink if can't write record */
+      engine->delfile(b,root);		// unlink if can't add record
     else
       b->rlen -= node::PTRLEN;
     return rc;
   case BTWRITE:				/* write unique key */
     if (b->flags & BT_DIR) return BTERDIR;
-    return addrec(b);
+    return engine->addrec(b);
   case BTDELETE:			/* delete unique key */
-    delrec(b,uniquekey(b));
+    engine->delrec(b,engine->uniquekey(b));
     return 0;
   case BTDELETEF:			/* delete first matching key */
-    bp = btfirst(b);
+    bp = engine->btfirst(b);
     if (!bp) return BTEREOF;
-    delrec(b,bp);
+    engine->delrec(b,bp);
     return 0;
   case BTDELETEL:			/* delete last matching key */
-    bp = btlast(b);
+    bp = engine->btlast(b);
     if (!bp) return BTEREOF;
-    delrec(b,bp);
+    engine->delrec(b,bp);
     return 0;
-  case BTREPLACE: case BTREWRITE:
-    bp = uniquekey(b);
-    /* check free space, physical size could change because of key
-       compression even when logical size doesn't */
-    btspace();
-    newcnt = 0;
-    /* convert user record to a directory record if required */
-    if (b->flags & BT_DIR) {
-      t_block root;
-      if (b->rlen > maxrec - sizeof (t_block))
-	b->rlen = maxrec - sizeof (t_block);
-      root = bp->ldptr(sp->slot);
-      b->rlen += stptr(root,b->lbuf + b->rlen);
-    }
-    switch (opcode) {
-    case BTREWRITE:
-      rlen = bp->size(sp->slot);
-      /* extend user record with existing record if required */
-      if (rlen > b->rlen) {
-	int ptrlen = (b->flags & BT_DIR) ? node::PTRLEN : 0;
-	bp->copy(sp->slot,b->lbuf,rlen,b->rlen - ptrlen);
-	b->rlen = rlen;
-      }
-      /* OK, now replace the record */
-    case BTREPLACE:
-      if (bp->replace(sp->slot,b->lbuf,b->rlen)) {
-	--sp->slot;
-	btadd(b->lbuf,b->rlen);
-      }
-      else if (bp->np->free(bp->cnt()) >= bp->np->free(0)/2)
-	btdel();
-      break;
-    }
-    if (b->flags & BT_DIR)
-      b->rlen -= node::PTRLEN;
-    btget(1);
-    bp = btbuf(b->root);
-    if (newcnt || bp->buf.r.stat.mtime != curtime) {
-      bp->buf.r.stat.bcnt += newcnt;
-      bp->buf.r.stat.mtime = curtime;
-      bp->flags |= BLK_MOD;
-    }
+  case BTREPLACE:
+    engine->replace(b);
+    return 0;
+  case BTREWRITE:
+    engine->replace(b,true);
     return 0;
   case BTREADEQ:		/* read unique key */
-    bp = uniquekey(b);
+    bp = engine->uniquekey(b);
     break;
   case BTREADF:			/* read first matching key */
-    bp = btfirst(b);
+    bp = engine->btfirst(b);
     if (!bp) return BTERKEY;
     break;
   case BTREADL:			/* read last matching key */
-    bp = btlast(b);
+    bp = engine->btlast(b);
     if (!bp) return BTERKEY;
     break;
   case BTREADGT:	/* to the left */
-    bp = verify(b);
+    bp = engine->verify(b);
     if (!bp)
-      bp = bttrace(b,b->klen,-1);
+      bp = engine->trace(b,b->klen,-1);
     if (BLOCK::dup >= b->klen) {
       if (--b->u.cache.slot <= 0) {
 	if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L)
@@ -169,7 +133,7 @@ extern "C" int btas(BTCB *b,int opcode) {
 	b->u.cache.node = bp->buf.l.lbro;
 	bp->flags |= BLK_LOW;
 	btget(1);
-	bp = btbuf(b->u.cache.node);
+	bp = bufpool->btbuf(b->u.cache.node);
 	b->u.cache.slot = bp->cnt();
 	rc = blkcmp(bp->np->rptr(b->u.cache.slot)+1,
 		(unsigned char *)b->lbuf,b->klen);
@@ -177,7 +141,7 @@ extern "C" int btas(BTCB *b,int opcode) {
       else
 	rc = *bp->np->rptr(b->u.cache.slot);
       if (rc >= b->klen)
-	bp = bttrace(b,b->klen,-1);
+	bp = engine->trace(b,b->klen,-1);
     }
     if (b->u.cache.slot <= 0) {
       if (bp->flags & BLK_ROOT || bp->buf.l.lbro == 0L)
@@ -185,14 +149,14 @@ extern "C" int btas(BTCB *b,int opcode) {
       b->u.cache.node = bp->buf.l.lbro;
       bp->flags |= BLK_LOW;
       btget(1);
-      bp = btbuf(b->u.cache.node);
+      bp = bufpool->btbuf(b->u.cache.node);
       b->u.cache.slot = bp->cnt();
     }
     break;
   case BTREADLT:
-    bp = verify(b);
+    bp = engine->verify(b);
     if (!bp)
-      bp = bttrace(b,b->klen,1);
+      bp = engine->trace(b,b->klen,1);
     for (;;) {
       if (b->u.cache.slot == bp->cnt()) {
 	if (bp->flags & BLK_ROOT || bp->buf.l.rbro == 0L)
@@ -201,31 +165,31 @@ extern "C" int btas(BTCB *b,int opcode) {
 	b->u.cache.node = bp->buf.l.rbro;
 	bp->flags |= BLK_LOW;
 	btget(1);
-	bp = btbuf(b->u.cache.node);
+	bp = bufpool->btbuf(b->u.cache.node);
       }
       rc = bp->comp(++b->u.cache.slot,b->lbuf,b->klen);
       if (rc < b->klen) break;
-      bp = bttrace(b,b->klen,1);
+      bp = engine->trace(b,b->klen,1);
     }
     break;
   case BTREADGE:
-    bp = bttrace(b,b->klen,1);
+    bp = engine->trace(b,b->klen,1);
     if (b->u.cache.slot == 0) {
       if (bp->flags&BLK_ROOT || bp->buf.l.lbro == 0) return BTEREOF;
       b->u.cache.node = bp->buf.l.lbro;
       btget(1);
-      bp = btbuf(b->u.cache.node);
+      bp = bufpool->btbuf(b->u.cache.node);
       b->u.cache.slot = bp->cnt();
     }
     break;
   case BTREADLE:
-    bp = bttrace(b,b->klen,-1);
+    bp = engine->trace(b,b->klen,-1);
     if (b->u.cache.slot++ == bp->cnt()) {
       if (bp->flags&BLK_ROOT || bp->buf.l.rbro == 0) return BTEREOF;
       b->u.cache.slot = 1;
       b->u.cache.node = bp->buf.l.rbro;
       btget(1);
-      bp = btbuf(b->u.cache.node);
+      bp = bufpool->btbuf(b->u.cache.node);
     }
     break;
   case BTOPEN:
@@ -233,49 +197,49 @@ extern "C" int btas(BTCB *b,int opcode) {
     fprintf(stderr,"uid=%d,gid=%d,mode=%o\n",
 	b->u.id.user,b->u.id.group,b->u.id.mode);
 #endif
-    return openfile(b,0);		/* check permissions */
+    return engine->openfile(b,0);		/* check permissions */
   case BTCLOSE:
-    closefile(b);
+    engine->closefile(b);
 #ifdef SINGLE
-    return btflush();
+    return bufpool->flush();
 #else
     return 0;
 #endif
   case BTUMOUNT:
     if (b->root)
-      return btunjoin(b);	/* unmount filesystem */
+      return engine->unjoin(b);	/* unmount filesystem */
     if (devtbl[b->mid].mcnt > 1) return BTERBUSY;
-    return btumount(b->mid);
+    return bufpool->unmount(b->mid);
   case BTMOUNT:
     if (b->root)
-      return btjoin(b);
+      return engine->join(b);
     b->lbuf[b->klen] = 0;
-    b->mid = btmount(b->lbuf);
+    b->mid = bufpool->mount(b->lbuf);
     return 0;
   case BTSTAT:		/* set/extract status information */
     if (b->klen)
-      return openfile(b,1);
+      return engine->openfile(b,1);
     if (b->root) {
       if (b->rlen >= sizeof (long)) {
 	if (b->rlen > sizeof (struct btstat))
 	  b->rlen = sizeof (struct btstat);
 	btget(1);
-	bp = btbuf(b->root);
+	bp = bufpool->btbuf(b->root);
 	memcpy(b->lbuf,&bp->buf.r.stat,b->rlen);
 	return 0;
       }
       return BTERKLEN;
     }
-    if (btroot(b->root,b->mid)) return BTERMID;
+    if (bufpool->btroot(b->root,b->mid)) return BTERMID;
     b->rlen = devtbl[b->mid].gethdr(b->lbuf,b->rlen);
     return 0;
   case BTTOUCH:
     if (b->rlen >= sizeof (struct btstat)) {
       struct btstat st;
       btget(1);
-      bp = btbuf(b->root);
+      bp = bufpool->btbuf(b->root);
       st = bp->buf.r.stat;
-      (void)memcpy((char *)&st,b->lbuf,b->klen);
+      memcpy((char *)&st,b->lbuf,b->klen);
       bp->buf.r.stat.atime = st.atime;
       bp->buf.r.stat.mtime = st.mtime;
       if (b->u.id.user == bp->buf.r.stat.id.user || b->u.id.user == 0) {
@@ -283,13 +247,13 @@ extern "C" int btas(BTCB *b,int opcode) {
 	bp->buf.r.stat.id = st.id;
       }
       bp->flags |= BLK_MOD;
-      (void)memcpy(b->lbuf,(char *)&bp->buf.r.stat,sizeof st);
+      memcpy(b->lbuf,(char *)&bp->buf.r.stat,sizeof st);
       return 0;
     }
     return BTERKLEN;
   case BTFLUSH:
     do
-      rc = btflush();
+      rc = bufpool->flush();
     while (rc == BTERBUSY && (b->op & BTEXCL));
     if (rc == 0 && (b->op & BTEXCL))
       return BTERLOCK;
@@ -300,13 +264,13 @@ extern "C" int btas(BTCB *b,int opcode) {
     bp = bufpool->find(b->u.cache.node,b->mid);
     bp->blk = b->u.cache.node;
     bp->flags = 0;
-    btfree(bp);
+    bufpool->btfree(bp);
     return 0;
   /* BTUNLINK is done by setting b->flags at present */
   case BTPSTAT:
-    if (b->rlen >= sizeof serverstats)
-      b->rlen = sizeof serverstats;
-    memcpy(b->lbuf,&serverstats,b->rlen);
+    if (b->rlen >= sizeof bufpool->serverstats)
+      b->rlen = sizeof bufpool->serverstats;
+    memcpy(b->lbuf,&bufpool->serverstats,b->rlen);
     return 0;
   default:
     return BTEROP;	/* invalid operation */
@@ -315,7 +279,7 @@ extern "C" int btas(BTCB *b,int opcode) {
   /* Successful read operations end up here */
 
   b->rlen = bp->size(b->u.cache.slot);
-  assert(b->rlen >= 0 && b->rlen <= maxrec);
+  assert(b->rlen >= 0 && b->rlen <= bufpool->maxrec);
   /* FIXME: keep track of BLOCK::dup above where feasible. */
   /* too many places too check whether BLOCK::dup is accurate, use 0 for now */
   bp->copy(b->u.cache.slot,b->lbuf,b->rlen);
