@@ -2,13 +2,15 @@
 	variable length records up to 1/2 node size
 	minimum unique keys
  * $Log$
+ * Revision 1.23  1993/08/25  22:57:29  stuart
+ * new bttrace interface
+ *
  */
 #if !defined(lint) && !defined(__MSDOS__)
 static char what[] = "$Id$";
 #endif
 
-#include "btbuf.h"
-#include "node.h"
+#include "hash.h"
 #include "btas.h"
 #include "bterr.h"
 #include <stdio.h>
@@ -36,13 +38,13 @@ struct btlevel *sp;		/* stack pointer */
 */
 
 void btadd(char *urec,int ulen) {
-  register BLOCK *bp,*np,*dp,*ap;
+  BLOCK *bp,*np,*dp,*ap;
   struct btlevel *savstk;
   short idx,i,limit,acnt,cnt;
   int rc;
   char insrec[MAXKEY+sizeof (t_block)];
 
-  /* assume caller has already attempted node_insert */
+  /* assume caller has already attempted BLOCK::insert */
 
   for (;;) {
     btget(5);
@@ -64,7 +66,7 @@ void btadd(char *urec,int ulen) {
       }
       ap->buf.l.lbro = bp->blk;
       bp->buf.l.lbro = 0;
-      acnt = node_count(np);
+      acnt = np->cnt();
       switch (acnt) {
       case 1:
 	i = idx;
@@ -73,19 +75,19 @@ void btadd(char *urec,int ulen) {
 	i = 1;
 	break;
       default:
-	limit = node_free(np->np,0) / 2;
-	for (i = cnt = 0; node_free(np->np,i) > limit && ++i < acnt;);
+	limit = np->np->free(0) / 2;
+	for (i = cnt = 0; np->np->free(i) > limit && ++i < acnt;);
       }
       if (i > idx) --i;
-      (void)node_move(np,bp,1,0,i);
-      (void)node_move(np,ap,i+1,0,acnt - i);
+      np->move(bp,1,0,i);
+      np->move(ap,i+1,0,acnt - i);
       sp->node = ap->blk;	/* default to right node */
       rc = insert(bp,ap,idx -= i,urec,ulen,sp);
       assert (rc == 0);
-      node_clear(np);
+      np->clear();
       np->buf.r.son = bp->blk;
       ulen = getkey(bp,ap,insrec,&ap->blk);
-      (void)node_insert(np,0,insrec,ulen);
+      np->insert(0,insrec,ulen);
       return;
     }
 
@@ -99,10 +101,10 @@ void btadd(char *urec,int ulen) {
       } while (sp->slot == 0);		/* find dad node */
       dp = btbuf(sp->node);
       rc = 0;			/* try to move dadkey left if needed */
-      cnt = node_count(bp);
+      cnt = bp->cnt();
       if (bp->flags & BLK_STEM) {
-	if (node_move(dp,bp,sp->slot,cnt,1))
-	  node_stptr(bp,++cnt,&np->buf.s.son);
+	if (dp->move(bp,sp->slot,cnt,1))
+	  bp->stptr(++cnt,np->buf.s.son);
 	else
 	  rc = -1;		/* need dadkey left later */
       }
@@ -110,14 +112,14 @@ void btadd(char *urec,int ulen) {
       /* if key left ok, try to rotate with brother first */
 
       if (rc == 0) {
-	if (idx && (acnt = node_move(np,bp,1,cnt,idx))) {
-	  node_delete(np,1,acnt);
+	if (idx && (acnt = np->move(bp,1,cnt,idx)) != 0) {
+	  np->del(1,acnt);
 	  idx -= acnt;
 	}
 	rc = insert(bp,np,idx,urec,ulen,savstk);
 	if (rc == 0) {
 	  ulen = getkey(bp,np,insrec,&sp[1].node);
-	  if (node_replace(dp,sp->slot,insrec,ulen) == 0) return;
+	  if (dp->replace(sp->slot,insrec,ulen) == 0) return;
 	  urec = insrec;
 	  --sp->slot;		/* replace failed */
 	  continue;		/* insert on another iteration */
@@ -125,7 +127,7 @@ void btadd(char *urec,int ulen) {
 	rc = 0;			/* dadkey already moved left */
       }
 
-      assert(idx <= node_count(np));
+      assert(idx <= np->cnt());
 
       /* have to split */
 
@@ -139,23 +141,23 @@ void btadd(char *urec,int ulen) {
       np->buf.l.lbro = ap->blk;
       np->flags |= BLK_MOD;
 
-      cnt = node_count(bp);
-      limit = node_free(bp->np,0)/2 - ulen + node_free(bp->np,cnt);
-      for (i = cnt; node_free(bp->np,i) < limit && i > 0; --i);
+      cnt = bp->cnt();
+      limit = bp->np->free(0)/2 - ulen + bp->np->free(cnt);
+      for (i = cnt; bp->np->free(i) < limit && i > 0; --i);
       /* i is number of records to keep in bp */
       if (++i < cnt) {
-	cnt = node_move(bp,ap,i+1,0,node_count(bp)-i);
-	node_delete(bp,i+1,cnt);
+	cnt = bp->move(ap,i+1,0,bp->cnt()-i);
+	bp->del(i+1,cnt);
       }
       else cnt = 0;
       /* cnt is now number of records in node ap */
       if (rc) {		/* if we still need to move dadkey left */
-	rc = node_move(dp,ap,sp->slot,cnt,1);
+	rc = dp->move(ap,sp->slot,cnt,1);
 	assert(rc == 1);
-	node_stptr(ap,++cnt,&np->buf.s.son);
+	ap->stptr(++cnt,np->buf.s.son);
       }
-      if (idx && (acnt = node_move(np,ap,1,cnt,idx))) {
-	node_delete(np,1,acnt);
+      if (idx && (acnt = np->move(ap,1,cnt,idx)) != 0) {
+	np->del(1,acnt);
 	idx -= acnt;
       }
       rc = insert(ap,np,idx,urec,ulen,savstk);
@@ -164,12 +166,11 @@ void btadd(char *urec,int ulen) {
       if (savstk->slot)
 	ulen = getkey(bp,ap,insrec,&ap->blk);
       else {
-	t_block chk;
-	node_ldptr(dp,sp->slot,&chk);	/* get current dad ptr */
+	t_block chk = dp->ldptr(sp->slot);	/* get current dad ptr */
 	assert(chk == sp[1].node);
 	ulen = getkey(bp,ap,insrec,&chk);
       }
-      if (node_replace(dp,sp->slot,insrec,ulen)) {
+      if (dp->replace(sp->slot,insrec,ulen)) {
 	t_block apblk = ap->blk, npblk = np->blk;
 	--sp->slot;
 	btadd(insrec,ulen);	/* nasty recursive insert */
@@ -196,11 +197,11 @@ void btadd(char *urec,int ulen) {
       np->buf.l.lbro = ap->blk;
       ap->buf.l.lbro = 0;
       np->flags |= BLK_MOD;
-      limit = node_free(ap->np,0) / 2;
+      limit = ap->np->free(0) / 2;
       i = (np->flags & BLK_STEM) ? 1 : 0;
-      while (i < idx && node_free(np->np,i) > limit) ++i;
-      cnt = node_move(np,ap,1,0,i);
-      node_delete(np,1,cnt);
+      while (i < idx && np->np->free(i) > limit) ++i;
+      cnt = np->move(ap,1,0,i);
+      np->del(1,cnt);
       rc = insert(ap,np,idx -= cnt,urec,ulen,sp);
       assert(rc == 0);
       --sp;
@@ -212,8 +213,8 @@ void btadd(char *urec,int ulen) {
       dp = btbuf(sp->node);
       dp->buf.s.son = ap->blk;
     }
-    assert(sp->slot <= node_count(dp));
-    if (node_insert(dp,sp->slot,insrec,ulen) == 0) {
+    assert(sp->slot <= dp->cnt());
+    if (dp->insert(sp->slot,insrec,ulen) == 0) {
       ++sp->slot;
       return;
     }
@@ -237,7 +238,7 @@ BLOCK *bttrace(BTCB *b,int klen,int dir) {
   for (;;) {
     btget(1);
     bp = btbuf(sp->node);
-    pos = node_find(bp,key,klen,dir);
+    pos = bp->find(key,klen,dir);
     sp->slot = pos;
     if ((bp->flags&BLK_STEM) == 0) break;
     if (++sp >= stack + MAXLEV)
@@ -245,7 +246,7 @@ BLOCK *bttrace(BTCB *b,int klen,int dir) {
     if (pos == 0)
       sp->node = bp->buf.s.son;		/* store node */
     else
-      node_ldptr(bp,pos,&sp->node);	/* store node */
+      sp->node = bp->ldptr(pos);	/* store node */
   }
   b->u.cache = *sp;
   return bp;
@@ -270,49 +271,48 @@ void btdel() {
     btget(4);
     --sp;
     dp = btbuf(sp->node);
-    if (sp->slot < node_count(dp)) {	/* if right brother */
+    if (sp->slot < dp->cnt()) {	/* if right brother */
       bp = btbuf(sp[1].node);
-      node_ldptr(dp,++sp->slot,&sp[1].node);
+      sp[1].node = dp->ldptr(++sp->slot);
       np = btbuf(sp[1].node);
     }
     else {
       np = btbuf(sp[1].node);
       bp = btbuf(np->buf.l.lbro);
     }
-    bcnt = node_count(bp);
-    bfree = node_free(bp->np,bcnt);	/* before adding dad key */
+    bcnt = bp->cnt();
+    bfree = bp->np->free(bcnt);	/* before adding dad key */
     if (bp->flags & BLK_STEM) {
-      if (node_move(dp,bp,sp->slot,bcnt,1))
-	node_stptr(bp,++bcnt,&np->buf.s.son);
+      if (dp->move(bp,sp->slot,bcnt,1))
+	bp->stptr(++bcnt,np->buf.s.son);
       else {
-	(void)node_move(dp,np,sp->slot,0,1);
-	node_stptr(np,1,&np->buf.s.son);
+	dp->move(np,sp->slot,0,1);
+	np->stptr(1,np->buf.s.son);
       }
     }
-    nfree = node_free(np->np,node_count(np));
-    totfree = nfree + node_free(bp->np,bcnt);	/* includes dad key */
-    if (totfree >= 2*node_free(np->np,0) - node_free(dp->np,0)) {
-      t_block blk;
-      node_delete(dp,sp->slot,1);
-      if (node_count(dp) == 0 && dp->flags & BLK_ROOT) {
+    nfree = np->np->free(np->cnt());
+    totfree = nfree + bp->np->free(bcnt);	/* includes dad key */
+    if (totfree >= 2*np->np->free(0) - dp->np->free(0)) {
+      dp->del(sp->slot);
+      if (dp->cnt() == 0 && dp->flags & BLK_ROOT) {
 	if (np->flags & BLK_STEM)
 	  dp->buf.r.son = bp->buf.s.son;
 	else {
 	  dp->buf.r.son = 0;
 	  dp->flags &= ~BLK_STEM;	/* root is now the (only) leaf node */
 	}
-	(void)node_move(bp,dp,1,0,bcnt);
-	(void)node_move(np,dp,1,bcnt,node_count(np));
+	bp->move(dp,1,0,bcnt);
+	np->move(dp,1,bcnt,np->cnt());
 	btfree(np);
 	btfree(bp);
 	return;
       }
-      cnt = node_move(np,bp,1,bcnt,node_count(np));
-      assert (cnt == node_count(np));
+      cnt = np->move(bp,1,bcnt,np->cnt());
+      assert (cnt == np->cnt());
       /* This is messy.  We want to move data from np to bp, but we want
 	 to delete node bp since there is no rbro for stem nodes.  Our
 	 solution is to switch block ids. */
-      swapbuf(np,bp);
+      bufpool->swap(np,bp);
       if ((np->flags & BLK_STEM) == 0) {	/* connect right pointers */
 	bp->buf.l.rbro = np->buf.l.rbro;
 	if (bp->buf.l.lbro) {
@@ -325,33 +325,33 @@ void btdel() {
       bp->flags |= BLK_MOD | BLK_KEY;
       btfree(np);
       if (--sp->slot > 0)
-        node_stptr(dp,sp->slot,&bp->blk);
+        dp->stptr(sp->slot,bp->blk);
       else
 	dp->buf.s.son = bp->blk;
     }
     else {		/* even up data in brothers */
       totfree = (nfree + bfree)/2;	
       if (nfree < bfree || bcnt < 2) {
-	totfree += node_free(np->np,0) - bfree;
-	for (i = 0; node_free(np->np,i) > totfree; ++i);
-	cnt = node_move(np,bp,1,bcnt,i);
-	node_delete(np,1,cnt);
+	totfree += np->np->free(0) - bfree;
+	for (i = 0; np->np->free(i) > totfree; ++i);
+	cnt = np->move(bp,1,bcnt,i);
+	np->del(1,cnt);
       }
       else {
-	for (i = bcnt - 1; node_free(bp->np,i) < totfree; --i); ++i;
-	cnt = node_move(bp,np,i+1,0,bcnt - i);
+	for (i = bcnt - 1; bp->np->free(i) < totfree; --i); ++i;
+	cnt = bp->move(np,i+1,0,bcnt - i);
 	assert(cnt == bcnt - i);
-	node_delete(bp,i+1,cnt);
+	bp->del(i+1,cnt);
       }
-      assert(node_count(bp) && node_count(np));
+      assert(bp->cnt() && np->cnt());
       ulen = getkey(bp,np,keyrec,&np->blk);
-      if (node_replace(dp,sp->slot,keyrec,ulen)) {
+      if (dp->replace(sp->slot,keyrec,ulen)) {
 	--sp->slot;
 	btadd(keyrec,ulen);
 	return;
       }
     }
-    if (node_free(dp->np,node_count(dp)) < node_free(dp->np,0)/2) return;
+    if (dp->np->free(dp->cnt()) < dp->np->free(0)/2) return;
   }
 }
 
@@ -365,10 +365,10 @@ static int
 insert(BLOCK *bp,BLOCK *np,int idx,char *urec,int ulen,struct btlevel *lp) {
   int rc;
   if (idx <= 0) {
-    rc = node_insert(bp,idx + node_count(bp),urec,ulen);
+    rc = bp->insert(idx + bp->cnt(),urec,ulen);
     if (idx < 0) {
       lp->node = bp->blk;
-      lp->slot = idx + node_count(bp);
+      lp->slot = idx + bp->cnt();
       return rc;
     }
     /* if idx == 0, it is still 0 after a successful insert in bp */
@@ -377,7 +377,7 @@ insert(BLOCK *bp,BLOCK *np,int idx,char *urec,int ulen,struct btlevel *lp) {
       return rc;
     }
   }
-  rc = node_insert(np,idx,urec,ulen);
+  rc = np->insert(idx,urec,ulen);
   if (rc == 0) ++idx;
   lp->slot = idx;
   return rc;
@@ -387,23 +387,23 @@ insert(BLOCK *bp,BLOCK *np,int idx,char *urec,int ulen,struct btlevel *lp) {
 
 static int getkey(BLOCK *bp,BLOCK *np,char *urec,t_block *blkp) {
   register int ulen,i;
-  i = node_count(bp);
+  i = bp->cnt();
   if (np->flags & BLK_STEM) {
     assert(i>1);		/* use & remove implied key for stem nodes */
-    ulen = node_size(bp->np,i) - sizeof *blkp;
-    node_ldptr(bp,i,&np->buf.s.son);
+    ulen = bp->size(i) - sizeof *blkp;
+    np->buf.s.son = bp->ldptr(i);
     np->flags |= BLK_MOD;
-    node_copy(bp,i,urec,ulen,0);
-    node_delete(bp,i,1);
+    bp->copy(i,urec,ulen);
+    bp->del(i);
   }
   else {			/* construct unique key for leaf nodes */
     short size; unsigned char *p;
-    size = node_size(np->np,1);
-    ulen = node_size(bp->np,i);
+    size = np->size(1);
+    ulen = bp->size(i);
     if (ulen > size) ulen = size;
     if (ulen > MAXKEY) ulen = MAXKEY;
-    node_copy(np,1,urec,ulen,0);
-    p = rptr(bp->np,i) + 1;
+    np->copy(1,urec,ulen);
+    p = bp->np->rptr(i) + 1;
     ulen = blkcmp(p,(unsigned char *)urec,ulen);
     if (ulen < size) {
       urec[ulen] = p[ulen];
