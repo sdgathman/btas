@@ -1,28 +1,14 @@
 #include <stdio.h>
 #include <io.h>
+#include <Obstack.h>
 extern "C" {
-#include <obstack.h>
 #include <tsearch.h>
 }
-#include <malloc.h>
 #include <string.h>
-#include "fix.h"
-/* #define TRACE */
-
-void *cdecl obstack_chunk_alloc(unsigned s) {
-  void *p = malloc(s);
-  if (!p) {
-    write(2,"\r\nOut of memory!\r\n",18);
-    abort();
-  }
-  return p;
-}
-
-/* #define obstack_chunk_alloc mymalloc */
-#define obstack_chunk_free  free
+#include "logdir.h"
+/* #define TRACE /**/
 
 #define treeflag 0
-/* #define TRACE */
 
 struct dir_n {
   struct root_n *file;
@@ -32,7 +18,7 @@ struct dir_n {
 };
 
 static TREE t;
-static struct obstack h;
+static Obstack h;
 
 static int cmp(const PTR a, const PTR b) {
   if (*(t_block *)a > *(t_block *)b) return 1;
@@ -43,10 +29,9 @@ static int cmp(const PTR a, const PTR b) {
 static struct root_n *addroot(long blk, const struct btstat *st) {
   register struct root_n *r;
   PTR *p;
-  if (!t) obstack_init(&h);
   p = tsearch(&blk,&t,cmp);
   if (*p == &blk) {
-    *p = r = (root_n *)obstack_alloc(&h,sizeof *r);
+    *p = r = (root_n *)h.alloc(sizeof *r);
     if (!st)
       memset(&r->st,0,sizeof r->st);
     r->dir = 0;
@@ -86,9 +71,10 @@ void logdir(t_block root,const char *buf,int len,t_block blk) {
   struct root_n *r;
   struct dir_n *n, **p;
   r = addroot(root,0);
-  n = (dir_n *)obstack_alloc(&h,sizeof *n - sizeof n->buf + len);
+  n = (dir_n *)h.alloc(sizeof *n - sizeof n->buf + len + 1);
   n->rlen = len;
   memcpy(n->buf,buf,len);
+  n->buf[len] = 0;
   n->file = addroot(blk,0);
   ++n->file->links;
   if (r->last && strcmp(r->last->buf,n->buf) < 0)
