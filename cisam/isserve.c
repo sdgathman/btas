@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.20  2003/07/29 18:21:16  stuart
+ * Restrict file descriptors to fit 8 bit field.
+ *
  * Revision 2.19  2003/04/05 04:40:59  stuart
  * Sanity check keydesc.  Initialize kp->k.k_len in isaddindex().
  *
@@ -124,6 +127,10 @@ static int server() {
     }
   }
 #endif
+  /* Limit file descriptors for this process.  We shortsightedly
+   * allocated only 8 bits for fd. */
+  isfdlimit(255);
+
   while (!stop && readFully(0,(char *)&r,sizeof r) == sizeof r) {
     int p1len = ldshort(r.p1);
     int p2len = ldshort(r.p2);
@@ -288,10 +295,6 @@ Usage:	isserve [-a] [-ftracedir] [tcpport]\n",stderr);
     perror("listen");
     return 1;
   }
-
-  /* Limit file descriptors for this process.  We shortsightedly
-   * allocated only 8 bits for fd. */
-  isfdlimit(255);
 
   /* accept incoming connections */
   for (;;) {
