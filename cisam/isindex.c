@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.3  1995/04/05  14:32:50  stuart
+ * support ISCLUSTER
+ *
  * Revision 1.2  1994/02/24  22:13:18  stuart
  * isfixindex
  *
@@ -41,12 +44,13 @@ int isindexinfo(int fd,struct keydesc *k,int idx) {
   return iserr(0);
 }
 
-static int isfix(struct cisam *r,struct cisam_key *p,const char *name) {
+static long isfix(struct cisam *r,struct cisam_key *p,const char *name,int e) {
   BTCB *c = btopen(name,BTRDWR + BTEXCL,btrlen(p->f));
   int rlen = btrlen(r->key.f);
   BTCB *b = r->key.btcb;
   char *buf;
   int rc;
+  long dups = 0;
   p->btcb = c;
   b->klen = 0;
   b->rlen = rlen;
@@ -55,12 +59,28 @@ static int isfix(struct cisam *r,struct cisam_key *p,const char *name) {
   while (rc == 0) {
     b2urec(r->key.f->f,buf,rlen,b->lbuf,b->rlen);
     u2brec(p->f->f,buf,rlen,c,p->klen);
-    btas(c,BTWRITE);		/* should be no dupkeys */
+    rc = btas(c,BTWRITE + e);
     b->klen = b->rlen;
+    if (rc) {
+      struct cisam_key *kp = &r->key;
+      int i;
+      for (i = 0; i < c->rlen; ++i)
+	fprintf(stderr,"%02X%c",c->lbuf[i],i + 1 < c->rlen ? ' ' : '\n');
+      ++dups;
+      for (;;) {
+	if (kp != p)
+	  (void)btas(b,BTDELETE + NOKEY); /* delete all other key records */
+	kp = kp->next;
+	if (kp == 0) break;
+	b = kp->btcb;
+	u2brec(kp->f->f,buf,rlen,b,kp->klen);
+      }
+      b = r->key.btcb;
+    }
     b->rlen = rlen;
     rc = btas(b,BTREADGT + NOKEY);
   }
-  return 0;
+  return dups;
 }
 
 int isaddindex(int fd,const struct keydesc *k) {
@@ -117,23 +137,23 @@ int isaddindex(int fd,const struct keydesc *k) {
   ldchar(c->lbuf,MAXKEYNAME,name = p->name);
   btasdir = r->dir;
   rc = btcreate(name,p->f,0666);		/* create new index file */
-  if (rc) {
-    (void)btas(c,BTDELETE);			/* couldn't create */
-    errpost(rc);
-  }
+  if (rc) errpost(rc);
   p->k = *k;
   if (kn.k_flags & ISDUPS)
     p->klen = btrlen(p->f);
   else
     p->klen = kn.k_len;
-  rc = isfix(r,p,name);
+  isfix(r,p,name,0);
+  rc = 0;
   enverr
     /* cleanup after error */
     if (p) {
+      r->key.next = p->next;
       (void)btclose(p->btcb);
       free((char *)p->f);
       free((char *)p);
     }
+    (void)btas(c,BTDELETE);			/* couldn't create */
     if (name) btkill(name);
   envend
   btasdir = savdir;
@@ -163,7 +183,8 @@ int isfixindex(int fd,const struct keydesc *k) {
   rc = btclear(p->name);
   if (rc == 0) {
     catch(rc)
-      rc = isfix(r,p,p->name);
+      /* record number of dups in isrecnum for caller */
+      isrecnum = isfix(r,p,p->name,DUPKEY);
     envend
   }
   btasdir = savdir;
