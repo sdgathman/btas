@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.6";
+static char what[] = "@(#)btas.c	1.7";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -48,7 +48,7 @@ int btas(b,opcode)
   if (b->root && btroot(b->root,b->mid)) return BTERMID;
   b->op = opcode;
   opcode &= 31;
-  if ( (btopflags[opcode] & b->flags) != btopflags[opcode]) return BTEROP;
+  if ( (btopflags[opcode] & b->flags) != btopflags[opcode]) return BTERMOD;
   switch (opcode) {
   case BTLINK: case BTCREATE:
     if ( (b->flags & BT_DIR) == 0) return BTERDIR;
@@ -139,7 +139,8 @@ int btas(b,opcode)
 	btget(1);
 	bp = btbuf(b->u.cache.node);
 	b->u.cache.slot = node_count(bp);
-	rc = blkcmp(rptr(bp->np,b->u.cache.slot)+1,b->lbuf,b->klen);
+	rc = blkcmp(rptr(bp->np,b->u.cache.slot)+1,
+		(unsigned char *)b->lbuf,b->klen);
       }
       else
 	rc = *rptr(bp->np,b->u.cache.slot);
