@@ -1,11 +1,10 @@
+/* $log$
+ */
 #include <btas.h>
 #include <errenv.h>
 #include <mem.h>
 
-int btstat(s,p)
-  const char *s;		/* file name to stat */
-  struct btstat *p;
-{
+int btstat(const char *s,struct btstat *p) {
   BTCB *dir = 0;
   int rc;
   catch(rc)
@@ -20,10 +19,7 @@ int btstat(s,p)
   return rc;
 }
 
-int btfstat(btcb,p)
-  BTCB *btcb;
-  struct btstat *p;
-{
+int btfstat(BTCB *btcb,struct btstat *p) {
   BTCB bt;
   int rc;
   bt.root = btcb->root;
