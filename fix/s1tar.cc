@@ -99,3 +99,12 @@ s1tar::~s1tar() {
   seqout(&hdr,8);
   close(fd);
 }
+
+/** hook to output files in #TAR format. */
+
+void s1tar::doroot(root_n *r) {
+  long recs = addfile(r->root,r->path);
+  if (recs >= 0) {
+    fprintf(stderr,"	%ld recs archived\n",recs);
+  }
+}
