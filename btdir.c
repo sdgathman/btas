@@ -1,4 +1,6 @@
-/*	Directory tables - partly finished, Author: Stuart D. Gathman */
+/*	Directory tables - partly finished, Author: Stuart D. Gathman
+ * $Log$
+ */
 #include <stdio.h>
 #ifndef __MSDOS__
 #include <pwd.h>
@@ -175,7 +177,7 @@ static void DirField_print(Column *c,enum Column_type what,char *buf) {
       Directory_stat(dir);
     switch (this->fld) {
     case dirName:
-      sprintf(buf,"%-32s",this->buf); break;
+      sprintf(buf,"%-32.32s",this->buf); break;
     case dirRoot:
       sprintf(buf,"%08X",dir->loc.node); break;
     case dirMid:
