@@ -1,5 +1,8 @@
 /* 
  * $Log$
+ * Revision 1.3  2003/02/25 04:43:57  stuart
+ * More functions and testing for cisam python module.
+ *
  * Revision 1.2  2003/02/23 03:09:37  stuart
  * More functions.
  *
@@ -79,6 +82,19 @@ _generic_return(cisam_Object *self,int val) {
   }
 }
 
+/* Throw an exception if a C-isam call failed, otherwise return PyNone. */
+static PyObject *
+_module_return(int val,const char *fname) {
+  if (val >= 0) {
+    Py_INCREF(Py_None);
+    return Py_None;
+  } else {
+    PyObject *e = Py_BuildValue("iss", iserrno,iserrstr(iserrno),fname);
+    if (e) PyErr_SetObject(CisamError, e);
+    return NULL;
+  }
+}
+
 static PyObject *
 _create_return(cisam_Object *self) {
   if (self->fd < 0) {
@@ -114,24 +130,41 @@ isamfile_New(const char *fname) {
 }
 
 static char cisam_erase__doc__[] =
-"erase(name) -> cisam\n\
-  Open a Cisam file.";
+"erase(name) -> None\n\
+  Erase a Cisam file.";
 
 static PyObject *
 cisam_erase(PyObject *module, PyObject *args) {
   char *fname;
   if (!PyArg_ParseTuple(args, "s:erase",&fname)) return NULL;
-  if (iserase(fname) < 0) {
-    PyObject *e = Py_BuildValue("iss",iserrno,iserrstr(iserrno),fname);
-    if (e) PyErr_SetObject(CisamError,e);
-    return NULL;
-  }
-  Py_INCREF(Py_None);
-  return Py_None;
+  return _module_return(iserase(fname),fname);
+}
+
+static char cisam_mkdir__doc__[] =
+"mkdir(name,mode) -> None\n\
+  Create a directory for C-isam files.";
+
+static PyObject *
+cisam_mkdir(PyObject *module, PyObject *args) {
+  char *fname;
+  int mode;
+  if (!PyArg_ParseTuple(args, "si:mkdir",&fname,&mode)) return NULL;
+  return _module_return(btmkdir(fname,mode),fname);
+}
+
+static char cisam_rmdir__doc__[] =
+"rmdir(name) -> None\n\
+  Remove a directory of C-isam files.  The directory must be empty.";
+
+static PyObject *
+cisam_rmdir(PyObject *module, PyObject *args) {
+  char *fname;
+  if (!PyArg_ParseTuple(args, "s:rmdir",&fname)) return NULL;
+  return _module_return(btrmdir(fname),fname);
 }
 
 static char cisam_open__doc__[] =
-"open(name,mode) -> cisam\n\
+"open(name,mode) -> isamfile\n\
   Open a Cisam file.";
 
 static PyObject *
@@ -528,6 +561,8 @@ static PyMethodDef cisam_methods[] = {
    { "isopen",            cisam_open,        METH_VARARGS, cisam_open__doc__},
    { "isbuild",           cisam_build,       METH_VARARGS, cisam_build__doc__},
    { "iserase",           cisam_erase,       METH_VARARGS, cisam_erase__doc__},
+   { "ismkdir",           cisam_mkdir,       METH_VARARGS, cisam_mkdir__doc__},
+   { "isrmdir",           cisam_rmdir,       METH_VARARGS, cisam_rmdir__doc__},
    { NULL, NULL }
 };
 
