@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.11  2003/07/29 18:41:41  stuart
+ * Check for fd avail before creating file in isbuildx.
+ *
  * Revision 1.10  2003/07/29 18:15:39  stuart
  * Auto expand file descriptor array.
  *
@@ -58,7 +61,8 @@ char *iscopyright  =
 	"Copyright 1988,1989,1990 Business Management Systems, Inc.";
 char *isserial	   = "000001";
 
-static int fdlimit = 0;
+static int fdlimit = 0;		/* limit max fd to this */
+static int startsearch = 0;	/* start looking for free fd here. */
 struct cisam **isamfdptr = 0;
 int isamfdsize = 0;
 
@@ -94,6 +98,9 @@ int isclose(int fd) {
   register struct cisam_key *kp;
   ip = ischkfd(fd);
   if (ip == 0) return iserr(ENOTOPEN);
+  isamfdptr[fd] = 0;
+  if (fd < startsearch)
+    startsearch = fd;
   rc = btclose(ip->idx);
   rc = btclose(ip->dir);
   for (kp = &ip->key; kp; ) {
@@ -107,7 +114,6 @@ int isclose(int fd) {
   }
   free(ip->min);
   free((char *)ip);
-  isamfdptr[fd] = 0;
   return iserr(rc);
 }
 
@@ -122,7 +128,6 @@ int isopen(const char *name,int mode) {
 }
 
 int isnewfd() {
-  int startsearch = 0;
   for (;;) {
     int fd;
     struct cisam **newptr;
@@ -133,11 +138,13 @@ int isnewfd() {
        maxfd = fdlimit;
     /* find free descriptor */
     for (fd = startsearch; fd < maxfd; ++fd) {
-      if (isamfdptr[fd] == 0) 
+      if (isamfdptr[fd] == 0) {
+	startsearch = fd;
 	return fd;
+      }
     }
-    if (fdlimit && maxfd) return iserr(ETOOMANY);
     startsearch = maxfd;
+    if (fdlimit && maxfd) return iserr(ETOOMANY);
     newsize = isamfdsize + MAXFILES;
     newptr = (struct cisam **)malloc(newsize * sizeof *newptr);
     if (newptr == 0) return iserr(ETOOMANY);
