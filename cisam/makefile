@@ -2,6 +2,9 @@
 L = ../lib/$Mlibbtas.a
 R = 100
 
+cisam.so:	cisammodule.c
+	python2 setup.py build
+
 all:	bttests bttestc btteste isserve istrace
 
 test:	bttestc btteste
