@@ -38,19 +38,22 @@ L=""
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make $L
 CC=gcc; export CC
 %ifos aix4.1
-ln lib/libbtas.a lib/PIClibbtas.a
+ln lib/libbtas.a lib/PIClibbtas.a ||:
+LDFLAGS="-s -L../lib -L/bms/lib -Wl,-blibpath:/bms/lib:/lib"
 %else
 M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" make -C lib
 M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" \
 	make -C cisam lib
+LDFLAGS="-s -L../lib -L/bms/lib"
 %endif
-mkdir lib/pic; cd lib/pic; ar xv ../PIClibbtas.a; cd -
+mkdir lib/pic ||:; cd lib/pic; ar xv ../PIClibbtas.a; cd -
 cd lib; gcc -shared -o libbtas.so pic/*.o -L/bms/lib -lbms; cd -
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C cisam isserve bcheck addindex indexinfo istrace
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C util
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C sql
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C fix
-LDFLAGS="-s -L../lib -L/bms/lib" CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include" make -C btbr
+CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include"
+LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C cisam isserve bcheck addindex indexinfo istrace
+LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C util
+LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C sql
+LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C fix
+LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C btbr
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -71,7 +74,7 @@ cp lib/libbtas.a $RPM_BUILD_ROOT/bms/lib
 cp lib/libbtas.so $RPM_BUILD_ROOT/bms/lib
 %endif
 mkdir -p $RPM_BUILD_ROOT/bms/include
-cp include/[a-z]*.h $RPM_BUILD_ROOT/bms/include
+cp include/[a-z]*.h cisam/isreq.h $RPM_BUILD_ROOT/bms/include
 mkdir -p $RPM_BUILD_ROOT/bms/fbin
 cp util/btcd.sh $RPM_BUILD_ROOT/bms/fbin/btcd
 mkdir -p $RPM_BUILD_ROOT/usr/share/btas
