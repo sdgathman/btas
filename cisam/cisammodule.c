@@ -1,5 +1,8 @@
 /* 
  * $Log$
+ * Revision 1.1  2003/02/22 00:50:19  stuart
+ * Python interface to cisam emulation.
+ *
  */
 
 #include <pthread.h>
@@ -56,15 +59,16 @@ iserrstr(int err) {
   return "Cisam error";
 }
 
-/* Throw an exception if an smfi call failed, otherwise return PyNone. */
+/* Throw an exception if a C-isam call failed, otherwise return PyNone. */
 static PyObject *
 _generic_return(cisam_Object *self,int val) {
+  self->isrecnum = isrecnum;
+  self->iserrno = iserrno;
   if (val == 0) {
     Py_INCREF(Py_None);
     return Py_None;
   } else {
     PyObject *e;
-    self->iserrno = iserrno;
     e = Py_BuildValue("isO", iserrno,iserrstr(iserrno),self->filename);
     if (e) PyErr_SetObject(CisamError, e);
     return NULL;
@@ -163,16 +167,81 @@ isbuildfp(const char *fname,struct keydesc *k,int mode,
   return isbuildx(fname,pos,k,mode,f);
 }
 
-static void
-ldkeydesc(struct keydesc *k,const char *p) {
-  int i;
-  k->k_flags = ldshort(p), p += 2;
-  k->k_nparts = ldshort(p), p += 2;
-  for (i = 0; i < k->k_nparts; ++i) {
-    k->k_part[i].kp_start = ldshort(p), p += 2;
-    k->k_part[i].kp_leng = ldshort(p), p += 2;
-    k->k_part[i].kp_type = ldshort(p), p += 2;
+/** Convert a keydesc represented as a python tuple:
+     (flag,[(pos,len,type),...])
+ */
+static int convertKeydesc(PyObject *kd,void *p) {
+  int rc = 0;
+  struct keydesc *k = p;
+  PyObject *t = PySequence_Fast(kd,"Invalid keydesc");
+  if (t == NULL) return 0;
+  if (PySequence_Fast_GET_SIZE(t) >= 2) {
+    PyObject *flg = PySequence_Fast_GET_ITEM(t,0);
+    PyObject *kpart = PySequence_Fast_GET_ITEM(t,1);
+    if (PyInt_Check(flg)
+      && (kpart = PySequence_Fast(kpart,"Invalid keydesc"))) {
+      int n = PySequence_Fast_GET_SIZE(kpart);
+      if (n <= NPARTS) {
+	int i;
+	k->k_flags = (short)PyInt_AS_LONG(flg);
+	k->k_nparts = (short)n;
+	rc = 1;
+	for (i = 0; i < n; ++i) {
+	  PyObject *kp = PySequence_Fast_GET_ITEM(kpart,i);
+	  kp = PySequence_Tuple(kp);
+	  if (kp) {
+	    struct keypart *ckp = &k->k_part[i];
+	    ckp->kp_type = 0;
+	    if (!PyArg_ParseTuple(kp,"hh|h",
+		&ckp->kp_start,&ckp->kp_leng,&ckp->kp_type)) rc = 0;
+	    Py_DECREF(kp);
+	  }
+	  else
+	    rc = 0;
+	}
+      }
+      Py_DECREF(kpart);
+    }
   }
+  else
+    PyErr_SetString(CisamError,"Invalid keydesc");
+  Py_DECREF(t);
+  return rc;
+}
+
+static PyObject *
+Py_FromKeydesc(const struct keydesc *k) {
+  PyObject *kd = NULL;
+  PyObject *kpart = PyTuple_New(k->k_nparts);
+  PyObject *kflags = NULL;
+  PyObject *klen = NULL;
+  int ok = 1;
+  int i;
+  if (kpart == NULL) return NULL;
+  for (i = 0; i < k->k_nparts; ++i) {
+    const struct keypart *kp = &k->k_part[i];
+    PyObject *p = Py_BuildValue("iii",kp->kp_start,kp->kp_leng,kp->kp_type);
+    if (!p) {
+      ok = 0;
+      Py_INCREF(Py_None);
+      p = Py_None;
+    }
+    PyTuple_SET_ITEM(kpart,i,p);
+  }
+  kflags = PyInt_FromLong(k->k_flags);
+  klen = PyInt_FromLong(k->k_len);
+  if (ok && kflags && klen)
+    kd = PyTuple_New(3);
+  if (kd == NULL) {
+    Py_XDECREF(kflags);
+    Py_XDECREF(klen);
+    Py_DECREF(kpart);
+    return NULL;
+  }
+  PyTuple_SET_ITEM(kd,0,kflags);
+  PyTuple_SET_ITEM(kd,1,kpart);
+  PyTuple_SET_ITEM(kd,2,klen);
+  return kd;
 }
 
 static char cisam_build__doc__[] =
@@ -182,21 +251,14 @@ static char cisam_build__doc__[] =
 static PyObject *
 cisam_build(PyObject *module, PyObject *args) {
   char *fname;
-  char *kdbuf;
-  int kdlen;
   int mode;
   unsigned char *fpbuf;
   int fplen;
   cisam_Object *self;
   struct keydesc kd;
-  if (!PyArg_ParseTuple(args, "ss#is#:open",
-	&fname,&kdbuf,&kdlen,&mode,&fpbuf,&fplen))
+  if (!PyArg_ParseTuple(args, "sO&is#:open",
+	&fname,convertKeydesc,(void *)&kd,&mode,&fpbuf,&fplen))
     return NULL;
-  if (kdlen < 4 + ldshort(kdbuf + 2) * 6) {
-    PyErr_SetString(CisamError,"invalid keydesc");
-    return NULL;
-  }
-  ldkeydesc(&kd,kdbuf);
   self = isamfile_New(fname);
   if (!self) return NULL;
   self->fd = isbuildfp(fname,&kd,mode,fpbuf,fplen);
@@ -217,7 +279,7 @@ cisam_close(PyObject *isamfile, PyObject *args) {
 }
 
 static char cisam_read__doc__[] =
-"read(key,mode) -> buf\n\
+"read(mode) -> None\n\
   Read a logical record.  Mode is one of:\n\
   ISFIRST,ISLAST,ISNEXT,ISPREV,ISCURR,ISGREAT,ISLESS,ISGTEQ,ISLTEQ";
 
@@ -226,7 +288,7 @@ cisam_read(PyObject *isamfile, PyObject *args) {
   cisam_Object *self = (cisam_Object *)isamfile;
   int mode;
   int rc;
-  char *buf;
+  void *buf;
   int len;
   if (!PyArg_ParseTuple(args, "i:read",&mode)) return NULL;
   if (PyObject_AsWriteBuffer(self->buf,&buf,&len)) return NULL;
@@ -234,8 +296,119 @@ cisam_read(PyObject *isamfile, PyObject *args) {
   return _generic_return(self,rc);
 }
 
+static char cisam_write__doc__[] =
+"write(savekey) -> None\n\
+  Write a new record.  If savekey is false, make new record current.";
+
+static PyObject *
+cisam_write(PyObject *isamfile, PyObject *args) {
+  cisam_Object *self = (cisam_Object *)isamfile;
+  PyObject *flg;
+  const void *buf;
+  int len;
+  int rc;
+  if (!PyArg_ParseTuple(args, "O:write",&flg)) return NULL;
+  if (PyObject_AsReadBuffer(self->buf,&buf,&len)) return NULL;
+  if (PyObject_IsTrue(flg))
+    rc = iswrite(self->fd,buf);
+  else
+    rc = iswrcurr(self->fd,buf);
+  return _generic_return(self,rc);
+}
+
+static char cisam_rewrite__doc__[] =
+"rewrite(recnum) -> None	rewrite by recnum\n\
+rewrite(None) -> None	rewrite current record\n\
+rewrite() -> None	rewrite by primary key\n\
+  Rewrite a record.";
+
+static PyObject *
+cisam_rewrite(PyObject *isamfile, PyObject *args) {
+  cisam_Object *self = (cisam_Object *)isamfile;
+  PyObject *flg = 0;
+  const void *buf;
+  int len;
+  int rc;
+  if (!PyArg_ParseTuple(args, "|O:write",&flg)) return NULL;
+  if (PyObject_AsReadBuffer(self->buf,&buf,&len)) return NULL;
+  if (flg == 0)
+    rc = isrewrite(self->fd,buf);
+  else if (flg == Py_None)
+    rc = isrewcurr(self->fd,buf);
+  else 
+    rc = isrewrec(self->fd,PyInt_AsLong(flg),buf);
+  return _generic_return(self,rc);
+}
+
+static char cisam_delete__doc__[] =
+"delete(recnum) -> None	delete by recnum\n\
+delete(None) -> None	delete current record\n\
+delete() -> None	delete by primary key\n\
+  Rewrite a record.";
+
+static PyObject *
+cisam_delete(PyObject *isamfile, PyObject *args) {
+  cisam_Object *self = (cisam_Object *)isamfile;
+  PyObject *flg = 0;
+  int rc;
+  if (!PyArg_ParseTuple(args, "|O:delete",&flg)) return NULL;
+  if (flg == 0) {
+    const void *buf;
+    int len;
+    if (PyObject_AsReadBuffer(self->buf,&buf,&len)) return NULL;
+    rc = isdelete(self->fd,buf);
+  }
+  else if (flg == Py_None)
+    rc = isdelcurr(self->fd);
+  else 
+    rc = isdelrec(self->fd,PyInt_AsLong(flg));
+  return _generic_return(self,rc);
+}
+
+static char cisam_getfld__doc__[] =
+"getfld(pos,len) -> bufptr\n\
+  Return a pointer to a fixed length field in the record buffer.";
+
+static PyObject *
+cisam_getfld(PyObject *isamfile, PyObject *args) {
+  cisam_Object *self = (cisam_Object *)isamfile;
+  int pos;
+  int len;
+  if (!PyArg_ParseTuple(args, "ii:getfld",&pos,&len)) return NULL;
+  return PyBuffer_FromReadWriteObject(self->buf,pos,len);
+}
+
+static char cisam_indexinfo__doc__[] =
+"indexinfo(idx) -> keydesc\n\
+indexinfo(0) -> dictinfo\n\
+  Return keydesc or dictinfo.";
+
+static PyObject *
+cisam_indexinfo(PyObject *isamfile, PyObject *args) {
+  cisam_Object *self = (cisam_Object *)isamfile;
+  int idx;
+  struct keydesc kd;
+  int rc;
+  if (!PyArg_ParseTuple(args, "i:indexinfo",&idx)) return NULL;
+  if (idx == 0) {
+    struct dictinfo dict;
+    rc = isindexinfo(self->fd,(struct keydesc *)&dict,0);
+    if (rc < 0) return _generic_return(self,rc);
+    return Py_BuildValue("iiil",
+	dict.di_nkeys,dict.di_recsize,dict.di_idxsize,dict.di_nrecords);
+  }
+  rc = isindexinfo(self->fd,&kd,idx);
+  if (rc < 0) return _generic_return(self,rc);
+  return Py_FromKeydesc(&kd);
+}
+
 static PyMethodDef isamfile_methods[] = {
   { "read",    cisam_read,    METH_VARARGS, cisam_read__doc__},
+  { "write",   cisam_write,   METH_VARARGS, cisam_write__doc__},
+  { "rewrite", cisam_rewrite, METH_VARARGS, cisam_rewrite__doc__},
+  { "delete",  cisam_delete,  METH_VARARGS, cisam_delete__doc__},
+  { "getfld",  cisam_getfld,  METH_VARARGS, cisam_getfld__doc__},
+  { "indexinfo",cisam_indexinfo,METH_VARARGS, cisam_indexinfo__doc__},
   { "close",   cisam_close,   METH_VARARGS, cisam_close__doc__},
   { NULL, NULL }
 };
@@ -252,13 +425,13 @@ cisam_getattr(PyObject *isamfile, char *name) {
     Py_INCREF(self->filename);
     return self->filename;
   }
-  if (strcmp(name,"indexinfo") == 0) {
+  if (strcmp(name,"recnum") == 0) {
     cisam_Object *self = (cisam_Object *)isamfile;
-    struct dictinfo dict;
-    int rc = isindexinfo(self->fd,(struct keydesc *)&dict,0);
-    if (rc < 0) return _generic_return(self,rc);
-    return Py_BuildValue("iiil",
-	dict.di_nkeys,dict.di_recsize,dict.di_idxsize,dict.di_nrecords);
+    return Py_BuildValue("i",self->isrecnum);
+  }
+  if (strcmp(name,"iserrno") == 0) {
+    cisam_Object *self = (cisam_Object *)isamfile;
+    return Py_BuildValue("i",self->iserrno);
   }
   if (strcmp(name,"rlen") == 0) {
     cisam_Object *self = (cisam_Object *)isamfile;
@@ -268,9 +441,9 @@ cisam_getattr(PyObject *isamfile, char *name) {
 }
 
 static PyMethodDef cisam_methods[] = {
-   { "open",            cisam_open,        METH_VARARGS, cisam_open__doc__},
-   { "build",           cisam_build,       METH_VARARGS, cisam_build__doc__},
-   { "erase",           cisam_erase,       METH_VARARGS, cisam_erase__doc__},
+   { "isopen",            cisam_open,        METH_VARARGS, cisam_open__doc__},
+   { "isbuild",           cisam_build,       METH_VARARGS, cisam_build__doc__},
+   { "iserase",           cisam_erase,       METH_VARARGS, cisam_erase__doc__},
    { NULL, NULL }
 };
 
