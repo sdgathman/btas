@@ -12,7 +12,7 @@
 	     BTOPEN and BTCREATE
 */
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btas.c	1.11";
+static char what[] = "@(#)btas.c	1.12";
 #endif
 
 #include "btbuf.h"		/* buffer, btree operations */
@@ -82,7 +82,7 @@ int btas(b,opcode)
     return 0;
   case BTREPLACE: case BTREWRITE:
     bp = uniquekey(b);
-    if (btspace()) return BTERFULL;
+    btspace();		/* check for enough free space */
     newcnt = 0;
     if (b->flags & BT_DIR) {
       if (b->rlen > maxrec - sizeof (t_block))
@@ -101,10 +101,8 @@ int btas(b,opcode)
       break;
     case BTREWRITE:
       rlen = node_size(bp->np,sp->slot);
-      if (rlen > b->rlen) {
-	node_dup = b->rlen;
-	node_copy(bp,sp->slot,b->lbuf,rlen);
-      }
+      if (rlen > b->rlen)
+	node_copy(bp,sp->slot,b->lbuf,rlen,b->rlen);
       if (node_replace(bp,sp->slot,b->lbuf,b->rlen)) {
 	--sp->slot;
 	btadd(b->lbuf,b->rlen);
@@ -169,8 +167,8 @@ int btas(b,opcode)
 	btget(1);
 	bp = btbuf(b->u.cache.node);
       }
-      node_dup = node_comp(bp,++b->u.cache.slot,b->lbuf,b->klen);
-      if (node_dup < b->klen) break;
+      rc = node_comp(bp,++b->u.cache.slot,b->lbuf,b->klen);
+      if (rc < b->klen) break;
       bp = bttrace(b->root,b->lbuf,b->klen,1);
       b->u.cache = *sp;
     }
@@ -184,7 +182,6 @@ int btas(b,opcode)
       btget(1);
       bp = btbuf(b->u.cache.node);
       b->u.cache.slot = node_count(bp);
-      node_dup = 0;
     }
     break;
   case BTREADLE:
@@ -206,7 +203,11 @@ int btas(b,opcode)
     return openfile(b);		/* check permissions */
   case BTCLOSE:
     closefile(b);
+#ifdef __MSDOS__
+    return btflush();
+#else
     return 0;
+#endif
   case BTUMOUNT:
     return btunjoin(b);	/* unmount filesystem */
   case BTMOUNT:
@@ -257,11 +258,10 @@ int btas(b,opcode)
     return 0;
   /* BTUNLINK is done by setting b->flags at present */
   case BTPSTAT:
-    if (b->rlen >= sizeof stat) {
-      memcpy(b->lbuf,(PTR)&stat,b->rlen = sizeof stat);
-      return 0;
-    }
-    return BTERKLEN;
+    if (b->rlen >= sizeof stat)
+      b->rlen = sizeof stat;
+    memcpy(b->lbuf,(PTR)&stat,b->rlen);
+    return 0;
   default:
     return BTEROP;	/* invalid operation */
   }
@@ -269,7 +269,9 @@ int btas(b,opcode)
   /* Successful read operations end up here */
 
   b->rlen = node_size(bp->np,b->u.cache.slot);
-  node_copy(bp,b->u.cache.slot,b->lbuf,b->rlen);
+  /* FIXME: keep track of node_dup above where feasible. */
+  /* too many places too check whether node_dup is accurate, use 0 for now */
+  node_copy(bp,b->u.cache.slot,b->lbuf,b->rlen,0);
   if ((b->flags & BT_DIR) && b->rlen >= PTRLEN)
     b->rlen -= PTRLEN;	/* hidden root, but user can look if he wants */
   return 0;
