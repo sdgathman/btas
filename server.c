@@ -4,6 +4,10 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.9  1999/05/17  21:41:07  stuart
+ * Support startup script
+ * don't log symlink notifications
+ *
  * Revision 1.8  1997/06/23  15:30:35  stuart
  * use btserve object
  *
@@ -32,12 +36,15 @@ extern "C" {
 #include <stdio.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <signal.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <errno.h>
+#ifdef _AIX
 #include <sys/lock.h>
+#endif
 #include "btserve.h"
 #include "alarm.h"
 
@@ -54,7 +61,7 @@ extern time_t time(time_t *);
 extern const char version[];
 
 static unsigned char btflags[32] = {
-  0, 0, 8, 0, 0, 0, 0,0, 0, 0, 0,
+  0, 0, 8, 0, 0, 0, 0,0, 0, 0, 8,
   DUPKEY>>8, NOKEY>>8, NOKEY>>8, LOCK>>8, 8, 0, 0, 8,0,0,0,0,8, NOKEY>>8
 };
 
@@ -223,7 +230,9 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
 
   /* process requests */
 
-  plock(DATLOCK);
+#ifdef DATLOCK
+  plock(DATLOCK);	/* lock data segment in memory */
+#endif
 
   Alarm alarm;
 
@@ -306,11 +315,13 @@ Usage:	btserve [-b blksize] [-s cachesize] [-d] [-e] [-f] [filesys ...]\n\
   }
   msgctl(btasreq,IPC_RMID,&buf);
   msgctl(btasres,IPC_RMID,&buf);
+  time(&btserve::curtime);
+  const char *s = ctime(&btserve::curtime);
   if (rc == EIDRM) {
-    fputs("BTAS/X shutdown: btstop\n",stderr);
+    fprintf(stderr,"BTAS/X shutdown: btstop at %s",s);
     return 0;
   }
   if (rc == EINTR) return 0;
-  fprintf(stderr,"BTAS/2 system error %d\n",rc);
+  fprintf(stderr,"BTAS/2 system error %d at %s\n",rc,s);
   return 1;
 }
