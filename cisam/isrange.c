@@ -54,6 +54,7 @@ isvwsel(struct cisam_key *kp,const char *min,const char *max,
     for (i = 0;;i++) {		/* check each key part */
       if (i >= key->k_nparts) return rc;
       offset = key->k_part[i].kp_start;
+      if (offset >= rlen) continue;
       size = key->k_part[i].kp_leng;
       if (blkcmpr(max+offset,nxt+offset,size) < 0) {	/* > max value */
 	int j;
@@ -67,7 +68,8 @@ isvwsel(struct cisam_key *kp,const char *min,const char *max,
 	b2urec(kp->f->f,nxt,rlen,b->lbuf,b->rlen);
 	break;
       }
-      if (blkcmpr(min+offset,nxt+offset,size) > 0) break;
+      if (blkcmpr(min+offset,nxt+offset,size) > 0)	/* < min value */
+	break;
     }
     while (i < key->k_nparts) {
       offset = key->k_part[i].kp_start;
@@ -94,6 +96,7 @@ isvwrev(struct cisam_key *kp,const char *min,const char *max,
     for (i=0;;i++) {
       if (i >= key->k_nparts) return rc;
       offset = key->k_part[i].kp_start;
+      if (offset >= rlen) continue;
       size = key->k_part[i].kp_leng;
       if (blkcmpr(nxt+offset,min+offset,size) < 0) {
 	int j;
