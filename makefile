@@ -31,7 +31,7 @@ btinit:	btinit.c btbuf.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $< $(BMSLIB) -o btinit
 
 tar:
-	rm $(VERS); ln -s . $(VERS)
+	rm btas-$(VERS); ln -s . btas-$(VERS)
 	for dir in . sql util lib cisam include fix; do \
 	   path=btas-$(VERS)/$$dir; \
     ls $$path/*.[chy] $$path/*.cc $$path/makefile $$path/*.spec $$path/*.sh \
