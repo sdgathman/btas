@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.4  1995/04/07  18:46:23  stuart
+ * repair DUPKEYs in isfixindex
+ *
  * Revision 1.3  1995/04/05  14:32:50  stuart
  * support ISCLUSTER
  *
@@ -93,8 +96,9 @@ int isaddindex(int fd,const struct keydesc *k) {
   char *name;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
-  c = r->idx;		/* we don't auto-create .idx yet */
-  if ( r->f == 0 || c == 0) return iserr(ENOTEXCL);
+  if ((r->key.btcb->flags & BTEXCL) == 0)
+    return iserr(ENOTEXCL);
+  c = r->idx;
   if (k->k_flags & ISCLUSTER) return iserr(EPRIMKEY);
   kn = *k;
   fp = isconvkey(r->key.f,&kn,1);	/* compute field table */
@@ -111,6 +115,16 @@ int isaddindex(int fd,const struct keydesc *k) {
   }
 
   catch(rc)
+  btasdir = r->dir;
+  if (!c) {	/* auto create .idx */
+    char ctl_name[MAXKEYNAME + 1];
+    strcpy(ctl_name,r->key.name);
+    isbuildx(ctl_name,isrlen(r->key.f),&r->key.k,0,0);
+    strcat(ctl_name,CTL_EXT);
+    c = btopen(ctl_name,BTRDWR,sizeof (struct fisam));
+    r->f = ldflds((struct btflds *)0, c->lbuf, c->rlen);
+    r->idx = c;
+  }
   name = 0;
   c->klen = 0; c->rlen = sizeof (struct fisam);
   (void)btas(c,BTREADLE);		/* get last name */
@@ -134,16 +148,16 @@ int isaddindex(int fd,const struct keydesc *k) {
   p->next = r->key.next;
   r->key.next = p;
   p->f = fp;
-  ldchar(c->lbuf,MAXKEYNAME,name = p->name);
-  btasdir = r->dir;
-  rc = btcreate(name,p->f,0666);		/* create new index file */
+  ldchar(c->lbuf,MAXKEYNAME,p->name);
+  rc = btcreate(p->name,p->f,0666);		/* create new index file */
   if (rc) errpost(rc);
+  name = p->name;	/* tell enverr to delete key file on error */
   p->k = *k;
   if (kn.k_flags & ISDUPS)
     p->klen = btrlen(p->f);
   else
     p->klen = kn.k_len;
-  isfix(r,p,name,0);
+  isfix(r,p,name,0);	/* populate the new key file, abort on DUPKEY */
   rc = 0;
   enverr
     /* cleanup after error */
@@ -153,10 +167,13 @@ int isaddindex(int fd,const struct keydesc *k) {
       free((char *)p->f);
       free((char *)p);
     }
-    (void)btas(c,BTDELETE);			/* couldn't create */
+    if (c && c->op == 0)
+      (void)btas(c,BTDELETE);	/* delete rec in .idx */
     if (name) btkill(name);
   envend
   btasdir = savdir;
+  if (r->f == 0 || c == 0)
+    return iserr(ENOTEXCL);
   return ismaperr(rc);
 }
 
