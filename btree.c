@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__MSDOS__)
-static char what[] = "@(#)btree.c	1.21";
+static char what[] = "@(#)btree.c	1.22";
 #endif
 
 #include "btbuf.h"
@@ -228,7 +228,7 @@ void btadd(urec,ulen)
 BLOCK *bttrace(root,key,klen,dir)
   t_block root;
   char *key;
-  short klen,dir;
+  int klen,dir;
 {
   register BLOCK *bp;
   register short pos;
@@ -312,9 +312,7 @@ void btdel()
       /* This is messy.  We want to move data from np to bp, but we want
 	 to delete node bp since there is no rbro for stem nodes.  Our
 	 solution is to switch block ids. */
-      blk = np->blk;
-      np->blk = bp->blk;
-      bp->blk = blk;
+      swapbuf(np,bp);
       if ((np->flags & BLK_STEM) == 0) {	/* connect right pointers */
 	bp->buf.l.rbro = np->buf.l.rbro;
 	if (bp->buf.l.lbro) {
@@ -324,7 +322,7 @@ void btdel()
 	  ap->flags |= BLK_MOD;
 	}
       }
-      bp->flags |= BLK_MOD;
+      bp->flags |= BLK_MOD | BLK_KEY;
       btfree(np);
       if (--sp->slot > 0)
         node_stptr(dp,sp->slot,&bp->blk);
@@ -336,7 +334,7 @@ void btdel()
       if (nfree < bfree || bcnt < 2) {
 	totfree += node_free(np->np,0) - bfree;
 	for (i = 0; node_free(np->np,i) > totfree; ++i);
-	cnt = node_move(np,bp,1,bcnt,i+1);
+	cnt = node_move(np,bp,1,bcnt,i);
 	node_delete(np,1,cnt);
       }
       else {
@@ -345,8 +343,8 @@ void btdel()
 	assert(cnt == bcnt - i);
 	node_delete(bp,i+1,cnt);
       }
-      ulen = getkey(bp,np,keyrec,&np->blk);
       assert(node_count(bp) && node_count(np));
+      ulen = getkey(bp,np,keyrec,&np->blk);
       if (node_replace(dp,sp->slot,keyrec,ulen)) {
 	--sp->slot;
 	btadd(keyrec,ulen);
@@ -365,9 +363,9 @@ void btdel()
 
 static int insert(bp,np,idx,urec,ulen,lp)
   BLOCK *bp,*np;
-  short idx;
+  int idx;
   char *urec;
-  short ulen;
+  int ulen;
   struct btlevel *lp;
 {
   int rc;
@@ -398,14 +396,13 @@ static int getkey(bp,np,urec,blkp)
   t_block *blkp;
 {
   register int ulen,i;
-  node_dup = 0;
   i = node_count(bp);
   if (np->flags & BLK_STEM) {
     assert(i>1);		/* use & remove implied key for stem nodes */
     ulen = node_size(bp->np,i) - sizeof *blkp;
     node_ldptr(bp,i,&np->buf.s.son);
     np->flags |= BLK_MOD;
-    node_copy(bp,i,urec,ulen);
+    node_copy(bp,i,urec,ulen,0);
     node_delete(bp,i,1);
   }
   else {			/* construct unique key for leaf nodes */
@@ -414,7 +411,7 @@ static int getkey(bp,np,urec,blkp)
     ulen = node_size(bp->np,i);
     if (ulen > size) ulen = size;
     if (ulen > MAXKEY) ulen = MAXKEY;
-    node_copy(np,1,urec,ulen);
+    node_copy(np,1,urec,ulen,0);
     p = rptr(bp->np,i) + 1;
     ulen = blkcmp(p,(unsigned char *)urec,ulen);
     if (ulen < size) {
