@@ -1,12 +1,12 @@
 OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
-	btfile.o btkey.o assert.o server.o btdev.o fsdev.o alarm.o
+	btfile.o btkey.o assert.o server.o btdev.o fsdev.o alarm.o btserve.o
 
 L = /bms/lib/$Mlibbtas.a
 CC=g++
 CXXFLAGS=$(CFLAGS)
 
 .DEFAULT:
-	co -rR2V02 $(<:.o=.c)
+	co -rR2V05 $(<:.o=.c)
 
 make:	btserve btstop btinit $L
 
