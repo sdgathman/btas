@@ -1,6 +1,8 @@
 /*
 	Dump records using fcb from directory record
-*/
+ *
+ * $Log$
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -13,10 +15,10 @@
 #include "btutil.h"
 #include "ebcdic.h"
 
-int getdata(/**/ char *, char *, struct btfrec *, int /**/);
-void dumprec(/**/ char *, int, struct btfrec * /**/);
-void hexrec(/**/ const char *, int, int /**/);
-char *hexs2bin(/**/ const char *,char *,int /**/);
+int getdata(const char *, char *, struct btfrec *, int);
+void dumprec(char *, int, struct btfrec *);
+void hexrec(const char *, int, int);
+char *hexs2bin(const char *,char *,int);
 
 #define ERR ' '		/* 0177, translate untranslatable chars to this */
 
@@ -24,11 +26,7 @@ static char hextbl[] = "0123456789ABCDEF";
 
 /* convert hex string to binary, len is max length to convert */
 /* if len is negative then buffer is not padded with trailing zero bytes */
-char *hexs2bin(s,buf,len)
-  const char *s;
-  char *buf;
-  int len;
-{
+char *hexs2bin(const char *s,char *buf,int len) {
   int pad = 1;
   if (len < 0) { len = 0-len; pad = 0; }
   for (;len && *s;--len) {
@@ -46,11 +44,7 @@ char *hexs2bin(s,buf,len)
   return buf;
 }
 
-void dumprec(buf,blen,fcb)
-  char *buf;
-  int blen;
-  struct btfrec *fcb;
-{
+void dumprec(char *buf,int blen,struct btfrec *fcb) {
   int pos = 0;		/* current print column */
   while (fcb->type && blen > 0) {
     int len = 0, i;
@@ -102,7 +96,7 @@ void dumprec(buf,blen,fcb)
       {
 	long t = ldlong(buf);
 	struct tm *p = localtime(&t);
-	printf("%2d/%02d/%d %d:%02d:%02d",p->tm_mon+1,p->tm_mday,
+	printf("%2d/%02d/%d %2d:%02d:%02d",p->tm_mon+1,p->tm_mday,
 	       p->tm_year+1900,p->tm_hour,p->tm_min,p->tm_sec);
 	pos += 17;
         buf += fcb->len;
@@ -148,11 +142,7 @@ void dumprec(buf,blen,fcb)
   (void)putchar('\n');
 }
 
-void hexrec(buf,len,flag)
-  const char *buf;
-  int len;
-  int flag;	/* set to 1 for ebcdic translation */
-{
+void hexrec(const char *buf,int len,int flag) {
   register int i,j;
   for (i = 0; i < len; i += 16) {
     for (j = i; j-i < 16 && j < len; ++j) {
@@ -179,8 +169,7 @@ void hexrec(buf,len,flag)
   putchar('\n');
 }
 
-int dump()
-{
+int dump() {
   char *s = readtext("Filename to dump: ");
   BTCB *dtf;
   struct btflds fcb;
@@ -254,12 +243,7 @@ int dump()
   return 0;
 }
 
-int getdata(s,obuf,f,n)
-  char *s;		/* conditional prompt */
-  char *obuf;		/* output buffer */
-  struct btfrec *f;	/* format of data */
-  int n;		/* number of fields to input */
-{
+int getdata(const char *s,char *obuf,struct btfrec *f,int n) {
   register char *buf = obuf;
   char prompt[40];
   char *p,*mesg = 0,*ftype;
@@ -325,8 +309,7 @@ int getdata(s,obuf,f,n)
   return buf - obuf;
 }
 
-int patch()
-{
+int patch() {
   char *s = readtext("Filename to patch: ");
   BTCB *dtf;
   struct btflds fcb;
