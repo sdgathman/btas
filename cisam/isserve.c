@@ -1,4 +1,4 @@
-static char id[] = "@(#)isserve.c 1.3 2/9/94";
+static char id[] = "@(#)isserve.c 1.4 2/9/94";
 
 #include <isam.h>
 #include "isreq.h"
@@ -19,12 +19,12 @@ main()
 
   while (read(0,&r,sizeof r) == sizeof r) {
     if (r.p1) {
-      while (r.p1 > MAXRLEN) { read(0,p1,MAXRLEN); r.p1 -= MAXRLEN; }
+      while (r.p1 > MAXRLEN) { read(0,p1.buf,MAXRLEN); r.p1 -= MAXRLEN; }
       read(0,p1.buf,r.p1);
       p1.buf[r.p1]=0;
     }
     if (r.p2) {
-      while (r.p2 > MAXNAME) { read(0,p2,MAXNAME); r.p2 -= MAXNAME; }
+      while (r.p2 > MAXNAME) { read(0,p2.buf,MAXNAME); r.p2 -= MAXNAME; }
       read(0,p2.buf,r.p2);
       p2.buf[r.p2]=0;
     }
@@ -49,7 +49,7 @@ main()
 	res.res = isdelindex(r.fd,&p1.desc); break;
     case ISSTART:
 	res.p1 = r.p1;
-	res.res = isstart(r.fd,p2.desc,r.len,p1.buf,r.mode); break;
+	res.res = isstart(r.fd,&p2.desc,r.len,p1.buf,r.mode); break;
     case ISREAD:
 	res.p1 = r.p1;
 	res.res = isread(r.fd,p1.buf,r.mode); break;
