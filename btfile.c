@@ -51,7 +51,8 @@ static char what[] = "%W%";
 	via the pathname is unreachable via BTOPEN while the join is in effect.
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
-*/
+ * $Log$
+ */
 
 #include <string.h>
 #include "btbuf.h"
@@ -71,9 +72,7 @@ struct btjoin {
 static struct btjoin join[MAXDEV];	/* simple sequential search */
 static int joincnt = 0;
 
-int btjoin(b)
-  BTCB *b;		/* root to join to */
-{
+int btjoin(BTCB *b) {
   struct btjoin *p;
   int mid;
   if (joincnt >= MAXDEV) return BTERJOIN;
@@ -88,9 +87,7 @@ int btjoin(b)
   return 0;
 }
 
-int btunjoin(b)
-  BTCB *b;		/* substituted root */
-{
+int btunjoin(BTCB *b) {
   register int i,mid = b->mid;
   closefile(b);
   for (i = 0; i < joincnt; ++i)
@@ -108,13 +105,7 @@ int btunjoin(b)
   return BTERJOIN;	/* not a mounted filesystem */
 }
 
-static int check_perm(/**/ struct btperm *, struct btperm *, int /**/);
-
-static int check_perm(st,ut,mode)
-  struct btperm *st;		/* perm structure for file */
-  struct btperm *ut;		/* requested user,group */
-  short mode;			/* requested permission */
-{
+static int check_perm(struct btperm *st,struct btperm *ut,short mode) {
   mode &= 0777;
   if (ut->user == 0) return 1;		/* check for super user */
   if (ut->user == st->user) {		/* check owner perms */
@@ -309,22 +300,22 @@ int delfile(BTCB *b,t_block root) {
 }
 
 t_block linkfile(BTCB *b) {
-  BLOCK *bp;
   if (b->rlen > maxrec - sizeof b->root) btpost(BTERKLEN);
-  if (b->u.cache.node == 0)
-    return 0L;		/* symbolic link added */
-  btget(2);
-  bp = btread(b->u.cache.node);
-  if (bp->buf.r.root != b->u.cache.node) btpost(BTERROOT);
+  if (b->u.cache.node) {
+    BLOCK *bp;
+    btget(2);
+    bp = btread(b->u.cache.node);
+    if (bp->buf.r.root != b->u.cache.node) btpost(BTERROOT);
 #ifdef SAFELINK
-  if (bp->buf.r.stat.level > btbuf(b->root)->buf.r.stat.level)
-    btpost(BTERLINK);
+    if (bp->buf.r.stat.level > btbuf(b->root)->buf.r.stat.level)
+      btpost(BTERLINK);
 #endif
-  if (++bp->buf.r.stat.links <= 0) {
-    --bp->buf.r.stat.links;
-    btpost(BTERLINK);
+    if (++bp->buf.r.stat.links <= 0) {
+      --bp->buf.r.stat.links;
+      btpost(BTERLINK);
+    }
+    bp->flags |= BLK_MOD;
   }
-  b->rlen += stptr(bp->buf.r.root,b->lbuf + b->rlen);
-  bp->flags |= BLK_MOD;
-  return bp->buf.r.root;
+  b->rlen += stptr(b->u.cache.node,b->lbuf + b->rlen);
+  return b->u.cache.node;
 }
