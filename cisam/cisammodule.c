@@ -1,5 +1,8 @@
 /* 
  * $Log$
+ * Revision 1.5  2003/02/27 04:27:50  stuart
+ * Use generic attribute table.
+ *
  * Revision 1.4  2003/02/25 04:56:39  stuart
  * Create / delete C-isam directories.
  *
@@ -27,7 +30,7 @@ staticforward PyTypeObject cisam_Type;
 
 typedef struct {
   PyObject_HEAD
-  int fd;		/* libmilter thread state */
+  int fd;		/* C-isam file descriptor */
   int rlen;
   int iserrno;
   int isrecnum;		/* ISAM record number of last call */
@@ -422,17 +425,34 @@ cisam_delete(PyObject *isamfile, PyObject *args) {
   return _generic_return(self,rc);
 }
 
-static char cisam_getfld__doc__[] =
-"getfld(pos,len) -> bufptr\n\
-  Return a pointer to a fixed length field in the record buffer.";
+static char cisam_setrange__doc__[] =
+"setrange(minrec,maxrec) -> None\n\
+  Set the minimum and maximum key fields.";
 
 static PyObject *
-cisam_getfld(PyObject *isamfile, PyObject *args) {
+cisam_setrange(PyObject *isamfile, PyObject *args) {
   cisam_Object *self = (cisam_Object *)isamfile;
-  int pos;
-  int len;
-  if (!PyArg_ParseTuple(args, "ii:getfld",&pos,&len)) return NULL;
-  return PyBuffer_FromReadWriteObject(self->buf,pos,len);
+  char *min;
+  int minlen;
+  char *max;
+  int maxlen;
+  if (!PyArg_ParseTuple(args, "|z#z#:setrange",&min,&minlen,&max,&maxlen))
+    return NULL;
+  if (min && minlen < self->rlen) {
+    char *b = alloca(self->rlen);
+    if (!b) return PyErr_NoMemory();
+    memset(b,0,self->rlen);
+    memcpy(b,min,minlen);
+    min = b;
+  }
+  if (max && maxlen < self->rlen) {
+    char *b = alloca(self->rlen);
+    if (!b) return PyErr_NoMemory();
+    memset(b,0xFF,self->rlen);
+    memcpy(b,max,maxlen);
+    max = b;
+  }
+  return _generic_return(self,isrange(self->fd,min,max));
 }
 
 static char cisam_indexinfo__doc__[] =
@@ -534,7 +554,7 @@ static PyMethodDef isamfile_methods[] = {
   { "write",   cisam_write,   METH_VARARGS, cisam_write__doc__},
   { "rewrite", cisam_rewrite, METH_VARARGS, cisam_rewrite__doc__},
   { "delete",  cisam_delete,  METH_VARARGS, cisam_delete__doc__},
-  { "getfld",  cisam_getfld,  METH_VARARGS, cisam_getfld__doc__},
+  { "setrange",cisam_setrange,METH_VARARGS, cisam_setrange__doc__},
   { "indexinfo",cisam_indexinfo,METH_VARARGS, cisam_indexinfo__doc__},
   { "getflds", (PyCFunction)cisam_getflds, METH_NOARGS, cisam_getflds__doc__},
   { "addflds", cisam_addflds, METH_VARARGS, cisam_addflds__doc__},
@@ -621,10 +641,12 @@ initcisam(void) {
    CONST(ISINOUT); CONST(ISTRANS);
    CONST(ISDIROK); CONST(ISAUTOLOCK);
    CONST(ISMANULOCK); CONST(ISEXCLLOCK);
-   CONST(READONLY); CONST(UPDATE);
    CONST(BT_CHAR); CONST(BT_DATE); CONST(BT_TIME); CONST(BT_BIN);
    CONST(BT_PACK); CONST(BT_RECNO); CONST(BT_FLT); CONST(BT_RLOCK);
    CONST(BT_SEQ); CONST(BT_BITS); CONST(BT_EBCDIC); CONST(BT_REL);
    CONST(BT_VNUM); CONST(BT_NUM);
    CONST(ISDUPS); CONST(ISNODUPS);
+   /* Symbols which conflict between isamx.h and structmember.h */
+   PyModule_AddIntConstant(m,"READONLY",ISINPUT + ISMANULOCK);
+   PyModule_AddIntConstant(m,"UPDATE",ISINOUT + ISMANULOCK);
 }
