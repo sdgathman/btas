@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.3  2002/11/06 05:18:13  stuart
+/* remove libg++
+/*
 /* Revision 1.2  2001/02/28 22:44:02  stuart
 /* use new API
 /*
@@ -26,6 +29,8 @@ can be used to identify the root id's of files on an image backup, or to find
 
 static int donode(Logdir &,t_block, NODE *, void *, int);
 
+static int maxrec;
+
 int main(int argc,char **argv) {
   const char *name;
   if (argc != 2 && argc != 1) {
@@ -45,6 +50,7 @@ int main(int argc,char **argv) {
   }
   Logdir log;
   union btree *b;
+  maxrec = btmaxrec(fs.blksize());
   while ((b = fs.get()) != 0) {
     int t = fs.lasttype();
     int cnt = 0;
@@ -100,13 +106,27 @@ static int donode(Logdir &log,t_block root,NODE *np,void *blkend,int dirflag) {
   if (np->free(cnt) < 0) return -3;
   if (*np->rptr(cnt)) return -4;	/* first dup count must be zero */
   char *lbuf = (char *)alloca(np->size());
+  int lastrlen = 0;
   if (dirflag) while (--i) {
     unsigned char *p = np->rptr(i);
     int rlen = np->size(i) + *p - np->PTRLEN;
+    if (rlen + np->PTRLEN > maxrec) return -5;
     if (rlen >= 0) {
+      if (i < cnt && *p < lastrlen && lbuf[*p] >= p[1]) return -6;
       memcpy(lbuf + *p,p + 1,rlen - *p);
       log.logdir(root,lbuf,rlen,np->ldptr(i));
     }
+    lastrlen = rlen;
+  }
+  else while (--i) {
+    unsigned char *p = np->rptr(i);
+    int rlen = np->size(i) + *p - 1;
+    if (rlen > maxrec) return -5;
+    if (rlen >= 0) {
+      if (i < cnt && *p < lastrlen && lbuf[*p] >= p[1]) return -6;
+      memcpy(lbuf + *p,p + 1,rlen - *p);
+    }
+    lastrlen = rlen;
   }
   return cnt;
 }
