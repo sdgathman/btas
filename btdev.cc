@@ -335,7 +335,11 @@ int DEV::writehdr() const {
   if (lseek(i,(long)superoffset,0) != superoffset
 	|| ::_write(i,buf,sizeof buf) != sizeof buf)
     return errno;
-  if (flag != 0) sync_all(); /* ensure dirty flag written before updates */
+#ifdef m88k
+  if (flag != 0) sync(); /* ensure dirty flag written before updates */
+#else
+  if (flag != 0) fsync(i); /* ensure dirty flag written before updates */
+#endif
   return 0;
 }
 
