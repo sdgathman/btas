@@ -309,20 +309,33 @@ int DEV::gethdr(char *h,int len) const {
   return i;
 }
 
+int DEV::sync_all() const {
+  int rc = 0;
+#ifdef m88k
+  if (sync())
+    rc = errno;
+#else
+  for (int i = 0; i < dcnt; ++i)
+#ifdef __MSDOS__
+    if (::_close(dup(ext(i).fd)))	/* update DOS dir */
+      rc = errno;	
+#else
+    if (fsync(ext(i).fd))	
+      rc = errno;
+#endif
+#endif
+  return rc;
+}
+
 int DEV::writehdr() const {
   char buf[SECT_SIZE];
-  int i;
   gethdr(buf,sizeof buf);
-#ifdef __MSDOS__
-  if (flag == 0) {
-    for (i = 0; i < dcnt; ++i)
-      ::_close(dup(ext(i).fd));	/* update DOS dir */
-  }
-#endif
-  i = ext(0).fd;	/* primary file */
+  if (flag == 0) sync_all(); /* ensure updates written before clean flag */
+  int i = ext(0).fd;	/* primary file */
   if (lseek(i,(long)superoffset,0) != superoffset
 	|| ::_write(i,buf,sizeof buf) != sizeof buf)
     return errno;
+  if (flag != 0) sync_all(); /* ensure dirty flag written before updates */
   return 0;
 }
 

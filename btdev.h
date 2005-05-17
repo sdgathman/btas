@@ -45,6 +45,7 @@ protected:
   extent &ext(int i) const;
 private:
   int writehdr() const;
+  int sync_all() const;
   static extent extbl[MAXEXT];
   static int extcnt;
   static bool valid(const btfs &);
