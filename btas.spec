@@ -2,11 +2,11 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.10.8
 Version: %{version}
-Release: 3
+Release: 3.rh7
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-Patch: btas-el3.patch
+Patch: btas-rh7.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
 %ifos aix4.1
