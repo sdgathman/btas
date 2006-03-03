@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# bats	This shell script takes care of starting and stopping btas.
+#
+# chkconfig: 2345 80 30
+# description: btas server
+# processname: btserve
+# pidfile: /var/run/moin/btas.pid
+
+# Source function library.
+
+pidof() {
+	if set - `ps -e -o pid,cmd | grep 'btserve'` &&
+	  [ "$2" != "grep" ]; then
+	  echo $1
+	  return 0
+	fi
+	return 1
+}
+
+. /etc/rc.d/init.d/functions
+
+[ -x /bms/bin/btstart ] || exit 0
+
+RETVAL=0
+prog="btas"
+
+start() {
+	# Start daemons.
+
+	echo -n "Starting $prog: "
+	daemon --check btas --user btas /bms/bin/btstart
+	RETVAL=$?
+	echo
+	[ $RETVAL -eq 0 ] &&
+		pidof >/var/run/btas.pid &&
+		touch /var/lock/subsys/btas
+	return $RETVAL
+}
+
+stop() {
+	# Stop daemons.
+	echo -n "Shutting down $prog: "
+	killproc btas
+	RETVAL=$?
+	echo
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/btas
+	return $RETVAL
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  restart|reload)
+	stop
+	start
+	RETVAL=$?
+	;;
+  condrestart)
+	if [ -f /var/lock/subsys/btas ]; then
+	    stop
+	    start
+	    RETVAL=$?
+	fi
+	;;
+  status)
+	#pidof btas
+	status btas
+	RETVAL=$?
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart|condrestart|status}"
+	exit 1
+esac
+
+exit $RETVAL

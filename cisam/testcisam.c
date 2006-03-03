@@ -297,6 +297,22 @@ START_TEST(test_fdlimit) {
   fail_unless(isfdlimit(oldlimit) == FDLIMIT,"restore fdlimit failed");
 } END_TEST
 
+START_TEST(test_bigrec) {
+  int fd;
+  char buf[1024];
+  char s[37];
+  fd = isopenx("/edx/AIRPEX/ANSI/SVCREQ",ISINOUT + ISMANULOCK,552);
+  fail_unless(fd >= 0,"SVCREQ isopen failed");
+  fail_unless(isread(fd,buf,ISFIRST) == 0,"SVCREQ isread failed");
+  stchar("Testing",buf + 516,36);
+  fail_unless(isrewcurr(fd,buf) == 0,"SVCREQ isrewrite failed");
+  stchar("",buf + 516,36);
+  fail_unless(isread(fd,buf,ISFIRST) == 0,"SVCREQ isread failed");
+  ldchar(buf+516,36,s);
+  fail_unless(strcmp(s,"Testing") == 0,"datacmp failed");
+  isclose(fd);
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *cisam_suite (void) {
@@ -308,6 +324,7 @@ Suite *cisam_suite (void) {
   tcase_add_test (tc_api, bttestx);
   tcase_add_test (tc_api, bttesty);
   tcase_add_test (tc_api, test_dictinfo);
+  tcase_add_test (tc_api, test_bigrec);
   return s;
 }
 

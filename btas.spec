@@ -2,7 +2,7 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.10.8
 Version: %{version}
-Release: 1
+Release: 3
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -62,6 +62,8 @@ LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C btbr
 
 %install
 rm -rf $RPM_BUILD_ROOT
+mkdir -p $RPM_BUILD_ROOT/etc/init.d
+cp btas.rc $RPM_BUILD_ROOT/etc/init.d/btas
 mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
 cp btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
@@ -113,12 +115,14 @@ mkuser -a id=711 pgrp=bms home=/bms \
 
 %post
 /sbin/ldconfig
+/sbin/chkconfig --add btas
 %endif
 
 %files
 %defattr(-,btas,bms)
 %dir /bms/bin
-%config /bms/bin/btstart
+%config(noreplace) /bms/bin/btstart
+/etc/init.d/btas
 /usr/share/btas/btutil.help
 /bms/bin/btar
 /bms/bin/btddir
@@ -165,6 +169,12 @@ mkuser -a id=711 pgrp=bms home=/bms \
 /bms/include/*.h
 
 %changelog
+* Mon May 16 2005 Stuart Gathman <stuart@bmsi.com> 2.10.8-3
+- provide sysvinit service script
+- impose update ordering via fsync on datablocks vs superblock
+- stricter record checks in btddir
+* Mon May 16 2005 Stuart Gathman <stuart@bmsi.com> 2.10.8-2
+- work with new C++ and STL (use standard map and set, use namespace std)
 * Tue Feb 08 2005 Stuart Gathman <stuart@bmsi.com> 2.10.8-1
 - check ulimit when mounting filesystems
 - fix error reporting on startup
