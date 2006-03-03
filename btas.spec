@@ -104,8 +104,6 @@ cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
   ln addindex delindex
 }
 
-mkdir -p $RPM_BUILD_ROOT/var/log/btas.log
-
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -120,7 +118,14 @@ mkuser -a id=711 pgrp=bms home=/bms \
 %post
 /sbin/ldconfig
 /sbin/chkconfig --add btas
+%else
+%post
 %endif
+if test ! -f /var/log/btas.log; then
+  touch /var/log/btas.log
+  chown btas:bms /var/log/btas.log
+  chmod 0644 /var/log/btas.log
+fi
 
 %files
 %defattr(-,btas,bms)
@@ -128,7 +133,6 @@ mkuser -a id=711 pgrp=bms home=/bms \
 %config(noreplace) /bms/bin/btstart
 %attr(0755,root,root)/etc/init.d/btas
 %attr(0644,root,root)/etc/logrotate.d/btas
-%attr(0644,btas,bms)/var/log/btas.log
 /usr/share/btas/btutil.help
 /bms/bin/btar
 /bms/bin/btddir
