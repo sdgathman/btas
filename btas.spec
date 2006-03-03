@@ -63,7 +63,9 @@ LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C btbr
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
-cp btas.rc $RPM_BUILD_ROOT/etc/init.d/btas
+cp -p btas.rc $RPM_BUILD_ROOT/etc/init.d/btas
+mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
+cp -p btas.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/btas
 mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
 cp btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
@@ -102,6 +104,8 @@ cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
   ln addindex delindex
 }
 
+mkdir -p $RPM_BUILD_ROOT/var/log/btas.log
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -122,7 +126,9 @@ mkuser -a id=711 pgrp=bms home=/bms \
 %defattr(-,btas,bms)
 %dir /bms/bin
 %config(noreplace) /bms/bin/btstart
-/etc/init.d/btas
+%attr(0755,root,root)/etc/init.d/btas
+%attr(0644,root,root)/etc/logrotate.d/btas
+%attr(0644,btas,bms)/var/log/btas.log
 /usr/share/btas/btutil.help
 /bms/bin/btar
 /bms/bin/btddir
@@ -170,6 +176,7 @@ mkuser -a id=711 pgrp=bms home=/bms \
 
 %changelog
 * Mon May 16 2005 Stuart Gathman <stuart@bmsi.com> 2.10.8-3
+- Move log to /var/log and rotate
 - provide sysvinit service script
 - impose update ordering via fsync on datablocks vs superblock
 - stricter record checks in btddir
