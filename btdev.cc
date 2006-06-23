@@ -2,6 +2,7 @@
 #ifndef __MSDOS__
 const char what[] = "$Revision$";
 #endif
+#define _LARGEFILE64_SOURCE
 #include <stdio.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -15,6 +16,13 @@ const char what[] = "$Revision$";
 #include "btserve.h"
 #include "btdev.h"
 #include "btbuf.h"
+
+#ifdef _AIX41
+#define lseek64 llseek
+#endif
+#ifdef _LFS64_LARGEFILE
+#define _open open64
+#endif
 
 unsigned short DEV::maxblksize = 1024;
 char DEV::index = 0;
@@ -46,14 +54,14 @@ int DEV::read(t_block blk,char *buf) {
     return BTERBBLK;
   }
 #if TRACE > 1
-  fprintf(stderr,"readbuf(%lx) pos=%ld\n",blk,blk_pos(blk));
+  fprintf(stderr,"readbuf(%lx) pos=%lld\n",blk,blk_pos(blk));
 #endif
   int fd = ext(i).fd;	/* OS file descriptor */
 
   errno = BTERBBLK;		/* bad block if eof or other problem */
   int rc = -2;
   int retry = 2;
-  while (lseek(fd,blk_pos(blk),0) == -1
+  while (lseek64(fd,blk_pos(blk),0) == -1
     || (rc = ::_read(fd,buf,blksize)) != blksize) {
 #if 1 //TRACE > 0
     fprintf(stderr,"%d: btread(%08lx), fd=%d, rc=%d\n", errno, blk, fd, rc);
@@ -137,7 +145,7 @@ int DEV::open(const char *name,bool rdonly) {
     char buf[SECT_SIZE];
     struct btfs d;	/* file system header */
   } u;
-  int mode = rdonly ? O_RDONLY + O_BINARY : O_RDWR + O_BINARY;
+  int mode = (rdonly?O_RDONLY:O_RDWR)+O_BINARY;
   struct rlimit rlim;
   int rc = getrlimit(RLIMIT_FSIZE,&rlim);
   if (rc == -1) return errno;
@@ -355,14 +363,15 @@ int DEV::wait() {
   return 0;
 }
 
+
 /** Return byte offset of block. */
-long DEV::blk_pos(t_block b) const {
+DEV::t_off64 DEV::blk_pos(t_block b) const {
   long offset = blkoffset;
   if (blk_dev(b)) {
     b = blk_off(b);
     offset = extoffset;
   }
-  return (b - 1) * blksize + offset;
+  return (b - 1LL) * blksize + offset;
 }
 
 /** Return the most blocks that will fit in sectors for an extent. */
