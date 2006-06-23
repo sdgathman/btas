@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.2  2003/11/12 23:41:11  stuart
+ * btchdir needs to save BTASDIR env even when btasdir is null.
+ *
  */
 #include <btas.h>
 #include <string.h>
@@ -46,7 +49,9 @@ BTCB *btgetdir() {
   }
   else {
     const char *s = getenv("BTASDIR");
-    int len = strlen(s) + 9;
+    int len;
+    if (s == 0) s = "";
+    len = strlen(s) + 9;
     b = btopen("",BTNONE+BTDIROK+8,len);/* open current directory */
     sprintf(b->lbuf,"BTASDIR=%s",s);
     b->rlen = len;

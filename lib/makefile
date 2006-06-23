@@ -42,3 +42,5 @@ $L:	$L(flong.o)	\
 	ranlib $L
 
 $L(bttemp.o) $L(btflds.o) $L(pack.o):	../include/btflds.h
+testlib:	testlib.o
+	gcc -g testlib.o -o testlib -lcheck $L -L/bms/lib -lbms
