@@ -1,7 +1,15 @@
 #pragma implementation
+#define _LARGEFILE64_SOURCE
 #include <unistd.h>
 #include <fcntl.h>
 #include "fsio.h"
+
+#ifdef _AIX41
+#define lseek64 llseek
+#endif
+#ifdef _LFS64_LARGEFILE
+#define _open open64
+#endif
 
 unixio::unixio(int cnt) {
   dcnt = 0;
@@ -20,7 +28,7 @@ int unixio::open(const char *name,int flag) {
   if (dcnt >= maxcnt) return -1;
   int f = 0;
   if (name)
-    f = ::open(name,(flag & FS_RDONLY) ? O_RDONLY : O_RDWR);
+    f = ::_open(name,(flag & FS_RDONLY) ? O_RDONLY : O_RDWR);
   if (f < 0) return f;
   fd[dcnt] = f;
   return dcnt++;
@@ -34,6 +42,6 @@ int unixio::write(int ext,const char *buf,int sz) {
   return ::write(fd[ext],buf,sz);
 }
 
-long unixio::seek(int ext,long pos) {
-  return ::lseek(fd[ext],pos,0);
+fsio::t_off64 unixio::seek(int ext,t_off64 pos) {
+  return ::lseek64(fd[ext],pos,0);
 }
