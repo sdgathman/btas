@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.3  2005/02/08 16:16:18  stuart
+/* Port to ISO C++.
+/*
 /* Revision 1.2  1999/06/21 18:58:43  stuart
 /* hooks for applications that rebuild directory structure.
 /*
@@ -14,7 +17,6 @@
 #include <errenv.h>
 #include <bterr.h>
 #include <ftype.h>
-#include "fix.h"
 #include "../node.h"
 #include "rcvr.h"
 #include <new>

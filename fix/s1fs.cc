@@ -2,7 +2,7 @@
 #include <fcntl.h>
 #include <String.h>
 #include <string.h>
-#include "fix.h"
+//#include "fix.h"
 #include "s1fs.h"
 
 struct s1name {

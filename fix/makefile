@@ -54,9 +54,9 @@ btrest:	btrest.o $F
 btundup btzap btlink: %: %.o
 	$(CC) $(LDFLAGS) $^ $L -lbms -o $@
 
-btdb:	btdb.o getblock.o blktype.o
-	g++ -g -L/bms/lib btdb.o getblock.o blktype.o	\
-	-lb++ -lg++ -lbtas -lfsp -lbms -lcurses -o btdb
+btdb:	btdb.o getblock.o blktype.o btfix.a
+	g++ -g -L/bms/lib btdb.o getblock.o blktype.o btfix.a \
+	-lb++ -lbtas -lfsp -lbms -lcurses -o btdb
 
 tar:	*.c *.h
 	tar cvf fix.tar *.c *.h makefile; compress -v fix.tar
