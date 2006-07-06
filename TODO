@@ -1,4 +1,5 @@
-Don't use hash_map - it is not portable.
+Move btinit.cc to fix and make filesys extend btasXFS.
+Move btfreeze.c to util.
 
 Add call to allocate transaction id.  A TID will have a bit set
 to distinguish it from PIDs.  btserve will keep a table of tid by

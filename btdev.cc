@@ -108,9 +108,15 @@ int DEV::chkspace(int needed,bool safe_eof) {	/* check available space */
   for (int cnt = 0; cnt < dcnt; ++cnt) {
     extent *p = &ext(cnt);
     if (p->d.eof == 0) {
+      if (p->d.eod + needed - space > MAXBLK) continue;
       if (!safe_eof) return 0;	// expandable with no checking
       needed -= space + newspace;	/* additional blocks to reserve */
       for (t_block blk = p->d.eod + newspace; needed; --needed) {
+	if (blk >= MAXBLK) {
+	  p->d.eof = blk;
+	  space += blk - p->d.eod;
+	  return BTERFULL;
+	}
 	int rc = write(++blk,zbuf);
 	if (rc) {
 	  if (rc == ENOSPC || rc == EFBIG) {
@@ -294,7 +300,7 @@ int DEV::close() {
 t_block DEV::newblk() {
   for (int i = 0; i < dcnt; ++i) {
     extent *p = &ext(i);
-    if (p->d.eof == 0 || p->d.eod < p->d.eof) {
+    if ((p->d.eof == 0 && p->d.eod < MAXBLK) || p->d.eod < p->d.eof) {
       t_block blk = mk_blk(i,++p->d.eod);
       if (p->d.eof) --space;
       return blk;

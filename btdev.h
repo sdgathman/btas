@@ -39,11 +39,12 @@ struct DEV: btfhdr {
   static unsigned short maxblksize;
   static char index;	// server index
   virtual ~DEV();
-  enum { SECT_SIZE = 512, MAXEXT = MAXDEV };
+  enum { SECT_SIZE = 512, MAXEXT = MAXDEV, MAXBLK = 0xFFFFFF };
 protected:
   int superoffset;	// offset in bytes of super block
   extent &ext(int i) const;
 private:
+  typedef long long t_off64;
   int writehdr() const;
   int sync_all() const;
   static extent extbl[MAXEXT];
@@ -54,7 +55,7 @@ private:
   static t_block mk_blk(short i,long offset) { return (long(i)<<24)|offset; }
   long blkoffset;	// offset in bytes of first data block
   long extoffset;	// offset of first data block in extents
-  long blk_pos(t_block b) const;	// byte offset of block
+  t_off64 blk_pos(t_block b) const;	// byte offset of block
   long blk_sects(int ext,unsigned long sects) const;
   int newspace;	// blocks reallocated from OS
 };

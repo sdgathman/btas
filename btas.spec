@@ -1,12 +1,12 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.10.8
+%define version 2.10.9
 Version: %{version}
-Release: 3.rh7
+Release: 1.rh7
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-Patch: btas-rh7.patch
+#Patch: btas-rh7.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
 %ifos aix4.1
@@ -32,7 +32,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
-%patch -p1 -b .el3
+#%patch -p1 -b .el3
 
 %build
 %ifos aix4.1
@@ -70,7 +70,7 @@ mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
 cp btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
 cp fix/btsave fix/btddir fix/btreload fix/btfree fix/btrcvr fix/btrest \
-	$RPM_BUILD_ROOT/bms/bin
+	fix/btfreeze fix/btdb $RPM_BUILD_ROOT/bms/bin
 cp util/btutil util/btpwd util/btar util/btdu $RPM_BUILD_ROOT/bms/bin
 mkdir -p $RPM_BUILD_ROOT/bms/lib
 %ifos aix4.1
@@ -157,6 +157,8 @@ fi
 /bms/bin/istrace
 /bms/bin/indexinfo
 /bms/bin/btbr
+/bms/bin/btdb
+/bms/bin/btfreeze
 /bms/bin/btflded
 /bms/bin/btflded.scr
 %attr(2755,btas,bms)/bms/bin/isserve
@@ -179,7 +181,10 @@ fi
 /bms/include/*.h
 
 %changelog
-* Mon May 16 2005 Stuart Gathman <stuart@bmsi.com> 2.10.8-3
+* Fri Jun 30 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-1
+- LARGEFILE support
+- btfreeze, btdb
+* Fri Mar 03 2006 Stuart Gathman <stuart@bmsi.com> 2.10.8-3
 - Move log to /var/log and rotate
 - provide sysvinit service script
 - impose update ordering via fsync on datablocks vs superblock
