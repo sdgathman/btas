@@ -49,7 +49,7 @@ class fstbl {
   static int blk_dev(t_block b) { return (unsigned char)(b >> 24); }
   static long blk_off(t_block b) { return b & 0xFFFFFFL; }
   static t_block mk_blk(short i,long offset) { return (i<<24L)|offset; }
-  unsigned long blk_pos(t_block b) const;
+  fsio::t_off64 blk_pos(t_block b) const;
   int superoffset, blkoffset, extoffset;
 public:
   unsigned long getSuperOffset() const { return superoffset; }

@@ -3,7 +3,7 @@ CXXFLAGS = $(CFLAGS)
 
 L=-lbtas
 
-all:	$F btreload btrcvr btfree btddir btsave btrest btdb btfreeze
+all:	$F btreload btrcvr btfree btddir btsave btrest btdb
 
 .PRECIOUS:	$F
 
@@ -26,9 +26,6 @@ btrcvr:	btrcvr.o $F
 
 btreload: btreload.o  $F
 	g++ $(LDFLAGS) btreload.o  $F $L -lbms -o btreload
-
-btfreeze: btfreeze.o
-	$(CC) $(LDFLAGS) btfreeze.o -lbtas -lbms -o btfreeze
 
 btfree:	btfree.o $F
 	g++ $(LDFLAGS) btfree.o $F -o btfree

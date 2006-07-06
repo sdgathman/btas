@@ -1,5 +1,9 @@
 /*
  * $Log$
+ * Revision 1.2  2002/11/06 02:55:24  stuart
+ * Recognize and convert byteswapped image archives.  This only works when
+ * alignments match.
+ *
  */
 
 /*
@@ -226,8 +230,8 @@ void *fstbl::get() {
   return last_buf;
 }
 
-unsigned long fstbl::blk_pos(t_block b) const {
-  unsigned long pos = blk_off(b) - 1;
+fsio::t_off64 fstbl::blk_pos(t_block b) const {
+  fsio::t_off64 pos = blk_off(b) - 1;
   int fd = blk_dev(b);
   int offset;
   if (isSaveImage()) {
