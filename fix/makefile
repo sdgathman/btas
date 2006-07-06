@@ -39,8 +39,8 @@ btddir: btddir.o $F
 btddir1: btddir1.o s1fs.o $F
 	g++ -L/bms/lib -g btddir1.o s1fs.o $F -lptrep -lg++ $L -lbms -o btddir1
 
-btddir1.o: fs.h fix.h s1fs.h
-btddir.o: fs.h fix.h
+btddir1.o: fs.h s1fs.h
+btddir.o: fs.h 
 
 btsave: btsave.o $F
 	g++ $(LDFLAGS) btsave.o $F $L -lbms -o btsave
