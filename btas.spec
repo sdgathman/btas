@@ -70,8 +70,10 @@ mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
 cp btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
 cp fix/btsave fix/btddir fix/btreload fix/btfree fix/btrcvr fix/btrest \
-	fix/btfreeze fix/btdb $RPM_BUILD_ROOT/bms/bin
-cp util/btutil util/btpwd util/btar util/btdu $RPM_BUILD_ROOT/bms/bin
+	fix/btdb $RPM_BUILD_ROOT/bms/bin
+cp util/btutil util/btpwd util/btar util/btdu util/btfreeze \
+	$RPM_BUILD_ROOT/bms/bin
+cp util/btinit $RPM_BUILD_ROOT/bms/bin/btinitx
 mkdir -p $RPM_BUILD_ROOT/bms/lib
 %ifos aix4.1
 mkdir -p $RPM_BUILD_ROOT/bms/slib
