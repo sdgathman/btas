@@ -17,7 +17,7 @@ UTILOBJS=	btutil.o	\
 		permstr.o	\
 		version.o
 
-make:	btutil btar btpwd btdu # isserve idx dat
+make:	btutil btar btpwd btdu btfreeze btinit # isserve idx dat
 
 btutil:	$(UTILOBJS) $L
 	$(CC) $(UTILOBJS) \
@@ -34,6 +34,9 @@ btpwd:  btpwd.o
 
 btdu:	btdu.o
 	$(CC) $(LDFLAGS) btdu.o -lbtas -lbms -o btdu
+
+btfreeze: btfreeze.o
+	$(CC) $(LDFLAGS) btfreeze.o -lbtas -lbms -o btfreeze
 
 btaddfld:	btaddfld.o
 	$(CC) $(LDFLAGS) btaddfld.o -lbtas -lbms -o btaddfld

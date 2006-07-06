@@ -7,8 +7,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
-#include <mem.h>
 #include <time.h>
 extern "C" {
 #include "../btree.h"
@@ -16,21 +16,46 @@ extern "C" {
 #include "util.h"
 }
 
+long filelength(int fd) {
+  long pos, size;
+  pos = ::lseek(fd,0L,1);		/* save current location */
+  size = ::lseek(fd,0L,2);	/* get file size */
+  ::lseek(fd,pos,0);		/* restore current location */
+  return size;
+}
+
+char *strupr(char *s) {
+  register char *p;
+  for (p = s; *p; ++p)
+    if (islower(*p)) *p = _toupper(*p);
+  return s;
+}
+
 class filesys {
   union {
     struct btfs d;
-    struct root r;
+    struct root_node r;
     char buf[SECT_SIZE];
   } u;
   btperm id;
   int fd;
+  int superoff;
+  int blkoffset;	// block offset 
+  int extoffset;	// block offset for extensions
   const char *name;
   bool mod;
+  bool validate(int superoffset);
+  long blk_pos(t_block b) const;
+  static int blk_dev(t_block b) { return (unsigned char)(b >> 24); }
+  static long blk_off(t_block b) { return b & 0xFFFFFFL; }
+  int update();
 public:
+  enum { MAXBLK = 0xFFFFFF }; // max blkno with extents
   filesys(const char *name);
   operator const char *() const { return name; }
   unsigned blksize() const { return u.d.hdr.blksize; }
-  const char *init(unsigned blksize,long size = 0,int mode = BT_DIR + 0777);
+  const char *init(unsigned blksize,long size = 0,
+      int mode = BT_DIR + 0777,int chk = 0);
   void list() const;	// list extents
   void revert();        // revert to disk copy
   const char *add(const char *name,long size = 0);
@@ -49,38 +74,64 @@ filesys::filesys(const char *s): name(s) {
   }
 }
 
-void filesys::revert() {
-  memset(u.buf,0,sizeof u.buf);
-  mod = false;	// mark unmodified
-  if (fd < 0) return;
-  if (lseek(fd,0L,0)) return;
-  int rc = _read(fd,u.buf,SECT_SIZE);
-  if (rc != SECT_SIZE || u.d.hdr.magic != BTMAGIC
-    || u.d.hdr.blksize & 0x81ff || u.d.hdr.dcnt <= 0) {
-    memset(u.buf,0,sizeof u.buf);
+long filesys::blk_pos(t_block b) const {
+  long offset = blkoffset;
+  if (blk_dev(b)) {
+    b = blk_off(b);
+    offset = extoffset;
   }
+  return (b - 1L) * blksize() + offset;
 }
 
-const char *filesys::init(unsigned bsz,long sz,int mode) {
+bool filesys::validate(int superoff) {
+  if (fd < 0) return false;
+  if (::lseek(fd,(long)superoff,0) != superoff) return false;
+  //fprintf(stderr,"superoff=%d\n",superoff);
+  int rc = _read(fd,u.buf,sizeof u.buf);
+  if (rc == sizeof u.buf && u.d.hdr.magic == BTMAGIC
+    && (u.d.hdr.blksize & 0x81ff) == 0 && u.d.hdr.dcnt > 0) {
+    //fputs("valid superblock\n",stderr);
+    return true;
+  }
+  //fprintf(stderr,"magic=%x blksz=%x\n", u.d.hdr.magic,u.d.hdr.blksize);
+  return false;
+}
+
+void filesys::revert() {
+  mod = false;	// mark unmodified
+  superoff = 0;
+  if (validate(0)) return;
+  superoff = sizeof u.buf;
+  if (!validate(superoff))
+    memset(u.buf,0,sizeof u.buf);
+}
+
+const char *filesys::init(unsigned bsz,long sz,int mode,int chk) {
   if (bsz % SECT_SIZE)
     return "Block size must be a multiple of 512 bytes";
   memset(u.buf,0,sizeof u.buf);
   if (sz <= 0)
     sz = filelength(fd);
   // initialize filesystem header
+  int align = (superoff) ? bsz / SECT_SIZE : 1;	// sector alignment
   u.d.hdr.blksize = bsz;
   u.d.hdr.magic = BTMAGIC;
-  u.d.dtbl->eod = 0L;
+  u.d.hdr.root = (superoff + SECT_SIZE) / SECT_SIZE + chk;
+  u.d.hdr.root += align - 1;
+  u.d.hdr.root -= u.d.hdr.root % align;
+  blkoffset = (long)SECT_SIZE * u.d.hdr.root;
+  extoffset = superoff + SECT_SIZE;
   (void)strncpy(u.d.dtbl->name,name,sizeof u.d.dtbl->name);
-  if (sz < SECT_SIZE + bsz) {
+  if (sz <= blkoffset) {
     u.d.dtbl->eof = 0;
-    u.d.hdr.space = 0;
   }
   else {
-    u.d.dtbl->eof = (sz - SECT_SIZE) / bsz;
-    u.d.hdr.space = u.d.dtbl->eof;
+    u.d.dtbl->eof = (sz - blkoffset) / bsz;
+    if (u.d.dtbl->eof > MAXBLK)
+      u.d.dtbl->eof = MAXBLK;
   }
-  u.d.hdr.root = 0L;
+  u.d.dtbl->eod = 0L;
+  u.d.hdr.space = u.d.dtbl->eof;
   u.d.hdr.dcnt = 1;
   id.user = getuid();
   id.group = getgid();
@@ -95,32 +146,46 @@ filesys::~filesys() {
     printf("%s: unchanged\n",name);
     return;
   }
+  update();
+  close(fd);
+}
+
+int filesys::update() {
+  // update superblock
   unsigned bsz = blksize();
-  if (fd < 0 || !bsz) return;
+  if (fd < 0 || !bsz) return -1;
   long root = u.d.hdr.root;
   if (!root) {	// allocate initial root node
     u.d.hdr.root = ++u.d.dtbl->eod;
     if (u.d.dtbl->eof) --u.d.hdr.space;
   }
-  if (lseek(fd,0L,0) || _write(fd,u.buf,SECT_SIZE) != SECT_SIZE) {
+  if (::lseek(fd,(long)superoff,0) != superoff
+      	|| _write(fd,u.buf,SECT_SIZE) != SECT_SIZE) {
     perror(name);
-    return;
+    return -1;
   }
-  if (root) return;
-  root = u.d.dtbl->eod;
+  if (root) return 0;
   // initialize root directory
+  root = u.d.dtbl->eod;
   memset(u.buf,0,sizeof u.buf);
   u.r.root = root;
   u.r.stat.bcnt = 1L;
   u.r.stat.links = 1;
   u.r.stat.mtime = u.r.stat.atime = time(&u.r.stat.ctime);
   u.r.stat.id = id;
+  long pos = blk_pos(root);
+  if (::lseek(fd,pos,0) != pos) {
+    perror(name);
+    return -1;
+  }
   for (unsigned i = 0; i < bsz; i += sizeof u.buf) {
-    if (_write(fd,u.buf,sizeof u.buf) != sizeof u.buf)
+    if (_write(fd,u.buf,sizeof u.buf) != sizeof u.buf) {
       perror(name);
+      return -1;
+    }
     memset(u.buf,0,sizeof u.buf);
   }
-  close(fd);
+  return 0;
 }
 
 class Extent {
@@ -141,7 +206,7 @@ Extent::Extent(const char *s,int f,int m) {
   fd = open(s,f,m);
   memset(buf,0,sizeof buf);
   sz = filelength(fd);
-  if (sz < 0 || lseek(fd,0L,0) || sz > 0 && _read(fd,buf,sizeof buf) != sizeof buf) {
+  if (sz < 0 || ::lseek(fd,0L,0) || sz > 0 && _read(fd,buf,sizeof buf) != sizeof buf) {
     close(fd);
     fd = -1;
     return;
@@ -305,3 +370,4 @@ BTINIT commands:\n\
   }
   return 0;
 }
+
