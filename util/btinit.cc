@@ -215,12 +215,14 @@ Extent::Extent(const char *s,int f,int m) {
 
 const char *Extent::add(btfs &prim,int i,long size) {
   if (fd < 0) return "I/O error";
+  // convert size in sectors to sz in blocks
+  int bs = prim.hdr.blksize / SECT_SIZE;	// sectors / block
   if (size)
     sz = size;
-  if (sz < SECT_SIZE + prim.hdr.blksize)
+  if (sz < bs + 1)
     sz = 0;
   else
-    sz = (sz - SECT_SIZE) / prim.hdr.blksize;
+    sz = (sz - 1) / bs;
   if (i) {
     fs.hdr = prim.hdr;
     fs.hdr.dcnt = 0;			// mark as extent
@@ -263,6 +265,7 @@ const char *filesys::size(int i,long newsize) {
   strncpy(name,d.name,sizeof d.name)[sizeof d.name] = 0;
   Extent efd(name,O_RDWR+O_BINARY);
   if (efd < 0) return "Can't open extent";
+  // FIXME: newsize in sectors, d.eod in blocks
   if (newsize && newsize < d.eod) return "New size too small";
   const char *msg = efd.add(u.d,i,newsize);
   if (msg) return msg;
@@ -274,17 +277,17 @@ void filesys::list() const {
   if (blksize()) {
     long alloc = 0, used = 0, eod = 0;
     printf("Filesystem: %s\tBlocksize: %u\n",name,blksize());
-    printf("%-16s %8s %8s\n","Dataset","Alloc","Used");
+    printf("%-16s %9s %9s\n","Dataset","Alloc","Used");
     for (int i = 0; i < u.d.hdr.dcnt; ++i) {
-      printf("%-16.16s %8ld %8ld\n",
+      printf("%-16.16s %9ld %9ld\n",
 	  u.d.dtbl[i].name,u.d.dtbl[i].eof,u.d.dtbl[i].eod);
       alloc += u.d.dtbl[i].eof;
       used += u.d.dtbl[i].eod;
       if (u.d.dtbl[i].eof)
 	eod += u.d.dtbl[i].eof - u.d.dtbl[i].eod;
     }
-    printf("%-16s %8s %8s\n","_______","_______","_______");
-    printf("%-16.16s %8ld %8ld\t Freelist: %8ld\n",
+    printf("%-16s %9s %9s\n","_______","_______","_______");
+    printf("%-16.16s %9ld %9ld\t Freelist: %9ld\n",
 	"Total: ",alloc,used,u.d.hdr.space - eod);
   }
   else
@@ -328,7 +331,7 @@ int main(int argc,char **argv) {
     }
     else if (strncmp(cmd,"AD",2) == 0) {
       const char *name = readtext("Dataset: ");
-      long size = getval(0) * SECT_SIZE;
+      long size = getval(0);
       const char *msg = fs.add(name,size);
       if (msg)
 	printf("%s: %s.\n",name,msg);
@@ -348,7 +351,7 @@ int main(int argc,char **argv) {
     }
     else if (strncmp(cmd,"SI",2) == 0) {
       int idx = getval(0);
-      long size = getval(0) * SECT_SIZE;
+      long size = getval(0);
       const char *msg = fs.size(idx,size);
       if (msg)
 	printf("size(%d): %s.\n",idx,msg);
