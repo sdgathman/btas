@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <time.h>
 extern "C" {
-#include "../btree.h"
+#include "../node.h"
 #include <btas.h>
 #include "util.h"
 }

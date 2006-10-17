@@ -160,6 +160,7 @@ fi
 /bms/bin/indexinfo
 /bms/bin/btbr
 /bms/bin/btdb
+/bms/bin/btinitx
 /bms/bin/btfreeze
 /bms/bin/btflded
 /bms/bin/btflded.scr

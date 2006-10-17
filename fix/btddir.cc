@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.4  2005/05/10 21:41:46  stuart
+/* More stringent checks on records.
+/*
 /* Revision 1.3  2002/11/06 05:18:13  stuart
 /* remove libg++
 /*
@@ -112,7 +115,8 @@ static int donode(Logdir &log,t_block root,NODE *np,void *blkend,int dirflag) {
     int rlen = np->size(i) + *p - np->PTRLEN;
     if (rlen + np->PTRLEN > maxrec) return -5;
     if (rlen >= 0) {
-      if (i < cnt && *p < lastrlen && lbuf[*p] >= p[1]) return -6;
+      if (i < cnt && *p < lastrlen && (unsigned char)lbuf[*p] >= p[1])
+	return -6;
       memcpy(lbuf + *p,p + 1,rlen - *p);
       log.logdir(root,lbuf,rlen,np->ldptr(i));
     }
@@ -123,7 +127,8 @@ static int donode(Logdir &log,t_block root,NODE *np,void *blkend,int dirflag) {
     int rlen = np->size(i) + *p - 1;
     if (rlen > maxrec) return -5;
     if (rlen >= 0) {
-      if (i < cnt && *p < lastrlen && lbuf[*p] >= p[1]) return -6;
+      if (i < cnt && *p < lastrlen && (unsigned char)lbuf[*p] >= p[1])
+	return -6;
       memcpy(lbuf + *p,p + 1,rlen - *p);
     }
     lastrlen = rlen;

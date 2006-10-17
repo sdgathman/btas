@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 2.4  2001/02/28 21:35:32  stuart
+/* dump method
+/*
  * Revision 2.3  1997/06/23 15:39:52  stuart
  * use local workrec
  *
@@ -30,6 +33,7 @@ BLOCK::BLOCK() {
   flags = 0;
   blk = 0;
   mid = 0;
+  count = 0;
   np = (union node *)buf.l.data;
 }
 
