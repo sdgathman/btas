@@ -1,5 +1,6 @@
+Allow filesystems with no exents to use 31 bits for block id.
+
 Move btinit.cc to fix and make filesys extend btasXFS.
-Move btfreeze.c to util.
 
 Add call to allocate transaction id.  A TID will have a bit set
 to distinguish it from PIDs.  btserve will keep a table of tid by

@@ -2,11 +2,11 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.10.9
 Version: %{version}
-Release: 1.rh7
+Release: 1.el4
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-#Patch: btas-rh7.patch
+Patch: btas-el4.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
 %ifos aix4.1
@@ -184,6 +184,8 @@ fi
 /bms/include/*.h
 
 %changelog
+* Tue Oct 17 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-2
+- provide btinitx to manage extents
 * Fri Jun 30 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-1
 - LARGEFILE support
 - btfreeze, btdb
