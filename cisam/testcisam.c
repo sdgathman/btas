@@ -313,6 +313,34 @@ START_TEST(test_bigrec) {
   isclose(fd);
 } END_TEST
 
+START_TEST(test_replace) {
+    int fd;
+    char buf[16];
+    struct btflds *f;
+    static struct keydesc Ktest2 = { 0, 1, { { 0, 12, CHARTYPE } } };
+    static const char ftbl2[] = { 0,1,BT_CHAR,12,BT_NUM,4 };
+    const char *fname = "/tmp/testreplace";
+    iserase(fname);
+    f = ldflds(0,ftbl2,sizeof ftbl2);
+    fd = isbuildx(fname,sizeof buf,&Ktest2,ISINOUT + ISMANULOCK,f);
+    free(f);
+    fail_unless(fd >= 0,"isbuildx failed");
+    stchar("",buf,12);
+    stlong(1L,buf+12);
+    fail_unless(iswrite(fd,buf) == 0,"write failed");
+    fail_unless(isread(fd,buf,ISFIRST) == 0,"isread failed");
+    stlong(2L,buf+12);
+    fail_unless(isrewcurr(fd,buf) == 0,"isrewcurr failed with single rec");
+    stlong(1L,buf+12);
+    fail_unless(iswrite(fd,buf) != 0,"write should get dupkey");
+    stchar("a",buf,12);
+    fail_unless(iswrite(fd,buf) == 0,"write failed");
+    fail_unless(isread(fd,buf,ISLAST) == 0,"isread failed");
+    stchar("",buf,12);
+    fail_unless(isrewcurr(fd,buf) != 0,"isrewcurr should get dupkey");
+    isclose(fd);
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *cisam_suite (void) {
@@ -325,6 +353,7 @@ Suite *cisam_suite (void) {
   tcase_add_test (tc_api, bttesty);
   tcase_add_test (tc_api, test_dictinfo);
   tcase_add_test (tc_api, test_bigrec);
+  tcase_add_test (tc_api, test_replace);
   return s;
 }
 
