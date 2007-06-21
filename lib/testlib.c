@@ -69,6 +69,19 @@ START_TEST(test_replace) {
     rc = btas(b,BTREPLACE|DUPKEY);
     sprintf(msg,"Expected DUPKEY, got %d",rc);
     fail_unless(rc == BTERDUP,msg);
+    // now split the root node and try again
+    for (i = 50; i < 500; ++i) {
+      strcpy(b->lbuf,"TESTREPLACE");
+      stlong(i,b->lbuf + strlen(b->lbuf) + 1);
+      b->klen = b->rlen = strlen(b->lbuf) + 5;
+      btas(b,BTWRITE);
+    }
+    b->lbuf[0] = 0;
+    stlong(20L,b->lbuf+1);
+    b->klen = 1; b->rlen = 5;
+    rc = btas(b,BTREPLACE|DUPKEY);
+    sprintf(msg,"Expected DUPKEY, got %d",rc);
+    fail_unless(rc == BTERDUP,msg);
     btclose(b);
   enverr
     sprintf(msg,"exception code %d",rc);

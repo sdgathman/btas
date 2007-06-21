@@ -74,15 +74,14 @@ BLOCK *btfile::uniquekey(BTCB *b) {
 
   /* check for unique key */
 
+  if (b->u.cache.slot > 1) {
+    if (*bp->np->rptr(b->u.cache.slot - 1) >= b->klen) btpost(BTERDUP);
+  }
   if (b->u.cache.slot < bp->cnt()) { 	/* check following record */
     if (*bp->np->rptr(b->u.cache.slot) >= b->klen) btpost(BTERDUP);
-    return bp;
+    if (b->u.cache.slot > 1) return bp;
   }
-  if (bp->flags & BLK_ROOT) {
-    if (bp->cnt() == 1) return bp;
-    if (*bp->np->rptr(b->u.cache.slot - 1) >= b->klen) btpost(BTERDUP);
-    return bp;
-  }
+  if (bp->flags & BLK_ROOT) return bp;
 
   /* have to check dad and perhaps right brother */
 
