@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <ftype.h>
 #include <btflds.h>
+#include <bterr.h>
+#include <errenv.h>
 #include <check.h>
 
 static int verbose;
@@ -40,6 +42,41 @@ START_TEST(test_findone) {
   finddone(&ff);
 } END_TEST
 
+START_TEST(test_replace) {
+  int rc;
+  static const char ftbl2[] = { 0,1,BT_CHAR,12,BT_NUM,4 };
+  struct btflds *fld;
+  int i;
+  BTCB *b = 0;
+  char msg[80];
+  putenv("BTASDIR=/"); // test findfirst() with null BTASDIR
+  btkill(fname);
+  fld = ldflds(0,ftbl2,sizeof ftbl2);
+  rc = btcreate(fname,fld,0644);
+  free(fld);
+  fail_unless(rc == 0,"failed to create testfile");
+  catch(rc)
+    b = btopen(fname,BT_READ|BT_UPDATE,16);
+    for (i = 0; i < 50; ++i) {
+      b->lbuf[0] = 0;
+      stlong(i,b->lbuf + 1);
+      b->klen = b->rlen = 5;
+      btas(b,BTWRITE);
+    }
+    b->lbuf[0] = 0;
+    stlong(20L,b->lbuf+1);
+    b->klen = 1; b->rlen = 5;
+    rc = btas(b,BTREPLACE|DUPKEY);
+    sprintf(msg,"Expected DUPKEY, got %d",rc);
+    fail_unless(rc == BTERDUP,msg);
+    btclose(b);
+  enverr
+    sprintf(msg,"exception code %d",rc);
+    btclose(b);
+    fail_unless(0,msg);
+  envend
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *libbtas_suite (void) {
@@ -49,6 +86,7 @@ Suite *libbtas_suite (void) {
   suite_add_tcase (s, tc_api);
   tcase_add_test (tc_api, test_findnone);
   tcase_add_test (tc_api, test_findone);
+  tcase_add_test (tc_api, test_replace);
   return s;
 }
 
