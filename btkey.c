@@ -2,6 +2,9 @@
 	Intermediate level operations on BTAS files.
 
  * $Log$
+ * Revision 2.2  1997/06/23 15:31:46  stuart
+ * implement btfile object
+ *
  * Revision 2.1  1996/12/17  16:46:59  stuart
  * C++ node interface
  *
@@ -75,7 +78,11 @@ BLOCK *btfile::uniquekey(BTCB *b) {
     if (*bp->np->rptr(b->u.cache.slot) >= b->klen) btpost(BTERDUP);
     return bp;
   }
-  if (bp->flags & BLK_ROOT) return bp;
+  if (bp->flags & BLK_ROOT) {
+    if (bp->cnt() == 1) return bp;
+    if (*bp->np->rptr(b->u.cache.slot - 1) >= b->klen) btpost(BTERDUP);
+    return bp;
+  }
 
   /* have to check dad and perhaps right brother */
 
