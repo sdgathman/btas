@@ -53,6 +53,9 @@ static const char what[] =
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 2.5  2001/02/28 21:26:35  stuart
+ * support .. from mounted directory
+ *
  * Revision 2.4  1999/01/25 18:01:50  stuart
  * return enough info for library to implement symlinks
  *
@@ -316,6 +319,11 @@ t_block btfile::creatfile(BTCB *b) {
 
 int btfile::delfile(BTCB *b,t_block root) {
   if (root == 0L) return 0;
+  // check that target is not mounted
+  for (int i = 0; i < joincnt; ++i) {
+    if (jointbl[i].mid == b->mid && jointbl[i].root == root)
+      return BTERDEL;
+  }
   btget(2);
   BLOCK *bp = bufpool->btread(root);
   if (bp->buf.r.root == root) {
@@ -351,11 +359,17 @@ int btfile::delfile(BTCB *b,t_block root) {
 
 t_block btfile::linkfile(BTCB *b) {
   if (b->rlen > bufpool->maxrec - sizeof b->root) btpost(BTERKLEN);
+  if (b->u.cache.node == 1L) {
+    // prevent linking a filesystem root
+    btpost(BTERLINK);
+  }
+  // a link to a 0 root is a symlink
   if (b->u.cache.node) {
     btget(2);
     BLOCK *bp = bufpool->btread(b->u.cache.node);
     if (bp->buf.r.root != b->u.cache.node) btpost(BTERROOT);
 #ifdef SAFELINK
+    // SAFELINK was an attempt to prevent cycles when linking directories
     if (bp->buf.r.stat.level > btbuf(b->root)->buf.r.stat.level)
       btpost(BTERLINK);
 #endif
