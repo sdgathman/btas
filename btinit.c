@@ -1,6 +1,9 @@
 /*
 	Initialize BTAS/2 file systems
  * $Log$
+ * Revision 2.2  2001/02/28 21:28:08  stuart
+ * align root with block size
+ *
 */
 
 #include <stdio.h>
@@ -128,14 +131,33 @@ int btinit(const char *s,int mode,long size,unsigned blksize,unsigned chk) {
       u.r.stat.id.user = getuid();
       u.r.stat.id.group = getgid();
       u.r.stat.id.mode = mode;
+      u.r.data[0] = 2;
+      u.r.data[1] = u.buf + blksize - (char *)u.r.data - 7;
+      u.r.data[2] = u.buf + blksize - (char *)u.r.data - 14;
       if (lseek(fd,rootpos,0) != rootpos ||
 	write(fd,u.buf,sizeof u.buf) != sizeof u.buf)
 	rc = errno;
       else {
 	memset(u.buf,0,sizeof u.buf);
 	for (unsigned rem = blksize - SECT_SIZE; rem && rem < blksize;
-	  rem -= SECT_SIZE)
-	  write(fd,u.buf,sizeof u.buf);
+	  rem -= SECT_SIZE) {
+	  if (rem == SECT_SIZE) {
+	    // write . and .. to last sector of root
+	    u.buf[SECT_SIZE-13] = '.';
+	    u.buf[SECT_SIZE-8] = 1;
+	    u.buf[SECT_SIZE-7] = 1;
+	    u.buf[SECT_SIZE-6] = '.';
+	    u.buf[SECT_SIZE-1] = 1;
+	    long datpos = rootpos + blksize - SECT_SIZE;
+	    if (lseek(fd,datpos,0) != datpos || 
+	      write(fd,u.buf,sizeof u.buf) != sizeof u.buf)
+	      rc = errno;
+	  }
+	  if (write(fd,u.buf,sizeof u.buf) != sizeof u.buf) {
+	    rc = errno;
+	    break;
+	  }
+	}
       }
     }
   }
