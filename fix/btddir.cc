@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.5  2006/10/17 17:21:18  stuart
+/* Add btinitx (manage extents).
+/*
 /* Revision 1.4  2005/05/10 21:41:46  stuart
 /* More stringent checks on records.
 /*
@@ -112,6 +115,7 @@ static int donode(Logdir &log,t_block root,NODE *np,void *blkend,int dirflag) {
   int lastrlen = 0;
   if (dirflag) while (--i) {
     unsigned char *p = np->rptr(i);
+    if (*p && i == cnt) return -7;
     int rlen = np->size(i) + *p - np->PTRLEN;
     if (rlen + np->PTRLEN > maxrec) return -5;
     if (rlen >= 0) {
@@ -124,6 +128,7 @@ static int donode(Logdir &log,t_block root,NODE *np,void *blkend,int dirflag) {
   }
   else while (--i) {
     unsigned char *p = np->rptr(i);
+    if (*p && i == cnt) return -7;
     int rlen = np->size(i) + *p - 1;
     if (rlen > maxrec) return -5;
     if (rlen >= 0) {
