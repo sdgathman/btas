@@ -50,8 +50,8 @@ private:
   static extent extbl[MAXEXT];
   static int extcnt;
   static bool valid(const btfs &);
-  static int blk_dev(t_block b) { return (unsigned char)(b >> 24); }
-  static long blk_off(t_block b) { return b & 0xFFFFFFL; }
+  int blk_dev(t_block b) const { return dcnt > 1 ? (unsigned char)(b >> 24):0; }
+  long blk_off(t_block b) const { return dcnt > 1 ? (b & 0xFFFFFFL) : b ; }
   static t_block mk_blk(short i,long offset) { return (long(i)<<24)|offset; }
   long blkoffset;	// offset in bytes of first data block
   long extoffset;	// offset of first data block in extents

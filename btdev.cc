@@ -46,7 +46,7 @@ int DEV::read(t_block blk,char *buf) {
   //++serverstats.preads;
   int i = blk_dev(blk);			/* extent index */
 
-  if (i >= dcnt || blk_off(blk) > ext(i).d.eod) {
+  if (blk < 0 || i >= dcnt || blk_off(blk) > ext(i).d.eod) {
 #if TRACE > 0
     fprintf(stderr,"209: btread(%08lx), eod=%ld\n",
       blk, ext(i).d.eod);
