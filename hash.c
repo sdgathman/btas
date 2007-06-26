@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 2.5  2005/02/08 16:16:17  stuart
+/* Port to ISO C++.
+/*
 /* Revision 2.4  2001/02/28 21:32:31  stuart
 /* flush LRU buffer if we run out
 /*
@@ -56,6 +59,11 @@ BufferPool::BufferPool(int size) {
   for (int i = 0; i < hmask; ++i)
     hashtbl[i] = 0;
   serverstats.hsize = hmask--;
+  assert(maxtouch > MAXBUF);
+}
+
+bool BufferPool::ok(int size) {
+  return (size / 3) > MAXBUF;
 }
 
 void BufferPool::put(BLOCK *bp) {

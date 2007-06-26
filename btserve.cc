@@ -19,6 +19,7 @@ btserve::btserve(int maxblk,unsigned cachesize,char id) {
 btserve::~btserve() {
   delete engine;
   delete bufpool;
+  delete locktbl;
 }
 
 long btserve::curtime = 0L;

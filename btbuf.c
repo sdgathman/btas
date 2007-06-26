@@ -6,6 +6,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+Revision 2.6  2005/02/08 16:16:17  stuart
+Port to ISO C++.
+
 Revision 2.5  2001/02/28 21:26:00  stuart
 make dumpbuf into method
 
@@ -132,6 +135,10 @@ BlockCache::BlockCache(int size,unsigned psize):
   serverstats.bufs = poolsize;
   btserve::curtime = time(&serverstats.uptime);
   serverstats.version = version_num;
+}
+
+bool BlockCache::ok(int bsize,unsigned cachesize) {
+  return BufferPool::ok(cachesize / (offsetof(BLOCK,buf) + bsize));
 }
 
 BlockCache::~BlockCache() {

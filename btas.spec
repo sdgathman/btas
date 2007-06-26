@@ -2,7 +2,7 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.10.9
 Version: %{version}
-Release: 1.el4
+Release: 2.el4
 Copyright: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -184,6 +184,10 @@ fi
 /bms/include/*.h
 
 %changelog
+* Thu Jun 21 2007 Stuart Gathman <stuart@bmsi.com> 2.11-1
+- Fix issue363 - 203 on REPLACE with tiny key
+- Fix issue353 - rename of mounted dir should fail
+- Check for big enough cache at startup.
 * Tue Oct 17 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-2
 - provide btinitx to manage extents
 * Fri Jun 30 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-1

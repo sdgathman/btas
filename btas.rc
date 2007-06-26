@@ -1,9 +1,7 @@
 #!/bin/bash
 #
-# bats	This shell script takes care of starting and stopping btas.
-#
 # chkconfig: 2345 80 30
-# description: btas server
+# description: Start and stop BTAS/X database server.
 # processname: btserve
 # pidfile: /var/run/moin/btas.pid
 

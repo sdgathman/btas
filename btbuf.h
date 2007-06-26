@@ -26,6 +26,7 @@ public:
   short mount(const char *);		/* mount fs, return mid */
   int unmount(short mid);		/* unmount fs */
   int newcnt;				/* counts new/deleted blocks */
+  static bool ok(int bsize,unsigned cachesize);
   ~BlockCache();
 };
 

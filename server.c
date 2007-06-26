@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.13  2005/01/21 23:25:51  stuart
+ * Fix error reporting on startup and when hitting ulimit.
+ *
  * Revision 1.12  2001/12/13 16:37:24  stuart
  * Track total update bytes in server stats
  *
@@ -56,6 +59,7 @@ extern "C" {
 #include <sys/lock.h>
 #endif
 #include "btserve.h"
+#include "btbuf.h"
 #include "alarm.h"
 
 #ifdef DETERMINISTIC	/* make certain problems reproducible for debugging */
@@ -157,7 +161,7 @@ int main(int argc,char **argv) {
 	startup = argv[++i];
       continue;
     case 'e':		/* fast (but unsafe) OS eof processing */
-      safe_eof = 0;
+      safe_eof = false;
       continue;
     case '-':		/* exit switch mode */
       ++i;
@@ -184,6 +188,12 @@ Usage:	btserve [-b blksize] [-c cachesize] [-d] [-e] [-f] [filesys ...]\n\
     break;
   }
 
+  if (!BlockCache::ok(block,cache)) {
+    do
+        cache += 50000L;
+    while (!BlockCache::ok(block,cache));
+    fprintf(stderr,"Cache size increased to %ld.\n",cache);
+  }
   {
   const char *s = getenv("BTSERVE");
   char serverid = s ? *s : 0;
