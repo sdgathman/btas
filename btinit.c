@@ -1,6 +1,9 @@
 /*
 	Initialize BTAS/2 file systems
  * $Log$
+ * Revision 2.3  2007/06/21 23:32:51  stuart
+ * Create . and .. in root dir.
+ *
  * Revision 2.2  2001/02/28 21:28:08  stuart
  * align root with block size
  *
@@ -19,11 +22,14 @@
 int btinit(const char *, int, long, unsigned, unsigned);
 
 static void usage(void) {
-    puts("Usage:\tbtinit [-cchksize] [-bblksize] osfile [size]");
+    puts("Usage:\tbtinit [-cchksize] [-bblksize] [-eblks] osfile [size]");
     puts("	size is in 512 byte blocks");
-    puts("	chksize (checkpoint size) is in 512 byte blocks");
-    puts("	blksize is in bytes and defaults to 1024");
+    puts("-c	chksize (checkpoint size) is in 512 byte blocks");
+    puts("-b	blksize is in bytes and defaults to 1024");
+    puts("-e	blks is number of blocks to 'eat' for stress testing.");
 }
+
+static long eatblocks = 0L;
 
 int main(int argc,char **argv) {
   long size;
@@ -50,6 +56,16 @@ int main(int argc,char **argv) {
       }
       else if (argv[1]) {
 	chksize = (unsigned)atol(*++argv),--argc;
+	continue;
+      }
+      break;
+    case 'e':	// blocks to eat for stress testing
+      if (*++*argv) {
+	eatblocks = (unsigned)atol(*argv);
+	continue;
+      }
+      else if (argv[1]) {
+	eatblocks = (unsigned)atol(*++argv),--argc;
 	continue;
       }
       break;
@@ -102,7 +118,7 @@ int btinit(const char *s,int mode,long size,unsigned blksize,unsigned chk) {
   else {
     int align = blksize / SECT_SIZE;	// sector alignment
     memset(u.buf,0,sizeof u.buf);
-    u.d.dtbl->eod = 1L;			/* we will write a root node */
+    u.d.dtbl->eod = 1L + eatblocks;	/* we will write a root node */
     (void)strncpy(u.d.dtbl->name,s,sizeof u.d.dtbl->name);
     u.d.hdr.root = (superoffset + SECT_SIZE) / SECT_SIZE + chk;
     u.d.hdr.root += align - 1;

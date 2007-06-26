@@ -13,6 +13,7 @@ const char what[] = "$Revision$";
 #include <errno.h>
 #include <time.h>
 #include <bterr.h>
+#include <assert.h>
 #include "btserve.h"
 #include "btdev.h"
 #include "btbuf.h"
@@ -20,8 +21,11 @@ const char what[] = "$Revision$";
 #ifdef _AIX41
 #define lseek64 llseek
 #endif
-#ifdef _LFS64_LARGEFILE
+#if _LFS64_LARGEFILE
 #define _open open64
+#else
+#warn "No LARGEFILE support"
+#define O_LARGEFILE 0
 #endif
 
 unsigned short DEV::maxblksize = 1024;
@@ -88,9 +92,9 @@ int DEV::write(t_block blk,const char *buf) {
       rc = errno;
   }
 #if TRACE > 1
-  fprintf(stderr,"pos=%ld blksize=%u ",blk_pos(blk),blksize);
+  fprintf(stderr,"pos=%lld blksize=%u ",blk_pos(blk),blksize);
 #endif
-  if (lseek(fd,blk_pos(blk),0) == -1 || ::_write(fd,buf,blksize) != blksize) {
+  if (lseek64(fd,blk_pos(blk),0) == -1 || ::_write(fd,buf,blksize) != blksize) {
     rc = errno;
     ++errcnt;
   }
@@ -108,11 +112,15 @@ int DEV::chkspace(int needed,bool safe_eof) {	/* check available space */
   for (int cnt = 0; cnt < dcnt; ++cnt) {
     extent *p = &ext(cnt);
     if (p->d.eof == 0) {
-      if (p->d.eod + needed - space > MAXBLK) continue;
+      if (dcnt > 1) {
+	if (p->d.eod + needed - space > MAXBLK) continue;
+      }
+      else
+	if (p->d.eod + needed - space > maxblk) continue;
       if (!safe_eof) return 0;	// expandable with no checking
       needed -= space + newspace;	/* additional blocks to reserve */
       for (t_block blk = p->d.eod + newspace; needed; --needed) {
-	if (blk >= MAXBLK) {
+	if (dcnt > 1 && blk >= MAXBLK || blk >= maxblk) {
 	  p->d.eof = blk;
 	  space += blk - p->d.eod;
 	  return BTERFULL;
@@ -171,9 +179,15 @@ int DEV::open(const char *name,bool rdonly) {
   if (superoffset)	// new format rounds to blksize
     extoffset = (extoffset + blksize - 1) & ~(blksize - 1);
 #if TRACE > 1
-  fprintf(stderr,"superoffset = %d, blkoffset = %ld, extoffset = %ld\n",
-	superoffset,blkoffset,extoffset);
+  fprintf(stderr,
+    "superoffset = %d, blkoffset = %ld, extoffset = %ld, blksize=%d\n",
+    superoffset,blkoffset,extoffset,blksize
+  );
 #endif
+  long long maxsects = 0xFFFFFFFFLL;	// max sector in 4k ext2/3
+  if (rlim.rlim_cur != RLIM_INFINITY)
+    maxsects = rlim.rlim_cur / SECT_SIZE;
+
   if (rc != sizeof u.buf)
     rc = errno;
   else if (!valid(u.d) || blkoffset < superoffset + SECT_SIZE)
@@ -193,7 +207,11 @@ int DEV::open(const char *name,bool rdonly) {
   }
   else if (extcnt + u.d.hdr.dcnt > MAXEXT)
     rc = BTERMTBL;		/* extent table full */
-
+#if !_LFS64_LARGEFILE
+  else if (blk_pos(u.d.dtbl->eof)-1 > 0x7FFFFFFFL) {
+    rc = BTERFULL;
+  }
+#endif
   else {
     
     /* everything seems OK, mount the filesystem */
@@ -232,7 +250,7 @@ int DEV::open(const char *name,bool rdonly) {
 	/* might want to read header & verify */
       }
       /* check ulimit */
-      if (rlim.rlim_cur != RLIM_INFINITY) {
+      if (true) {
 	struct stat st;
 	int rc = fstat(fd,&st);		/* can we stat the file ? */
 	if (rc == -1) {
@@ -243,7 +261,7 @@ int DEV::open(const char *name,bool rdonly) {
 	}
 	/* Check ulimit for a regular file. */
 	if (S_ISREG(st.st_mode)) {
-	  t_block ulim = blk_sects(j,rlim.rlim_cur/SECT_SIZE);
+	  t_block ulim = blk_sects(j,maxsects);
 	  if (ulim < p->d.eod) {
 	    rc = BTERFULL;
 	    while (j-- >= 0) ::_close((*p--).fd);
@@ -300,7 +318,8 @@ int DEV::close() {
 t_block DEV::newblk() {
   for (int i = 0; i < dcnt; ++i) {
     extent *p = &ext(i);
-    if ((p->d.eof == 0 && p->d.eod < MAXBLK) || p->d.eod < p->d.eof) {
+    if ((p->d.eof == 0 && (dcnt == 1 || p->d.eod < MAXBLK))
+		|| p->d.eod < p->d.eof) {
       t_block blk = mk_blk(i,++p->d.eod);
       if (p->d.eof) --space;
       return blk;
@@ -381,12 +400,13 @@ DEV::t_off64 DEV::blk_pos(t_block b) const {
 }
 
 /** Return the most blocks that will fit in sectors for an extent. */
-t_block DEV::blk_sects(int ext,unsigned long sects) const {
+t_block DEV::blk_sects(int ext,long long sects) const {
   long offset = ext ? extoffset : blkoffset;
   int sectsperblk = blksize/SECT_SIZE;
 #if 0
   fprintf(stderr,"sects = %ld, offset = %ld, sectsperblk = %d\n",
      sects,offset/SECT_SIZE,sectsperblk);
 #endif
-  return (sects - offset/SECT_SIZE) / sectsperblk;
+  long long maxblks = (sects - offset/SECT_SIZE) / sectsperblk;
+  return (maxblks > 0x7FFFFFFFL) ? 0x7FFFFFFFL : (long)maxblks;
 }

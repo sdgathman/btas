@@ -56,8 +56,9 @@ private:
   long blkoffset;	// offset in bytes of first data block
   long extoffset;	// offset of first data block in extents
   t_off64 blk_pos(t_block b) const;	// byte offset of block
-  long blk_sects(int ext,unsigned long sects) const;
+  long blk_sects(int ext,long long sects) const;
   int newspace;	// blocks reallocated from OS
+  long maxblk;
 };
 
 #if 0
