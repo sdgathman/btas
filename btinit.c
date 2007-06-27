@@ -1,6 +1,10 @@
 /*
 	Initialize BTAS/2 file systems
  * $Log$
+ * Revision 2.4  2007/06/26 21:40:42  stuart
+ * Provide option to eat blocks in btinit to test large file conditions.
+ * Fix > 2G support.
+ *
  * Revision 2.3  2007/06/21 23:32:51  stuart
  * Create . and .. in root dir.
  *
@@ -22,11 +26,12 @@
 int btinit(const char *, int, long, unsigned, unsigned);
 
 static void usage(void) {
-    puts("Usage:\tbtinit [-cchksize] [-bblksize] [-eblks] osfile [size]");
+    puts("Usage:\tbtinit [-cchksize] [-bblksize] [-eblks] [-f] osfile [size]");
     puts("	size is in 512 byte blocks");
     puts("-c	chksize (checkpoint size) is in 512 byte blocks");
     puts("-b	blksize is in bytes and defaults to 1024");
     puts("-e	blks is number of blocks to 'eat' for stress testing.");
+    puts("-f	force - do not ask before initializing output file.");
 }
 
 static long eatblocks = 0L;
@@ -36,6 +41,7 @@ int main(int argc,char **argv) {
   int rc;
   unsigned short blksize = 1024;
   unsigned chksize = 0;
+  char force = 0;
   while (argc > 1 && *argv[1] == '-') {
     --argc, ++argv;
     switch (*++*argv) {
@@ -69,6 +75,9 @@ int main(int argc,char **argv) {
 	continue;
       }
       break;
+    case 'f':	// do not ask before initializing
+      force = 1;
+      continue;
     }
     usage();
     return 1;
@@ -82,15 +91,20 @@ int main(int argc,char **argv) {
   else
     size = 0L;
   if (size)
-    printf("Initialize %s as %ld %u byte blocks for BTAS/X, continue?",
+    printf("Initializing %s as %ld %u byte blocks for BTAS/X",
 	 argv[1], (size - SECT_SIZE) / blksize, blksize);
   else
-    printf("Initialize %s as expandable %u byte blocks for BTAS/X, continue?",
+    printf("Initializing %s as expandable %u byte blocks for BTAS/X",
 	 argv[1], blksize);
-  rc = getchar();
-  if (rc != 'y' && rc != 'Y') {
-    printf("%s unchanged.\n",argv[1]);
-    return 1;
+  if (force)
+    printf(".\n");
+  else {
+    printf(", continue?");
+    rc = getchar();
+    if (rc != 'y' && rc != 'Y') {
+      printf("%s unchanged.\n",argv[1]);
+      return 1;
+    }
   }
   errno = btinit(argv[1],BT_DIR+0777,size,blksize,chksize);
   if (errno) {

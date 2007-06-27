@@ -1,7 +1,3 @@
-Make test mode that eats gigabytes of space in a filesys by subtracting
-an offset from blk_pos for blocks past root.  Can be used to test boundary
-conditions near filesys capactity.
-
 Move btinit.cc to fix and make filesys extend btasXFS.
 
 Add call to allocate transaction id.  A TID will have a bit set

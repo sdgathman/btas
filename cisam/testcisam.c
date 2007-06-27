@@ -352,7 +352,7 @@ Suite *cisam_suite (void) {
   tcase_add_test (tc_api, bttestx);
   tcase_add_test (tc_api, bttesty);
   tcase_add_test (tc_api, test_dictinfo);
-  tcase_add_test (tc_api, test_bigrec);
+  //tcase_add_test (tc_api, test_bigrec);
   tcase_add_test (tc_api, test_replace);
   return s;
 }

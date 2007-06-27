@@ -159,7 +159,7 @@ int DEV::open(const char *name,bool rdonly) {
     char buf[SECT_SIZE];
     struct btfs d;	/* file system header */
   } u;
-  int mode = (rdonly?O_RDONLY:O_RDWR)+O_BINARY;
+  int mode = (rdonly?O_RDONLY:O_RDWR)+O_BINARY+O_LARGEFILE;
   struct rlimit rlim;
   int rc = getrlimit(RLIMIT_FSIZE,&rlim);
   if (rc == -1) return errno;
@@ -230,6 +230,7 @@ int DEV::open(const char *name,bool rdonly) {
       }
     }
     strncpy(u.d.dtbl->name,name,sizeof u.d.dtbl->name);
+    maxblk = blk_sects(0,maxsects);
     baseid = extcnt;
     for (int j = 0; j < dcnt; ++j) {
       extent *p = &ext(j);
@@ -250,9 +251,9 @@ int DEV::open(const char *name,bool rdonly) {
 	/* might want to read header & verify */
       }
       /* check ulimit */
-      if (true) {
-	struct stat st;
-	int rc = fstat(fd,&st);		/* can we stat the file ? */
+      if (rlim.rlim_cur != RLIM_INFINITY) {
+	struct stat64 st;
+	int rc = fstat64(fd,&st);		/* can we stat the file ? */
 	if (rc == -1) {
 	  rc = errno;
 	  while (j-- >= 0) ::_close((*p--).fd);

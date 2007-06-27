@@ -4,6 +4,9 @@
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.14  2007/06/26 19:16:59  stuart
+ * Check cache size at startup.
+ *
  * Revision 1.13  2005/01/21 23:25:51  stuart
  * Fix error reporting on startup and when hitting ulimit.
  *
@@ -45,8 +48,10 @@
 #include <stdlib.h>
 extern "C" {
 #include <btas.h>
+#include <bterr.h>
 }
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <signal.h>
@@ -230,8 +235,12 @@ Usage:	btserve [-b blksize] [-c cachesize] [-d] [-e] [-f] [filesys ...]\n\
   while (i < argc) {		/* mount listed filesystems */
     const char *s = argv[i++];
     rc = server.mount(s);
-    if (rc)
-      fprintf(stderr,"Error %d mounting %s\n",rc,s);
+    if (rc) {
+      if (rc < BTERROOT)
+	fprintf(stderr,"%s: %s (%d)\n",s,strerror(rc),rc);
+      else
+	fprintf(stderr,"Error %d mounting %s\n",rc,s);
+    }
     else
       fprintf(stderr,"%s mounted on /\n",s);
   }
