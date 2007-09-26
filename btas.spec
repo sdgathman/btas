@@ -189,6 +189,7 @@ fi
 - Fix issue353 - rename of mounted dir should fail
 - Check for big enough cache at startup.
 - Support for btas extents bigger than 2G
+- Enhance SQL NULL and fix delimited date output.
 * Tue Oct 17 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-2
 - provide btinitx to manage extents
 * Fri Jun 30 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-1
