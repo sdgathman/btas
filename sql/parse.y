@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.3  2001/11/14 23:07:35  stuart
+ * Support CREATE TABLE, but ignores field names for now.
+ *
  * Revision 1.2  2001/11/14 19:16:46  stuart
  * Implement INSERT INTO ... VALUES
  * Fix assignment bug.
@@ -38,7 +41,7 @@ static struct sql_stmt s;	/* result of parsing */
 %token	ALL ANY CONNECT INSERT VALUES INTO AS UPDATE SET DELETE ALTER MODIFY
 %token	ADD UNIQUE INDEX ON DROP RENAME TO PRIOR TABLE VIEW START WITH CLUSTER
 %token	UNION INTERSECT MINUS CREATE HAVING USE JOIN TABLE CROSS
-%token	CASE WHEN THEN ELSE END SUBSTRING FOR EXISTS
+%token	CASE WHEN THEN ELSE END SUBSTRING FOR EXISTS NULLIF
 %left	<exp> OR
 %left	<exp> AND
 %right	NOT
@@ -438,6 +441,13 @@ expr	: atom
 		  }
 		  addlist($3,$5);
 		  $$ = sql_if($3); }
+	| NULLIF '(' expr ',' expr ')'
+		{ sql x = mklist();
+		  addlist(x,mkbinop(sql_eval($3,0),EXEQ,$5));
+		  addlist(x,sql_nul);
+		  addlist(x,$3);
+		  $$ = sql_if(x);
+		}
 	| SUBSTRING '(' expr FROM expr FOR expr ')'
 		{ addlist($$ = mklist(),$3); addlist($$,$5); addlist($$,$7);
 		  $$ = sql_substr($$); }
@@ -504,6 +514,7 @@ static int yylex() {
     { "INSERT", INSERT }, {"INTERSECT", INTERSECT },
     { "INTO", INTO }, { "IS", IS }, { "JOIN", JOIN }, { "LIKE", LIKE },
     { "MINUS", MINUS }, { "MODIFY", MODIFY }, { "NOT", NOT }, { "NULL", NUL },
+    { "NULLIF", NULLIF },
     { "ON", ON }, { "OR", OR }, { "ORDER", ORDER }, { "OUTER", OUTER },
     { "PRIOR", PRIOR }, { "RENAME", RENAME },
     { "SELECT", SELECT }, { "SET", SET }, { "START", START },

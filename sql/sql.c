@@ -17,6 +17,7 @@ static struct sqlnode SQLFIXED[] = {
   { EXSTRING }
 };
 enum { SQLNULL, SQLTRUE, SQLFALSE, SQLZERO, SQLNULSTR, NFIXED };
+#define ISFIXED(x) (x >= SQLFIXED && x < SQLFIXED+NFIXED)
 
 sql sql_nul = &SQLFIXED[SQLNULL];
 
@@ -39,7 +40,7 @@ sql mksql(enum sqlop op) {
 /* delete a single sql node */
 
 void rmsql(sql x) {
-  if (x >= SQLFIXED && x < SQLFIXED+NFIXED) return;
+  if (ISFIXED(x)) return;
   x->u.opd[0] = freeptr;
   freeptr = x;
 }
@@ -435,6 +436,7 @@ sql sql_eval(sql x,int idx) {
   const char *p;
   sql op1,a;
   if (x == 0) return 0;
+  if (ISFIXED(x)) return x;
   switch (x->op) {
   case EXHEAD:
     /* evaluate list elements and duplicate headers */

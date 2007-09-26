@@ -131,5 +131,5 @@ extern struct sqlform { const char *name, *fmt, *op; } sql_form[];
 extern struct obstack *sqltree;
 void yyerror(const char *);
 extern int debug, mapupper;
-extern sql sql_nul, sql_true, sql_false;
+extern sql sql_nul;
 #endif

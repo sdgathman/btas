@@ -6,6 +6,9 @@ and return the output expression.  The input expression is always an EXHEAD.
 The input code may be checked for sanity or for recursive convenience.
 (I.e. strip the EXHEAD then call yourself.)
  *$Log$
+ *Revision 1.3  2007/09/26 19:07:06  stuart
+ *Create SQLTRUE, SQLFALSE, SQLZERO, SQLNULSTR fixed nodes.
+ *
  *Revision 1.2  2007/09/26 17:04:38  stuart
  *Implement EXDATE type.
  *
@@ -101,7 +104,10 @@ sql sql_lower(sql x) {
   return sql_case(x,sql_lower);
 }
 
-/* convert constant expressions to logical value (EXBOOL) */
+/* convert constant expressions to logical value (EXBOOL)
+ * if(cond,trueval,falseval)
+ * if(cond,val,cond,val,elseval)
+ */
 
 sql sql_if(sql x) {
   sql z;
