@@ -2,6 +2,7 @@
 #include <errenv.h>
 #include <assert.h>
 #include <string.h>
+#include <date.h>
 #include "config.h"
 #include "sql.h"
 #include "obmem.h"
@@ -76,7 +77,7 @@ sql mkunop(enum sqlop op,sql x) {
       a = mksql(EXINT);
       a->u.ival = 1;
       return a;
-    case EXCONST: case EXDBL: case EXINT: case EXSTRING:
+    case EXCONST: case EXDBL: case EXINT: case EXSTRING: case EXDATE:
       a = mksql(EXINT);
       a->u.ival = 0;
       return a;
@@ -127,6 +128,8 @@ sql mkunop(enum sqlop op,sql x) {
     break;
   case EXNEG:
     switch (x->op) {
+    case EXDATE:
+      x->op = EXCONST;	// no longer a date
     case EXCONST:
       mulM(&x->u.num.val,-1,0);
       return x;
@@ -194,11 +197,11 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
     break;
   }
 
-  if (x->op == EXCONST) {
+  if (x->op == EXCONST || x->op == EXDATE) {
     x->u.val = const2dbl(&x->u.num);
     x->op = EXDBL;
   }
-  if (y->op == EXCONST) {
+  if (y->op == EXCONST || y->op == EXDATE) {
     y->u.val = const2dbl(&y->u.num);
     y->op = EXDBL;
   }
@@ -457,6 +460,7 @@ int sql_width(sql x) {
     return x->u.col->width;
   case EXFUNC:
     return func_width(x);
+  case EXDATE:
   case EXCONST:
   case EXDBL:
     return sql_width(tostring(x));
@@ -509,9 +513,17 @@ struct sqlform sql_form[] = {
 #include "sql.def"
 };
 
+static char buf[32];
+
+static const char *dump_date(const sconst *n) {
+  struct mmddyy mdy;
+  julmdy(Mtol(&n->val),&mdy);
+  sprintf(buf,"%2d/%02d/%04d",mdy.mm,mdy.dd,mdy.yy);
+  return buf;
+}
+
 static const char *dump_num(const sconst *n) {
   int fix = n->fix;
-  static char buf[32];
   char *p = buf, *q = buf;
   char sign = 0;
   MONEY m = n->val;
@@ -542,6 +554,9 @@ sql tostring(sql x) {
   const char *p;
   switch (x->op) {
   char buf[32];
+  case EXDATE:
+    p = dump_date(&x->u.num);
+    break;
   case EXCONST:
     p = dump_num(&x->u.num);
     break;
@@ -591,6 +606,9 @@ void sql_print(sql x,int nl) {
       x->u.name[0]?x->u.name[0]:"*",
       x->u.name[1]?x->u.name[1]:"*"
     );
+    break;
+  case EXDATE:
+    printf("J'%s'",dump_date(&x->u.num));
     break;
   case EXCONST:
     fputs(dump_num(&x->u.num),stdout);
@@ -665,11 +683,12 @@ sql toconst(sql x,int fix) {
     const char *p;
   case EXSTRING:
     p = x->u.name[0];
-    x->op = EXCONST;
     if (getconst(&x->u.num,&p) == 0) {
       x->op = EXNULL;
       break;
     }
+  case EXDATE:
+    x->op = EXCONST;
     /* now match decimals */
   case EXCONST:
     i = x->u.num.fix;

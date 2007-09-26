@@ -118,7 +118,7 @@ static int Column_store(Column *c,sql x,char *buf) {
     if (c->len > 6) break;	/* too big */
     stnum(ftoM(x->u.val + 0.5),buf,c->len);
     return 0;
-  case EXCONST:
+  case EXCONST: case EXDATE:
     if (c->len > 6) break;	/* too big */
     stnum(x->u.num.val,buf,c->len);
     return 0;
@@ -539,7 +539,7 @@ static int Sqlfld_store(Column *col,sql x,char *buf) {
     if (col->len != 8) break;
     stdbl(x->u.val,buf);
     return 0;
-  case EXCONST:
+  case EXCONST: case EXDATE:
     stnum(x->u.num.val,buf,col->len);
     return 0;
   }
@@ -572,6 +572,10 @@ void sql_frec(sql x,struct btfrec *f) {
   case EXCOL: case EXAGG:
     f->len = x->u.col->len;
     f->type = x->u.col->type;
+    return;
+  case EXDATE:
+    f->len = 4;
+    f->type = BT_DATE;
     return;
   case EXCONST:	/* FIXME: could actually look at constant */
     f->len = 6;
@@ -689,7 +693,7 @@ static char nulnum[8] = { 0x80 };
 static int Dblfld_store(Column *c,sql x,char *buf) {
   if (!x) return -1;
   switch (x->op) {
-  case EXCONST:
+  case EXCONST: case EXDATE:
     stdbl(const2dbl(&x->u.num),buf);
     break;
   case EXDBL:

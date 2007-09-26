@@ -123,7 +123,7 @@ Vwsel *Vwsel_copy(const Vwsel *a) {
 	x->op == EXCOL && x->u.col->tabidx == sp->lev	\
 	&& x->u.col->colidx < sp->kcol )
 #define isconstant(x)	(x->op == EXSTRING || x->op == EXCONST	\
-			|| x->op == EXDBL			\
+			|| x->op == EXDBL || x->op == EXDATE	\
 			|| x->op == EXCOL && x->u.col->tabidx < sp->lev)
 
 /* test whether an expression is a basic query and compute column id */

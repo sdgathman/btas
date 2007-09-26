@@ -44,7 +44,7 @@ Column *Date_init(Column *this,char *buf) {
 static int Date_store(Column *this,sql x,char *buf) {
   double val;
   switch (x->op) {
-  case EXCONST:
+  case EXCONST: case EXDATE:
     if (sgnM(&x->u.num.val) == 0) {
       stD(zeroD,buf);
       return 0;
@@ -79,9 +79,12 @@ static int Date_store(Column *this,sql x,char *buf) {
 static sql Date_load(Column *this) {
   sql x;
   DATE dt = ldD(this->buf);
+  sconst d;
   if (!dt) return sql_nul;
-  x = mksql(EXDBL);
-  x->u.val = ldD(this->buf) + DAYCENTORG;
+  d.val = ltoM(dt + DAYCENTORG);
+  d.fix = 0;
+  x = mkconst(&d);
+  x->op = EXDATE;
   return x;
 }
 
@@ -121,7 +124,7 @@ Column *Julian_init(Column *this,char *buf) {
 static int Julian_store(Column *this,sql x,char *buf) {
   double val;
   switch (x->op) {
-  case EXCONST:
+  case EXCONST: case EXDATE:
     if (sgnM(&x->u.num.val) == 0) {
       stlong(0L,buf);
       return 0;
@@ -153,9 +156,12 @@ static int Julian_store(Column *this,sql x,char *buf) {
 static sql Julian_load(Column *this) {
   sql x;
   long dt = ldlong(this->buf);
+  sconst d;
   if (!dt) return sql_nul;
-  x = mksql(EXDBL);
-  x->u.val = dt;
+  d.val = ltoM(dt);
+  d.fix = 0;
+  x = mkconst(&d);
+  x->op = EXDATE;
   return x;
 }
 
@@ -237,7 +243,7 @@ Column *Time_init_mask(Time *this,char *buf,const char *mask) {
 static int Time_store(Column *this,sql x,char *buf) {
   double val;
   switch (x->op) {
-  case EXCONST:
+  case EXCONST: case EXDATE:
     val = const2dbl(&x->u.num);
     break;
   case EXDBL:
@@ -307,7 +313,7 @@ Column *Julmin_init(Column *this,char *buf) {
 static int Julmin_store(Column *this,sql x,char *buf) {
   double val;
   switch (x->op) {
-  case EXCONST:
+  case EXCONST: case EXDATE:
     if (sgnM(&x->u.num.val) == 0) {
       stjulmin((JULMIN)0,buf);
       return 0;

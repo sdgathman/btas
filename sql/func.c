@@ -6,6 +6,9 @@ and return the output expression.  The input expression is always an EXHEAD.
 The input code may be checked for sanity or for recursive convenience.
 (I.e. strip the EXHEAD then call yourself.)
  *$Log$
+ *Revision 1.1  2001/02/28 23:00:03  stuart
+ *Old C version of sql recovered as best we can.
+ *
  */
 
 #include <stdio.h>
@@ -48,6 +51,8 @@ static sql sql_dayno(sql x) {
     return z;
   case EXHEAD:
     return applylist(x,sql_dayno);
+  case EXDATE:
+    x->op = EXCONST;
   case EXNULL:
   case EXCONST: EXDBL:
     return x;
@@ -352,7 +357,7 @@ static sql sql_isnull(sql x) {
       case EXNULL:
 	y = n->u.opd[0];
 	break;
-      case EXCONST: case EXDBL: case EXINT: case EXSTRING:
+      case EXCONST: case EXDBL: case EXINT: case EXSTRING: case EXDATE:
 	rmexp(n->u.opd[0]);
 	break;
       default:
@@ -403,6 +408,8 @@ static sql sql_abs(sql x) {
   case EXNULL:
   default:
     return x;
+  case EXDATE:
+    x->op = EXCONST;	// no longer a date
   case EXCONST:
     if (sgnM(&x->u.num.val) < 0)
       mulM(&x->u.num.val,-1,0);
