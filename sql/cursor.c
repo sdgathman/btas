@@ -16,9 +16,12 @@ void Cursor_print(Cursor *c,enum Column_type type,const char *s) {
   if (type == TITLE)
     puts("");
   for (;;) {
+    Column *col = c->col[i];
     if (type == DATA) {
-      sql y = tostring(do0(c->col[i],load));
-      const char *p = (y->op == EXSTRING) ? y->u.name[0] : "";
+      char *p = (char *)alloca(col->width+1);
+      /* printf("w = %2d ",col->width); */
+      p[col->width] = 0;
+      do2(col,print,type,p);
       if (strchr(p,quote) || sep && strchr(p,sep)) {
 	putchar(quote);
 	while (*p) {
@@ -30,10 +33,9 @@ void Cursor_print(Cursor *c,enum Column_type type,const char *s) {
       }
       else
 	fputs(p,stdout);
-      rmsql(y);
     }
     else
-      printColumn(c->col[i],type);
+      printColumn(col,type);
     if (++i < c->ncol) {
       if (sep) putchar(sep);
     }
