@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.4  2007/09/26 20:21:41  stuart
+ * Implement NULLIF
+ *
  * Revision 1.3  2001/11/14 23:07:35  stuart
  * Support CREATE TABLE, but ignores field names for now.
  *
@@ -41,7 +44,7 @@ static struct sql_stmt s;	/* result of parsing */
 %token	ALL ANY CONNECT INSERT VALUES INTO AS UPDATE SET DELETE ALTER MODIFY
 %token	ADD UNIQUE INDEX ON DROP RENAME TO PRIOR TABLE VIEW START WITH CLUSTER
 %token	UNION INTERSECT MINUS CREATE HAVING USE JOIN TABLE CROSS
-%token	CASE WHEN THEN ELSE END SUBSTRING FOR EXISTS NULLIF
+%token	CASE WHEN THEN ELSE END SUBSTRING FOR EXISTS NULLIF COALESCE
 %left	<exp> OR
 %left	<exp> AND
 %right	NOT
@@ -442,12 +445,17 @@ expr	: atom
 		  addlist($3,$5);
 		  $$ = sql_if($3); }
 	| NULLIF '(' expr ',' expr ')'
-		{ sql x = mklist();
-		  addlist(x,mkbinop(sql_eval($3,0),EXEQ,$5));
-		  addlist(x,sql_nul);
-		  addlist(x,$3);
-		  $$ = sql_if(x);
-		}
+		{ sql a = mklist();
+		  addlist(a,mkbinop(sql_eval($3,0),EXEQ,$5));
+		  addlist(a,sql_nul);
+		  addlist(a,$3);
+		  $$ = sql_if(a); }
+	| COALESCE '(' expr ',' expr ')'
+		{ sql a = mklist();
+		  addlist(a, mkunop(EXNOT,mkunop(EXISNUL,sql_eval($3,0))));
+		  addlist(a, $3);
+		  addlist(a, $5);
+		  $$ = sql_if(a); }
 	| SUBSTRING '(' expr FROM expr FOR expr ')'
 		{ addlist($$ = mklist(),$3); addlist($$,$5); addlist($$,$7);
 		  $$ = sql_substr($$); }
@@ -505,16 +513,16 @@ static int yylex() {
     { "ADD", ADD }, { "ALL", ALL }, { "ALTER", ALTER }, { "AND", AND },
     { "ANY", ANY }, { "AS", AS }, { "ASC", ASC },
     { "BETWEEN", BETWEEN }, { "BY", BY }, { "CASE", CASE },
-    { "CLUSTER", CLUSTER }, { "CONNECT", CONNECT }, { "CREATE", CREATE },
-    { "CROSS", CROSS },
+    { "CLUSTER", CLUSTER }, { "COALESCE", COALESCE }, { "CONNECT", CONNECT },
+    { "CREATE", CREATE }, { "CROSS", CROSS },
     { "DELETE", DELETE }, { "DESC", DESC }, { "DISTINCT", DISTINCT },
     { "DROP", DROP }, { "ELSE", ELSE }, { "END", END }, { "EXISTS", EXISTS },
     { "FOR", FOR }, { "FROM", FROM }, { "GROUP", GROUP },
     { "HAVING", HAVING }, { "IN", IN }, { "INDEX", INDEX },
     { "INSERT", INSERT }, {"INTERSECT", INTERSECT },
     { "INTO", INTO }, { "IS", IS }, { "JOIN", JOIN }, { "LIKE", LIKE },
-    { "MINUS", MINUS }, { "MODIFY", MODIFY }, { "NOT", NOT }, { "NULL", NUL },
-    { "NULLIF", NULLIF },
+    { "MINUS", MINUS }, { "MODIFY", MODIFY }, { "NOT", NOT },
+    { "NULL", NUL }, { "NULLIF", NULLIF },
     { "ON", ON }, { "OR", OR }, { "ORDER", ORDER }, { "OUTER", OUTER },
     { "PRIOR", PRIOR }, { "RENAME", RENAME },
     { "SELECT", SELECT }, { "SET", SET }, { "START", START },
