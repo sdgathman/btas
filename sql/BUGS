@@ -1,5 +1,2 @@
-EXDATE not implemented. 
-  Load dates as EXCONST, for every case EXCONST: add case EXDATE as well.
-  That should preserve existing behaviour.  Now modify some cases for EXDATE.
 Convert MONEY to 'long long' or most portable 64-bit type.
 Should not attempt to use index for '<>'.

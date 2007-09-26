@@ -6,6 +6,9 @@ and return the output expression.  The input expression is always an EXHEAD.
 The input code may be checked for sanity or for recursive convenience.
 (I.e. strip the EXHEAD then call yourself.)
  *$Log$
+ *Revision 1.2  2007/09/26 17:04:38  stuart
+ *Implement EXDATE type.
+ *
  *Revision 1.1  2001/02/28 23:00:03  stuart
  *Old C version of sql recovered as best we can.
  *
@@ -98,7 +101,7 @@ sql sql_lower(sql x) {
   return sql_case(x,sql_lower);
 }
 
-/* convert constant expressions to logical value (EXINT) */
+/* convert constant expressions to logical value (EXBOOL) */
 
 sql sql_if(sql x) {
   sql z;
@@ -126,7 +129,7 @@ sql sql_if(sql x) {
 	rmexp(x);
 	return sql_nul;
       }
-      if (cond->op != EXINT) break;	/* delayed evaluation */
+      if (cond->op != EXBOOL) break;	/* delayed evaluation */
       val = cond->u.ival;
       t = y->u.opd[0];
       rmsql(cond);
@@ -357,7 +360,7 @@ static sql sql_isnull(sql x) {
       case EXNULL:
 	y = n->u.opd[0];
 	break;
-      case EXCONST: case EXDBL: case EXINT: case EXSTRING: case EXDATE:
+      case EXCONST: case EXDBL: case EXBOOL: case EXSTRING: case EXDATE:
 	rmexp(n->u.opd[0]);
 	break;
       default:

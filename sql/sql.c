@@ -9,9 +9,16 @@
 #include "object.h"
 #include "cursor.h"
 
-static struct sqlnode NUL = { EXNULL };
+static struct sqlnode SQLFIXED[] = {
+  { EXNULL },
+  { EXBOOL, 1 },
+  { EXBOOL, 0 },
+  { EXCONST },
+  { EXSTRING }
+};
+enum { SQLNULL, SQLTRUE, SQLFALSE, SQLZERO, SQLNULSTR, NFIXED };
 
-sql sql_nul = &NUL;
+sql sql_nul = &SQLFIXED[SQLNULL];
 
 struct obstack *sqltree;
 static sql freeptr = 0;
@@ -32,7 +39,7 @@ sql mksql(enum sqlop op) {
 /* delete a single sql node */
 
 void rmsql(sql x) {
-  if (x == sql_nul) return;
+  if (x >= SQLFIXED && x < SQLFIXED+NFIXED) return;
   x->u.opd[0] = freeptr;
   freeptr = x;
 }
@@ -57,14 +64,28 @@ sql mkname(const char *a,const char *b) {
 }
 
 sql mkconst(const sconst *m) {
-  sql x = mksql(EXCONST);
+  sql x;
+  if (sgnM(&m->val) == 0)
+    return &SQLFIXED[SQLZERO];
+  x = mksql(EXCONST);
   x->u.num = *m;
   return x;
 }
 
+sql mkbool(int f) {
+  return f ? &SQLFIXED[SQLTRUE] : &SQLFIXED[SQLFALSE];
+}
+
 sql mkstring(const char *s) {
-  sql x = mksql(EXSTRING);
-  x->u.name[0] = s;
+  sql x;
+  if (*s == 0) {
+    x = &SQLFIXED[SQLNULSTR];
+    x->u.name[0] = "";
+  }
+  else {
+    x = mksql(EXSTRING);
+    x->u.name[0] = s;
+  }
   return x;
 }
 
@@ -74,24 +95,17 @@ sql mkunop(enum sqlop op,sql x) {
   case EXISNUL:
     switch (x->op) {
     case EXNULL:
-      a = mksql(EXINT);
-      a->u.ival = 1;
-      return a;
-    case EXCONST: case EXDBL: case EXINT: case EXSTRING: case EXDATE:
-      a = mksql(EXINT);
-      a->u.ival = 0;
-      return a;
+      return mkbool(1);
+    case EXCONST: case EXDBL: case EXBOOL: case EXSTRING: case EXDATE:
+      return mkbool(0);
     }
     break;
   case EXNOT:
     switch (x->op) {
     case EXNULL:
-      a = mksql(EXINT);
-      a->u.ival = 1;
-      return a;
-    case EXINT:
-      x->u.ival = !x->u.ival;
       return x;
+    case EXBOOL:
+      return mkbool(!x->u.ival);
     case EXAND:
       x->u.opd[0] = mkunop(EXNOT,x->u.opd[0]);
       x->u.opd[1] = mkunop(EXNOT,x->u.opd[1]);
@@ -175,19 +189,21 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
   sql z;
 
   if (x->op == EXNULL) {
+    z = x;
     x = y;
-    y = sql_nul;
+    y = z;
   }
   if (y->op == EXNULL) {
-    rmexp(x);
     switch (op) {
-    case EXEQ: case EXNE: case EXLE: case EXLT: case EXGE: case EXGT:
-    case EXLIKE: case EXAND: case EXOR:
-      x = mksql(EXINT);
-      x->u.ival = 1;
-      return x;
+    case EXAND: case EXOR:
+      if (op == EXAND && isfalse(x)) return x;
+      if (op == EXOR && istrue(x)) return x;
+      z = mksql(op);
+      z->u.opd[0] = x;
+      z->u.opd[1] = y;
+      return z;
     }
-    return y;
+    rmexp(x); return y;
   }
 
   switch (op) {
@@ -241,34 +257,34 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
     case EXEQ:
       d = x->u.val - y->u.val;
       if (d < 0.0) d = -d;
-      x->u.ival = (d < eps);
-      x->op = EXINT;
+      rmsql(x);
+      x = mkbool(d < eps);
       break;
     case EXNE:
       d = x->u.val - y->u.val;
       if (d < 0.0) d = -d;
-      x->u.ival = (d >= eps);
-      x->op = EXINT;
+      rmsql(x);
+      x = mkbool(d >= eps);
       break;
     case EXGT:
       d = x->u.val - y->u.val;
-      x->u.ival = (d >= eps);
-      x->op = EXINT;
+      rmsql(x);
+      x = mkbool(d >= eps);
       break;
     case EXLT:
       d = y->u.val - x->u.val;
-      x->u.ival = (d >= eps);
-      x->op = EXINT;
+      rmsql(x);
+      x = mkbool(d >= eps);
       break;
     case EXGE:
       d = y->u.val - x->u.val;
-      x->u.ival = (d < eps);
-      x->op = EXINT;
+      rmsql(x);
+      x = mkbool(d < eps);
       break;
     case EXLE:
       d = x->u.val - y->u.val;
-      x->u.ival = (d < eps);
-      x->op = EXINT;
+      rmsql(x);
+      x = mkbool(d < eps);
       break;
     default:
       z = mksql(op);
@@ -279,7 +295,7 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
     rmsql(y);
     return x;
   }
-  if (x->op == EXINT) {
+  if (x->op == EXBOOL) {
     switch (op) {
     case EXAND:
       if (x->u.ival) {
@@ -301,7 +317,7 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
       }
     }
   }
-  if (y->op == EXINT) {
+  if (y->op == EXBOOL) {
     switch (op) {
     case EXAND:
       if (y->u.ival) {
@@ -317,32 +333,32 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
   if (x->op == EXSTRING && y->op == EXSTRING) {
     switch (op) {
     case EXEQ:
-      x->u.ival = (strcmp(x->u.name[0],y->u.name[0]) == 0);
-      x->op = EXINT;
+      z = mkbool(strcmp(x->u.name[0],y->u.name[0]) == 0);
+      rmsql(x); x = z;
       break;
     case EXNE:
-      x->u.ival = (strcmp(x->u.name[0],y->u.name[0]) != 0);
-      x->op = EXINT;
+      z = mkbool(strcmp(x->u.name[0],y->u.name[0]) != 0);
+      rmsql(x); x = z;
       break;
     case EXGT:
-      x->u.ival = (strcmp(x->u.name[0],y->u.name[0]) > 0);
-      x->op = EXINT;
+      z = mkbool(strcmp(x->u.name[0],y->u.name[0]) > 0);
+      rmsql(x); x = z;
       break;
     case EXGE:
-      x->u.ival = (strcmp(x->u.name[0],y->u.name[0]) >= 0);
-      x->op = EXINT;
+      z = mkbool(strcmp(x->u.name[0],y->u.name[0]) >= 0);
+      rmsql(x); x = z;
       break;
     case EXLT:
-      x->u.ival = (strcmp(x->u.name[0],y->u.name[0]) < 0);
-      x->op = EXINT;
+      z = mkbool(strcmp(x->u.name[0],y->u.name[0]) < 0);
+      rmsql(x); x = z;
       break;
     case EXLE:
-      x->u.ival = (strcmp(x->u.name[0],y->u.name[0]) <= 0);
-      x->op = EXINT;
+      z = mkbool(strcmp(x->u.name[0],y->u.name[0]) <= 0);
+      rmsql(x); x = z;
       break;
     case EXLIKE:
-      x->u.ival = like(x->u.name[0],y->u.name[0]);
-      x->op = EXINT;
+      z = mkbool(like(x->u.name[0],y->u.name[0]));
+      rmsql(x); x = z;
       break;
     case EXCAT:
       { const char *p;
@@ -430,11 +446,10 @@ sql sql_eval(sql x,int idx) {
     op1 = x->u.opd[0];
     if (op1->op == EXCURSOR && op1->u.s.lev < idx) {
       sql p;
-      a = mksql(EXINT);
       p = free_sql(sqltree);
-      a->u.ival = (do0(op1->u.s.qry,first) == 0);
+      a = mkbool(do0(op1->u.s.qry,first) == 0);
       if (a->u.ival && x->op == EXUNIQ)
-	a->u.ival == (do0(op1->u.s.qry,next) != 0);
+	a = mkbool(do0(op1->u.s.qry,next) != 0);
       pop_sql(p);
       return a;
     }
@@ -581,7 +596,7 @@ sql tostring(sql x) {
     sprintf(buf,"%g",x->u.val);
     p = buf;
     break;
-  case EXINT:
+  case EXBOOL:
     if (x->u.ival)
       p = "TRUE";
     else
@@ -644,7 +659,7 @@ void sql_print(sql x,int nl) {
     else
       printf("%d.%s",x->u.col->tabidx,x->u.col->name);
     break;
-  case EXINT:
+  case EXBOOL:
     printf("%s",x->u.ival ? "TRUE" : "FALSE");
     break;
   case EXAGG:

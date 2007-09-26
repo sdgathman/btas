@@ -179,7 +179,7 @@ Vwsel *Vwsel_init(sql x) {
     return op0;
   }
   x = sql_eval(x,sp->lev);	/* copy and reduce constants */
-  if (x && x->op == EXINT && !x->u.ival) {	/* the constant FALSE */
+  if (x && isfalse(x)) {	/* the constant FALSE */
     rmsql(x);
     return 0;
   }
@@ -260,7 +260,7 @@ Vwsel *Vwsel_init(sql x) {
 	return op0;
       }
     }
-    if (x->op == EXINT && x->u.ival) {	/* the constant TRUE */
+    if (istrue(x)) {	/* the constant TRUE */
       rmsql(x);
       x = 0;
     }

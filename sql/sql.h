@@ -35,12 +35,12 @@ enum aggop { AGG_SUM, AGG_CNT, AGG_MAX, AGG_MIN, AGG_PROD, AGG_NONE };
 struct sqlnode {
   enum sqlop op;
   union {
+    int ival;
     sql opd[2];
     double val;
     sconst num;
     const char *name[2];
     struct Column *col;	/* should be struct perminfo */
-    int ival;
     struct {
       sql exp;
       const char *name;
@@ -107,6 +107,9 @@ sql mkalias(const char *, sql);
 sql mkunop(enum sqlop, sql);
 sql mkname(const char *, const char *);
 sql mkconst(const sconst *);
+sql mkbool(int);
+#define istrue(x) (x->op == EXBOOL && x->u.ival)
+#define isfalse(x) (x->op == EXBOOL && !x->u.ival)
 sql mktype(const char *,const char *,int,int);
 sql mkstring(const char *);
 sql mklit(const char *,sql);
@@ -128,5 +131,5 @@ extern struct sqlform { const char *name, *fmt, *op; } sql_form[];
 extern struct obstack *sqltree;
 void yyerror(const char *);
 extern int debug, mapupper;
-extern sql sql_nul;
+extern sql sql_nul, sql_true, sql_false;
 #endif

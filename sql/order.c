@@ -2,6 +2,9 @@
 	Copyright 1993 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
 $Log$
+Revision 1.2  2001/10/17 19:27:00  stuart
+Fix use of EXCOLIDX
+
 Revision 1.1  2001/02/28 23:00:04  stuart
 Old C version of sql recovered as best we can.
 
@@ -612,7 +615,7 @@ static int MinMax_store(Column *this, sql x, char *buf) {
       class->first = 0;
     else {
       sql y = mkbinop(do0(this,load),class->op,sql_eval(x,0));
-      if (y->op == EXINT && y->u.ival) {
+      if (istrue(y)) {
 	memcpy(buf,this->buf,this->len);
 	rmsql(y);
 	return 0;

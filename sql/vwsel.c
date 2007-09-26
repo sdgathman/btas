@@ -2,6 +2,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.1  2001/02/28 23:00:05  stuart
+ * Old C version of sql recovered as best we can.
+ *
  */
 
 #include <stdio.h>
@@ -234,7 +237,7 @@ static int Where_read(Where *this) {
       if (x = this->p->exp)
 	x = sql_eval(x,MAXTABLE);	/* return zero if TRUE */
       if (x) {
-	rc = (x->op == EXINT && x->u.ival);
+	rc = istrue(x);
 	rmexp(x);
       }
       else

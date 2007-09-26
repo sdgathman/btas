@@ -59,6 +59,8 @@ DEF_SQL(EXAND,"xx","&")
 DEF_SQL(EXOR,"xx","|")
 DEF_SQL(EXNOT,"x","|")
 DEF_SQL(EXLIKE,"xx","LIKE")
-DEF_SQL(EXINT,"i","")		/* logical constant */
+DEF_SQL(EXBOOL,"i","")		/* logical constant */
 DEF_SQL(EXNOP,"x","")
 DEF_SQL(EXTYPE,"x","")
+DEF_SQL(EXISTRUE,"x","ISTRUE")
+DEF_SQL(EXISFALSE,"x","ISFALSE")
