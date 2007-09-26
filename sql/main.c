@@ -231,8 +231,9 @@ static void report(long cnt,const char *verb) {
     fprintf(stderr,"%ld record%s %s\n",cnt,(cnt == 1) ? "" : "s",verb);
 }
 
-static void uniplex_print(Cursor *c, enum Column_type type, int sep) {
+static void uniplex_print(Cursor *c, enum Column_type type, const char *s) {
   int i = 0;
+  char sep = s[0];
   for (;;) {
     sql y = tostring(do0(c->col[i],load));
     const char *p = (y->op == EXSTRING) ? y->u.name[0] : "";

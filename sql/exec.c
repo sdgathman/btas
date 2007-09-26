@@ -1,5 +1,9 @@
 /*
  * $Log$
+ * Revision 1.2  2001/11/14 19:16:45  stuart
+ * Implement INSERT INTO ... VALUES
+ * Fix assignment bug.
+ *
  * Revision 1.1  2001/02/28 23:00:03  stuart
  * Old C version of sql recovered as best we can.
  *
@@ -249,6 +253,7 @@ static int resolve(sql x,struct tabinfo *ti,sql parent) {
   }
   if (x->op != EXNAME) {
     const char *p = sql_form[(int)x->op].fmt;
+    //sql_print(x,1);
     for (j = 0,i = 0; p[i]; ++i) if (p[i] == 'x')
       j += resolve(x->u.opd[i],ti,x);
     return j;

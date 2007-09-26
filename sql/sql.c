@@ -197,6 +197,23 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
     break;
   }
 
+  if (op == EXADD || op == EXSUB) {
+    if (y->op == EXDATE && op == EXADD) {
+      sql t = x; x = y; y = t;
+    }
+    if (x->op == EXDATE || x->op == EXCONST) {
+      if (y->op == EXCONST || y->op == EXDBL && x->op == EXDATE) {
+	y = toconst(y,x->u.num.fix);
+	if (op == EXSUB)
+	  subM(&x->u.num.val,&y->u.num.val);
+	else
+	  addM(&x->u.num.val,&y->u.num.val);
+	rmsql(y);
+	return x;
+      }
+    }
+  }
+
   if (x->op == EXCONST || x->op == EXDATE) {
     x->u.val = const2dbl(&x->u.num);
     x->op = EXDBL;

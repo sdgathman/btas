@@ -25,7 +25,7 @@ DEF_SQL(EXCONST,"n","")		/* scaled MONEY value (DECIMAL/INTEGER) */
 DEF_SQL(EXDBL,"d","")		/* double value (FLOAT) */
 DEF_SQL(EXSTRING,"s","%s")	/* string value (CHARACTER) */
 DEF_SQL(EXBITSTRING,"si","%s")	/* bitstring value (BIT) */
-DEF_SQL(EXDATE,"j","%ld")	/* date value (DATE) */
+DEF_SQL(EXDATE,"n","")		/* date value (DATE) */
 DEF_SQL(EXTIME,"ts","%d %s")	/* time of day value (TIME) */
 DEF_SQL(EXTIMESTAMP,"us","%ld %s")	/* timestamp value (TIMESTAMP) */
 DEF_SQL(EXINTERVAL,"is","%ld %s")	/* time interval (INTERVAL) */

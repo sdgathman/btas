@@ -35,6 +35,7 @@ sql mklit(const char *s,sql x) {
     d.val = ltoM(stoJ(x->u.name[0]));
     d.fix = 0;
     z = mkconst(&d);
+    z->op = EXDATE;
   }
   else if (strcasecmp(s,"X") == 0) {	/* hex number */
     z = basenum(x->u.name[0],16);
@@ -69,6 +70,7 @@ sql mklit(const char *s,sql x) {
     d.val = ltoM(julian(&mdy));
     d.fix = 0;
     z = mkconst(&d);
+    z->op = EXDATE;
   }
   else if (strcasecmp(s,"TIMESTAMP") == 0) {
     sconst d;
