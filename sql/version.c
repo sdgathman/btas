@@ -46,7 +46,11 @@
 		add Time_dup (using Number_dup) to fix core dump
 		tweak Dirfield formatting */
 /* 1.29.12	fix X literal */
+/* 2.11.0	implement EXDATE, ANSI scalar NULL logic */
 /* $Log$
+/* Revision 1.1  2001/02/28 23:00:05  stuart
+/* Old C version of sql recovered as best we can.
+/*
  * Revision 1.29  1993/03/10  23:22:14  stuart
  * support outer references
  *
