@@ -1,5 +1,5 @@
-VERS = 2.10.9
-CVSTAG = btas-2_10_9
+VERS = 2.11.0
+CVSTAG = btas-2_11_0
 
 OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
 	btfile.o btkey.o assert.o server.o btdev.o fsdev.o alarm.o	\
