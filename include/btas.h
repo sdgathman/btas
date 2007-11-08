@@ -7,6 +7,7 @@
 */
 #ifndef BTASKEY
 #include <port.h>
+#include <string.h>
 
 #ifdef __MSDOS__
 #define BTASVECT	0x7f		/* server interrupt vector */
@@ -115,8 +116,6 @@ int btpathopt(BTCB *, char *);
 char *pathopt(char *, const char *);
 int btopenf(BTCB *, const char *, int, int);
 BTCB *btopendir(const char *, int);
-extern char *basename(char const *);
-extern char *dirname(char *);
 int btclose(BTCB *);
 int btkill(const char *);
 int btclear(const char *);

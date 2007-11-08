@@ -1,9 +1,12 @@
 #define TRACE 1
-/*#define DETERMINISTIC	/* define to test for OS bugs */
+//#define DETERMINISTIC	/* define to test for OS bugs */
 /*
 	Server program to execute BTAS/2 requests
 	Single thread execution for now.
  * $Log$
+ * Revision 1.15  2007/06/27 21:17:25  stuart
+ * Test suite and fix mounting >2G filesystem.
+ *
  * Revision 1.14  2007/06/26 19:16:59  stuart
  * Check cache size at startup.
  *

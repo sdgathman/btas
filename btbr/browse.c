@@ -37,7 +37,6 @@ static int cflag = 0;		/* change flag */
 static int eflag = 0;		/* ebcdic flag */
 static int xflag = 0;		/* flag to force use of BTAS/X field table */
 static int verbose = 0;		/* flag to expand physical field for desc */
-static int COLS = MAXCOLS;	/* don't want to mess with curses yet */
 static struct file ftbl[MAXFILES];	/* files used */
 static int nfiles = 0;
 static int maxlines = 16;	/* display this many lines */

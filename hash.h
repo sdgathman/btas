@@ -46,6 +46,6 @@ public:
   BLOCK *find(t_block blk,short mid);	// get a block in a reserved buffer
   void swap(BLOCK *,BLOCK *);	// swap block id's without copying contents
   static bool ok(int size);	// true iff storage is adequate
-  ~BufferPool();
+  virtual ~BufferPool();
 };
 #endif
