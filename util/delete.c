@@ -25,7 +25,7 @@ int delete() {
 	struct btlevel fa;
 	b->rlen = ff.b->rlen;
 	(void)memcpy(b->lbuf,ff.b->lbuf,b->rlen);
-	b->klen = strlen(b->lbuf);
+	b->klen = strlen(b->lbuf) + 1;
 	if (rc = btlstat(b,&st,&fa)) {
 	  if (rc != BTERLINK)
 	    printf("%s: <no access>\n",b->lbuf);
