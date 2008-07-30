@@ -16,7 +16,7 @@ HElp [command]			detailed help with commands
 ..		This is a page break
 
 LC	same as DI
-LN pattern filename		link files
+LN[/s] pattern filename		link files
 LOad pattern osfile		reload archived file
 LS	same as DI
 MOunt osname dir		mount filesystem
@@ -190,6 +190,19 @@ match the pattern.  The files are restored relative to the current directory.
 This allows entire directory trees to be copied between directories.
 
 	The "dir" option displays, but does not load, files in the archive.
+-WC
+
+.LN
+USAGE: LN[/s] pattern dst
+
+	The link command creates new directory records that point to the
+same datafile.  If multiple file match the source, the target must be
+a directory.
+
+	LN/s	Create a symbolic link to the source.  A symbolic link
+saves the source path in the directory record.  When the target is opened,
+the open is retried using the new path.  Symbolic links may be used
+with directories.
 -WC
 
 .DU
