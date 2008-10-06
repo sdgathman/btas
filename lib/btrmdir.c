@@ -27,7 +27,7 @@ int btrmdir(const char *path) {
 	struct btstat st;
 	struct btlevel fa;
 	c->lbuf[c->rlen] = 0;
-	c->klen = strlen(c->lbuf);
+	c->klen = strlen(c->lbuf) + 1;
 	rc = btlstat(c,&st,&fa);
 	if (rc) errpost(rc);
 	if (fa.node == c->root && fa.slot == c->mid
