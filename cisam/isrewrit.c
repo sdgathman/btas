@@ -1,4 +1,8 @@
 /* $Log$
+/* Revision 1.3  2001/02/28 23:19:21  stuart
+/* remove spurious error map
+/* ANSIfy
+/*
  * Revision 1.2  1995/04/06  21:03:09  stuart
  * backout partial rewrite on DUPKEY
  *
@@ -32,7 +36,7 @@ cmprec(const struct btflds *f,const char *rec1,const char *rec2,int len) {
 /* the basic BTAS rewrite operation, when we are finished, all buffers
    will be updated with the new values. */
 
-static int isrew(struct cisam *r,const void *rec) {
+static int isrew(struct cisam *r,const void *rec,int savekey) {
   struct cisam_key *kp;
   BTCB *b;
   int rlen;
@@ -75,7 +79,8 @@ static int isrew(struct cisam *r,const void *rec) {
     case 1:
       u2brec(kp->f->f,buf,rlen,b,kp->klen);	/* load old record */
       (void)btas(b,BTDELETE + NOKEY);		/* delete old record */
-      u2brec(kp->f->f,rec,r->rlen,b,kp->klen);	/* restore new record */
+      if (!savekey)
+	u2brec(kp->f->f,rec,r->rlen,b,kp->klen);/* restore new record */
       break;
     case 2:
       u2brec(kp->f->f,rec,r->rlen,b,kp->klen);	/* load new record */
@@ -91,7 +96,7 @@ int isrewcurr(int fd,const void *rec) {
   struct cisam *r;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
-  return ismaperr(isrew(r,rec));
+  return ismaperr(isrew(r,rec,0));
 }
 
 /* save key, BTREWRIT KEY=, restore key */
@@ -119,7 +124,7 @@ int isrewrite(int fd,const void *rec) {
     if (rc == 0) {
       /* do the rewrite */
       r->start = ISCURR;
-      rc = isrew(r,rec);
+      rc = isrew(r,rec,0);
     }
   envend
   /* restore key position */
@@ -144,7 +149,7 @@ int isrewrec(int fd,long recno,const void *rec) {
   b->klen = 4;
   b->rlen = btrlen(k->f);
   if (btas(b,BTREADEQ + NOKEY)) return iserr(ENOREC);
-  /* save key position */
+  /* save key position. FIXME: can probably just pass savekey=1 to isrew() */
   kp = r->curidx;
   if (kp != k)
     b2urec(kp->f->f,sav,r->rlen,kp->btcb->lbuf,kp->klen);
@@ -162,10 +167,23 @@ int isrewrec(int fd,long recno,const void *rec) {
     }
     /* do the rewrite */
     r->start = ISCURR;
-    rc = isrew(r,rec);
+    rc = isrew(r,rec,0);
   envend
   /* restore key position */
   if (kp != k)
     u2brec(kp->f->f,sav,r->rlen,kp->btcb,kp->klen);
   return ismaperr(rc);
+}
+
+/** Rewrite current saving key position.  
+ */
+int isupdate(int fd,const void *rec) {
+  struct cisam *r;
+  struct cisam_key *kp;
+  BTCB *b;
+  char *sav;
+  int rc;
+  r = ischkfd(fd);
+  if (r == 0) return iserr(ENOTOPEN);
+  return ismaperr(isrew(r,rec,1));
 }
