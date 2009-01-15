@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.4  2005/02/08 15:17:42  stuart
+ * Release 2.10.8
+ *
  */
 #include <stdio.h>
 #include <string.h>
@@ -258,7 +261,7 @@ static int Isam_update(Cursor *c) {
   Isam *thistab = (Isam *)c;
   if (!thistab->rdonly)
     //return isrewcurr(thistab->fd,thistab->ubuf);
-    return isrewrite(thistab->fd,thistab->ubuf);
+    return isupdate(thistab->fd,thistab->ubuf);
   return -1;
 }
 
