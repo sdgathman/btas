@@ -313,12 +313,13 @@ START_TEST(test_bigrec) {
   isclose(fd);
 } END_TEST
 
+static struct keydesc Ktest2 = { 0, 1, { { 0, 12, CHARTYPE } } };
+static const char ftbl2[] = { 0,1,BT_CHAR,12,BT_NUM,4 };
+
 START_TEST(test_replace) {
     int fd;
     char buf[16];
     struct btflds *f;
-    static struct keydesc Ktest2 = { 0, 1, { { 0, 12, CHARTYPE } } };
-    static const char ftbl2[] = { 0,1,BT_CHAR,12,BT_NUM,4 };
     const char *fname = "/tmp/testreplace";
     iserase(fname);
     f = ldflds(0,ftbl2,sizeof ftbl2);
@@ -341,6 +342,39 @@ START_TEST(test_replace) {
     isclose(fd);
 } END_TEST
 
+START_TEST(test_addindex) {
+    int fd1 = -1, fd2 = -1;
+    int rc;
+    char buf[32];
+    struct btflds *f = 0;
+    const char *fname1 = "/tmp/testaddindex1";
+    const char *fname2 = "/tmp/testaddindex2";
+    const char *kname = "testaddindex_num";
+    static struct keydesc Ktest3 = { 0, 2, {
+    	{ 12, 4, CHARTYPE },
+	{ 0, 12, CHARTYPE } 
+    } };
+    iserase(fname1);
+    iserase(fname2);
+    iserase(kname);
+    f = ldflds(0,ftbl2,sizeof ftbl2);
+    fd1 = isbuildx(fname1,sizeof buf,&Ktest2,ISINOUT + ISEXCLLOCK,f);
+    fd2 = isbuildx(fname2,sizeof buf,&Ktest2,ISINOUT + ISEXCLLOCK,f);
+    fail_unless(isaddindexn(fd1,&Ktest3,kname) == 0,"isaddindexn1 failed");
+    fail_unless(isaddindexn(fd2,&Ktest3,kname) != 0,
+    	"isaddindexn2 should have failed");
+    fail_unless(iserrno == EKEXISTS,
+    	"isaddindexn2 should have iserrno == EKEXISTS");
+    fail_unless(isaddindexn(fd1,&Ktest3,kname) != 0,
+    	"isaddindexn1 should have failed on dup index");
+    fail_unless(iserrno == EKEXISTS,
+    	"isaddindexn2 should have iserrno == EKEXISTS");
+    fail_unless(isindexname(fd1,buf,2) == 0,"isindexname failed");
+    fail_unless(buf[0] != '/',"indexname starts with slash");
+    isclose(fd1);
+    isclose(fd2);
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *cisam_suite (void) {
@@ -354,6 +388,7 @@ Suite *cisam_suite (void) {
   tcase_add_test (tc_api, test_dictinfo);
   //tcase_add_test (tc_api, test_bigrec);
   tcase_add_test (tc_api, test_replace);
+  tcase_add_test (tc_api, test_addindex);
   return s;
 }
 
