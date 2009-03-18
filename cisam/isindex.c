@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.8  2003/04/05 05:04:32  stuart
+ * Still weren't setting k_len in isaddindex().
+ *
  * Revision 1.7  2003/04/05 04:40:59  stuart
  * Sanity check keydesc.  Initialize kp->k.k_len in isaddindex().
  *
@@ -121,11 +124,12 @@ int isaddindex(int fd,const struct keydesc *k) {
 int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
   int idx, rc;
   struct cisam *r;
-  struct cisam_key *p;
   struct keydesc kn;
   struct btflds *fp;
-  BTCB *c, *savdir = btasdir;
-  char *name;
+  BTCB *savdir = btasdir;
+  volatile BTCB *c = 0;
+  volatile char *name = 0;
+  volatile struct cisam_key *p = 0;
   struct fisam f;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
@@ -158,11 +162,10 @@ int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
     r->f = ldflds((struct btflds *)0, c->lbuf, c->rlen);
     r->idx = c;
   }
-  name = 0;
   if (idxname) {
     isstkey(idxname,k,&f);
     u2brec(r->f->f,(char *)&f,sizeof f,c,sizeof f.name);
-    btas(c,BTWRITE + DUPKEY);	/* create idx record */
+    btas(c,BTWRITE);	/* create idx record, errpost on DUPKEY */
   }
   else {
     c->klen = 0; c->rlen = sizeof (struct fisam);
