@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.9  2009/03/18 00:22:54  stuart
+ * Make vars used after longjump volatile.
+ *
  * Revision 1.8  2003/04/05 05:04:32  stuart
  * Still weren't setting k_len in isaddindex().
  *
@@ -127,9 +130,9 @@ int isaddindexn(int fd,const struct keydesc *k,const char *idxname) {
   struct keydesc kn;
   struct btflds *fp;
   BTCB *savdir = btasdir;
-  volatile BTCB *c = 0;
-  volatile char *name = 0;
-  volatile struct cisam_key *p = 0;
+  BTCB * volatile c = 0;
+  char * volatile name = 0;
+  struct cisam_key * volatile p = 0;
   struct fisam f;
   r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
