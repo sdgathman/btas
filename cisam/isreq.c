@@ -1,6 +1,10 @@
+/*
+ * $Log$
+ */
 #include <isamx.h>
 #include <btas.h>
 #include <btflds.h>
+#include <errenv.h>
 #include "isreq.h"
 
 static int addflds(int fd,const char *buf,int len) {
@@ -58,6 +62,7 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
     int i;
     int p1len = *p1lenp;
     *p1lenp = 0;	// default to no variable result
+    catch(i)
     switch (fxn) {
       union {
 	struct keydesc desc;
@@ -222,14 +227,14 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
         i = btrmdir(p1buf);
       else
         i = btmkdir(p1buf,mode);
-      if (i) {
-        iserrno = i;
-	i = -1;
-      }
+      if (i)
+        i = iserr(i);
       break;
     default:
-	i = -1;
-	iserrno = 118;
+      i = iserr(118);
     }
+    enverr
+      i = iserr(i);
+    envend
     return i;
 }
