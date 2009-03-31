@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.3  2001/02/28 22:31:11  stuart
+/* debugging for following symlinks
+/*
  * Revision 1.2  1999/01/22  23:50:52  stuart
  * Fix symlinks that are not the last part of the path.
  *
@@ -147,7 +150,9 @@ int btclose(BTCB *b) {
   int rc = 0;
   if (b) {
     b->rlen = b->klen = 0;
-    rc = btas(b,BTCLOSE);
+    catch(rc)
+      rc = btas(b,BTCLOSE);
+    envend
     free((char *)b);
   }
   return rc;
