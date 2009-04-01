@@ -1,11 +1,15 @@
 /*
  * $Log$
+ * Revision 2.7  2009/03/31 17:00:38  stuart
+ * Trap any exceptions and convert to error.
+ *
  */
 #include <isamx.h>
 #include <btas.h>
 #include <btflds.h>
 #include <errenv.h>
 #include "isreq.h"
+#define iserr(code)	((iserrno = code) ? -1 : 0)
 
 static int addflds(int fd,const char *buf,int len) {
   int n = len/2;

@@ -2,7 +2,8 @@ Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 %define version 2.11.1
 Version: %{version}
-Release: 2.el4
+Release: 1.el4
+License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
 #Patch: btas-el4.patch

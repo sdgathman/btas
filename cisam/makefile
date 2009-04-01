@@ -1,4 +1,4 @@
-#L = $(BMS)/slib/libisam.a
+#L = $(BMS)/lib/libbtas.a
 L = ../lib/$Mlibbtas.a
 R = 100
 
@@ -12,7 +12,7 @@ test:	bttestc btteste
 	btteste $R | tee -a log
 
 testcisam:	testcisam.o $L
-	$(CC) testcisam.o $(LDFLAGS) $L -lbms -lcheck -ldmalloc -o testcisam
+	$(CC) testcisam.o $(LDFLAGS) $L -lbms -lcheck -o testcisam
 
 btteste:	bttestc.o $L
 	$(CC) bttestc.o $(LDFLAGS) -lbtas -lbms -o btteste
