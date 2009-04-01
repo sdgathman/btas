@@ -1,12 +1,11 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.11.0
+%define version 2.11.1
 Version: %{version}
-Release: 1.el5
-License: Commercial
+Release: 2.el4
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-Patch: btas-el5.patch
+#Patch: btas-el4.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
 %ifos aix4.1
@@ -32,7 +31,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
-%patch -p1 -b .el5
+#patch -p1 -b .el4
 
 %build
 %ifos aix4.1
@@ -184,6 +183,10 @@ fi
 /bms/include/*.h
 
 %changelog
+* Tue Mar 31 2009 Stuart Gathman <stuart@bmsi.com> 2.11.1-1
+- Prevent exception for btclose.  Return error code instead.
+* Thu Jun 21 2007 Stuart Gathman <stuart@bmsi.com> 2.11.0-2
+- Fix update of key field.
 * Thu Jun 21 2007 Stuart Gathman <stuart@bmsi.com> 2.11-1
 - Fix issue363 - 203 on REPLACE with tiny key
 - Fix issue353 - rename of mounted dir should fail
