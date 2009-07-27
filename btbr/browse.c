@@ -54,6 +54,8 @@ static void puttitle(int,FIELD *,FLD *,int);
 static void initdata(FLD *);
 static GETPUTFCN getfunc(int),putfunc(int);
 static int getebcdic(int,char *,char *,int),putebcdic(int,char *,char *,int);
+static int my_gettimef(int fld,char *data,const char *opt,int len);
+static int my_puttimef(int fld,const char *data,const char *opt,int len);
 
 #ifdef BTASX
 #define FILESYS "BTAS/X"
@@ -580,7 +582,7 @@ static GETPUTFCN getfunc(type)
     case BT_CHAR: return eflag ? getebcdic : getstrn;
     case BT_DATE: return getdatef;
     case BT_BIN: return gethex;
-    case BT_TIME: return gettimef;
+    case BT_TIME: return my_gettimef;
   }
   return 0;
 }
@@ -593,7 +595,7 @@ static GETPUTFCN putfunc(type)
     case BT_CHAR: return eflag ? putebcdic : putstrn;
     case BT_DATE: return putdatef;
     case BT_BIN: return puthex;
-    case BT_TIME: return puttimef;
+    case BT_TIME: return my_puttimef;
   }
   return putunknown;
 }
@@ -616,4 +618,40 @@ static int putebcdic(fld,data,opt,len)
   etoa(buf,(unsigned char *)data,len);
   putstrn(fld,buf,opt,len);
   return 0;
+}
+
+/* FIXME: This solution depends on gettm and puttm which roll over in 2038.
+   Gettm and puttm can be fixed to work until 2106. */
+
+static int my_gettimef(int fld,char *data,const char *opt,int len) {
+  long t;
+  int rc;
+  if (len == 4)
+    t = ldlong(data);
+  else {
+    MONEY m = ldnum(data,len);
+    divM(&m,1000);
+    t = Mtol(&m);
+  }
+  rc = gettm(fld,(char *)&t,opt,sizeof t);
+  if (len == 4)
+    stlong(t,data);
+  else {
+    MONEY m = ltoM(t);
+    mulM(&m,1000,0);
+    stnum(m,data,len);
+  }
+  return rc;
+}
+
+static int my_puttimef(int fld,const char *data,const char *opt,int len) {
+  long t;
+  if (len == 4)
+    t = ldlong(data);
+  else {
+    MONEY m = ldnum(data,len);
+    divM(&m,1000);
+    t = Mtol(&m);
+  }
+  return puttm(fld,(char *)&t,opt,sizeof t);
 }
