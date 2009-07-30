@@ -208,14 +208,14 @@ struct Time {
 
 static void Time_free(Column *);
 
-Column *Time_init(Time *this,char *buf) {
+Column *Time_init(Time *this,char *buf,int len) {
   extern Column *Number_dup(Column *,char *);
   static struct Column_class Time_class = {
     sizeof *this, Time_free, Time_print, Time_store, Time_load,
     Column_copy, Number_dup
   };
   if (this || (this = malloc(sizeof *this))) {
-    Column_init((Column *)this,buf,4);
+    Column_init((Column *)this,buf,len);
     this->_class = &Time_class;
     this->width = this->dlen = 24;
     this->type = BT_TIME;
@@ -231,7 +231,7 @@ void Time_free(Column *c) {
 }
 
 Column *Time_init_mask(Time *this,char *buf,const char *mask) {
-  if (this = (Time *)Time_init(this,buf)) {
+  if (this = (Time *)Time_init(this,buf,4)) {
     if (mask && *mask) {
       this->fmt = strdup(mask);
       this->width = this->dlen = strlen(mask);
@@ -241,40 +241,48 @@ Column *Time_init_mask(Time *this,char *buf,const char *mask) {
 }
 
 static int Time_store(Column *this,sql x,char *buf) {
-  double val;
+  MONEY val;
+  if (this->len > 6 || this->len < 1) return -1;
   switch (x->op) {
-  case EXCONST: case EXDATE:
-    val = const2dbl(&x->u.num);
-    break;
-  case EXDBL:
-    val = x->u.val;
+  case EXCONST: case EXDATE: case EXDBL:
+    x = toconst(x,(this->len > 4) ? -3 : 0);
+    stnum(x->u.num.val,buf,this->len);
     break;
   case EXNULL:
-    stlong(0L,buf);
+    stnum(zeroM,buf,this->len);
+    break;
   default:
     return -1;
   }
-  stlong((long)val,buf);
   return 0;
 }
 
 static sql Time_load(Column *this) {
   sql x;
-  long t = ldlong(this->buf);
-  if (!t || t == -1L) return sql_nul;
-  x = mksql(EXDBL);
-  x->u.val = t;
+  sconst t;
+  if (this->len > 6 || this->len < 1) return sql_nul;
+  t.val = ldnum(this->buf,this->len);
+  if (t.val.high == 0L && t.val.low == 0) return sql_nul;
+  if (t.val.high == -1L && t.val.low == (unsigned short)~0) return sql_nul;
+  //if (!t || t == -1L) return sql_nul;
+  t.fix = (this->len > 4) ? -3 : 0;
+  x = mkconst(&t);
   return x;
 }
 
 static void Time_print(Column *c,enum Column_type type,char *buf) {
   Time *this = (Time *)c;
   time_t t;
+  MONEY tval;
   if (type < VALUE) {
     Column_print(c,type,buf);
     return;
   }
-  t = ldlong(this->buf);
+  tval = ldnum(this->buf,this->len);
+  // FIXME: breaks in 2038, if 64bit time_t convert to that instead of long
+  if (this->len > 4)	// millisecond format
+    divM(&tval,1000);
+  t = Mtol(&tval);
   if (t && t != -1L) {
     const char *mask = this->fmt;
     int len;

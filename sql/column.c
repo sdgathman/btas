@@ -419,8 +419,8 @@ Column *Column_gen(char *buf,const struct btfrec *f,char *name) {
       col = new2(Column,buf,f->len);
     break;
   case BT_TIME:
-    if (f->len == 4)
-      col = new1(Time,buf);	/* unix time stamp */
+    if (4 <= f->len && f->len <= 8)
+      col = new2(Time,buf,f->len);	/* unix time stamp */
     else
       col = new2(Column,buf,f->len);
     break;
