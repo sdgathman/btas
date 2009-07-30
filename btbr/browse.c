@@ -630,7 +630,8 @@ static int my_gettimef(int fld,char *data,const char *opt,int len) {
     t = ldlong(data);
   else {
     MONEY m = ldnum(data,len);
-    divM(&m,1000);
+    if (len > 5)
+      divM(&m,1000);
     t = Mtol(&m);
   }
   rc = gettm(fld,(char *)&t,opt,sizeof t);
@@ -638,7 +639,8 @@ static int my_gettimef(int fld,char *data,const char *opt,int len) {
     stlong(t,data);
   else {
     MONEY m = ltoM(t);
-    mulM(&m,1000,0);
+    if (len > 5)
+      mulM(&m,1000,0);
     stnum(m,data,len);
   }
   return rc;
@@ -650,7 +652,8 @@ static int my_puttimef(int fld,const char *data,const char *opt,int len) {
     t = ldlong(data);
   else {
     MONEY m = ldnum(data,len);
-    divM(&m,1000);
+    if (len > 5)
+      divM(&m,1000);
     t = Mtol(&m);
   }
   return puttm(fld,(char *)&t,opt,sizeof t);

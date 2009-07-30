@@ -184,8 +184,11 @@ fi
 /bms/include/*.h
 
 %changelog
+* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.2-1
+- Add 6-byte timestamp support to btbr and sql.
 * Tue Mar 31 2009 Stuart Gathman <stuart@bmsi.com> 2.11.1-1
 - Prevent exception for btclose.  Return error code instead.
+- btutil: fix keylength for delete.  ('cr bl' 'cr bl.a' 'de bl' -> 211)
 * Thu Jun 21 2007 Stuart Gathman <stuart@bmsi.com> 2.11.0-2
 - Fix update of key field.
 * Thu Jun 21 2007 Stuart Gathman <stuart@bmsi.com> 2.11-1

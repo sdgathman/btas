@@ -245,7 +245,7 @@ static int Time_store(Column *this,sql x,char *buf) {
   if (this->len > 6 || this->len < 1) return -1;
   switch (x->op) {
   case EXCONST: case EXDATE: case EXDBL:
-    x = toconst(x,(this->len > 4) ? -3 : 0);
+    x = toconst(x,(this->len > 5) ? -3 : 0);
     stnum(x->u.num.val,buf,this->len);
     break;
   case EXNULL:
@@ -262,10 +262,12 @@ static sql Time_load(Column *this) {
   sconst t;
   if (this->len > 6 || this->len < 1) return sql_nul;
   t.val = ldnum(this->buf,this->len);
-  if (t.val.high == 0L && t.val.low == 0) return sql_nul;
-  if (t.val.high == -1L && t.val.low == (unsigned short)~0) return sql_nul;
-  //if (!t || t == -1L) return sql_nul;
-  t.fix = (this->len > 4) ? -3 : 0;
+  switch (sgnM(&t.val)) { case 0: case -1: return sql_nul; }
+  /* By using 0/-1 as null, we effectively require 4-byte timestamps
+     to be unsigned.  Load them that way so we don't break in 2038. */
+  if (this->len == 4)
+    t.val.high &= 0xFFFFL;
+  t.fix = (this->len > 5) ? -3 : 0;
   x = mkconst(&t);
   return x;
 }
@@ -280,8 +282,10 @@ static void Time_print(Column *c,enum Column_type type,char *buf) {
   }
   tval = ldnum(this->buf,this->len);
   // FIXME: breaks in 2038, if 64bit time_t convert to that instead of long
-  if (this->len > 4)	// millisecond format
+  if (this->len > 5)	// millisecond format
     divM(&tval,1000);
+  else if (this->len == 4)
+    tval.high &= 0xFFFFL;
   t = Mtol(&tval);
   if (t && t != -1L) {
     const char *mask = this->fmt;
