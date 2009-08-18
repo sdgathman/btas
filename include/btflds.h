@@ -57,8 +57,9 @@ enum {
   BT_FLT = 7,		/* IEEE float modified for unsigned sort */
   BT_RLOCK = 8,		/* record locking byte */
   BT_SEQ = 9,		/* sequence id for multi-part records */
-  BT_BITS = 10,		/* null value map */
+  BT_BITS = 10,		/* null value map (1-bit for not-null fields) */
   BT_EBCDIC = 11,	/* EBCDIC character field */
+  BT_JULMIN = 12,	/* minutes precision timestamp (minutes since 1970) */
   BT_REL = 0x20, /* - 0x2f */	/* related fields */
   BT_VNUM = 0x30,	/* compressed fixed point binary */
   BT_NUM = 0x40 /* - 0x4f */	/* fixed decimal point binary */
