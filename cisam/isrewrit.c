@@ -1,8 +1,12 @@
-/* $Log$
-/* Revision 1.3  2001/02/28 23:19:21  stuart
-/* remove spurious error map
-/* ANSIfy
 /*
+ * $Log$
+ * Revision 1.4  2009/01/15 19:01:33  stuart
+ * Add isupdate call for sql.
+ *
+ * Revision 1.3  2001/02/28 23:19:21  stuart
+ * remove spurious error map
+ * ANSIfy
+ *
  * Revision 1.2  1995/04/06  21:03:09  stuart
  * backout partial rewrite on DUPKEY
  *
@@ -15,6 +19,7 @@
 #include <errenv.h>
 #include "cisam.h"
 
+/** Return 0: equal, 1: key change, 2: non-key change. */
 static int
 cmprec(const struct btflds *f,const char *rec1,const char *rec2,int len) {
   register const struct btfrec *k;
@@ -35,7 +40,6 @@ cmprec(const struct btflds *f,const char *rec1,const char *rec2,int len) {
 
 /* the basic BTAS rewrite operation, when we are finished, all buffers
    will be updated with the new values. */
-
 static int isrew(struct cisam *r,const void *rec,int savekey) {
   struct cisam_key *kp;
   BTCB *b;
@@ -51,12 +55,16 @@ static int isrew(struct cisam *r,const void *rec,int savekey) {
   /* FIXME: should write the master record last */
   do {
     kp->cmpresult = cmprec(kp->f,rec,buf,r->rlen);
-    if (kp->cmpresult == 1) {
+    if (kp->cmpresult == 1) {	/* key change */
       int rc;
       b = kp->btcb;
       u2brec(kp->f->f,rec,r->rlen,b,kp->klen);	/* load new record */
       rc = btas(b,BTWRITE + DUPKEY);		/* write new record */
-      if (rc) {
+      /* Ignore dup if entire master key in secondary key record.
+         This heuristic allows auto-repair of indexes corrupted
+	 by buggy EDL programs with manual index maintenance.
+       */
+      if (rc && (b->klen < b->rlen || kp == &r->key)) {
 	struct cisam_key *bk;
 	/* got a DUPKEY, backout new records */
 	for (bk = &r->key; bk != kp; bk = bk->next) {

@@ -350,10 +350,12 @@ START_TEST(test_addindex) {
     const char *fname1 = "/tmp/testaddindex1";
     const char *fname2 = "/tmp/testaddindex2";
     const char *kname = "testaddindex_num";
+    const char *abskname = "/tmp/testaddindex_num";
     static struct keydesc Ktest3 = { 0, 2, {
     	{ 12, 4, CHARTYPE },
 	{ 0, 12, CHARTYPE } 
     } };
+    static struct keydesc Ktest4 = { 0, 1, { { 12, 4, CHARTYPE } } };
     iserase(fname1);
     iserase(fname2);
     iserase(kname);
@@ -371,8 +373,44 @@ START_TEST(test_addindex) {
     	"isaddindexn2 should have iserrno == EKEXISTS");
     fail_unless(isindexname(fd1,buf,2) == 0,"isindexname failed");
     fail_unless(buf[0] != '/',"indexname starts with slash");
+    // add some records for testing index autorepair
+    stchar("foo",buf,12);
+    stlong(1,buf+12);
+    fail_unless(iswrite(fd1,buf) == 0,"iswrite failed");
+    stchar("bar",buf,12);
+    stlong(0,buf+12);
+    fail_unless(iswrite(fd1,buf) == 0,"iswrite failed");
     isclose(fd1);
     isclose(fd2);
+    // now, corrupt the key file
+    fd1 = isopenx(abskname,ISINOUT + ISMANULOCK,16);
+    fail_unless(fd1 >= 0,"isopenx failed");
+    fail_unless(isread(fd1,buf,ISFIRST) == 0,"isfirst failed");
+    fail_unless(ldlong(buf) == 0,"expected 0");
+    stlong(2,buf);
+    fail_unless(isrewcurr(fd1,buf) == 0, "isrewcurr failed");
+    isclose(fd1);
+    // now, reopen master and try to update "bar" record
+    fd1 = isopenx(fname1,ISINOUT + ISMANULOCK,sizeof buf);
+    fail_unless(fd1 >= 0,"isopenx failed");
+    fail_unless(isread(fd1,buf,ISFIRST) == 0,"isfirst failed");
+    fail_unless(ldlong(buf+12) == 0,"expected 0");
+    stlong(2,buf+12);
+    fail_unless(isrewcurr(fd1,buf) == 0, "auto-repair failed");
+    isclose(fd1);
+
+    // replace index with non-dups index
+    fd1 = isopenx(fname1,ISINOUT + ISEXCLLOCK,sizeof buf);
+    fail_unless(fd1 >= 0,"isopenx failed");
+    fail_unless(isdelindex(fd1,&Ktest3) == 0, "isdelindex failed");
+    fail_unless(isaddindexn(fd1,&Ktest4,kname) == 0,"isaddindexn1 failed");
+    stchar("baz",buf,12);
+    stlong(2,buf+12);
+    fail_unless(iswrite(fd1,buf) != 0 && iserrno == EDUPL,
+      "iswrite should have failed with dup key");
+    stlong(3,buf+12);
+    fail_unless(iswrite(fd1,buf) == 0,"iswrite failed");
+    isclose(fd1);
 } END_TEST
 
 /* Collect all the tests.  This will make more sense when tests are
