@@ -6,6 +6,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+Revision 2.7  2007/06/26 19:16:59  stuart
+Check cache size at startup.
+
 Revision 2.6  2005/02/08 16:16:17  stuart
 Port to ISO C++.
 
@@ -120,7 +123,11 @@ int BlockCache::flush() {		/* flush buffers to disk */
   return rc;
 }
 
-/* initialize buffer pool */
+/** Initialize buffer pool.  BLOCK should be a POD (no ctor, dtor, no virtual
+   methods, no member pointers).
+   @param size	maximum block size
+   @param psize	size in chars of buffer pool
+ */
 BlockCache::BlockCache(int size,unsigned psize):
   maxrec(BLOCK::maxrec(size)),
   BufferPool(poolsize = psize / (nsize = offsetof(BLOCK,buf) + size))
@@ -131,7 +138,7 @@ BlockCache::BlockCache(int size,unsigned psize):
   pool = new char[nsize * poolsize];
   if (pool == 0) return;
   for (int i = 0; i < poolsize; ++i)
-    put(new(getblock(i)) BLOCK);
+    put(getblock(i)->init());
   serverstats.bufs = poolsize;
   btserve::curtime = time(&serverstats.uptime);
   serverstats.version = version_num;

@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 2.5  2006/10/17 17:21:17  stuart
+/* Add btinitx (manage extents).
+/*
 /* Revision 2.4  2001/02/28 21:35:32  stuart
 /* dump method
 /*
@@ -29,12 +32,13 @@
 #include <assert.h>
 #include "node.h"
 
-BLOCK::BLOCK() {
+BLOCK *BLOCK::init() {
   flags = 0;
   blk = 0;
   mid = 0;
   count = 0;
   np = (union node *)buf.l.data;
+  return this;
 }
 
 void BLOCK::setblksize(unsigned blksz) {

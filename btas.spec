@@ -184,6 +184,8 @@ fi
 /bms/include/*.h
 
 %changelog
+* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-1
+- Cisam: enable auto-repair of dupkey on secondary index.
 * Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.2-1
 - Add 6-byte timestamp support to btbr and sql.
 * Tue Mar 31 2009 Stuart Gathman <stuart@bmsi.com> 2.11.1-1
