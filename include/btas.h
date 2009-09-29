@@ -154,13 +154,13 @@ enum {
    performing BTAS/X operations. */
 
 struct bttag {
+  long ident;
   t_block root;
   short mid, flags;
 };
 
-#define btcb2tag(b,t) \
-  (void)((t)->root = (b)->root, (t)->mid = (b)->mid, (t)->flags = (b)->flags)
-#define tag2btcb(b,t) btcb2tag(t,b)
+void btcb2tag(const BTCB *b, struct bttag *t);
+void tag2btcb(BTCB *b, const struct bttag *t);
 
 /* maximum record size for a given block size */
 #define btmaxrec(blksize) (blksize/2-10)
