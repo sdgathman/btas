@@ -12,11 +12,23 @@ static int btasreq = -1;	/* BTAS/2 request queue */
 static int btasres;		/* BTAS/2 result queue */
 static int pid;
 static int server_cnt = 0;	/* number of times server was restarted. */
+
+/** True if the opcode doesn't rely on existing BTCB state. */
+static int isStateless(BTCB *b,int op) {
+  switch (op) {
+  case BTOPEN: case BTFLUSH:
+    return 1;
+  case BTSTAT:
+    return b->root == 0;
+  }
+  return 0;
+}
   
 int btas(BTCB *b,int op) {
   register int rc, size;
-  // FIXME: this doesn't detect stale bttag
-  if (b->msgident != server_cnt && (op & 31) != BTOPEN)
+  // this doesn't detect stale bttag from old btas.h
+  // FIXME: are there other ops that need an exception?
+  if (b->msgident != server_cnt && !isStateless(b,op & 31))
     errpost(EIDRM);
   for (;;) {
     if (btasreq == -1) {

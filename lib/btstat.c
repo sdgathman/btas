@@ -1,4 +1,7 @@
 /* $Log$
+/* Revision 1.3  2001/02/28 22:27:53  stuart
+/* use btopenf to avoid malloc
+/*
  */
 #include <btas.h>
 #include <errenv.h>
@@ -22,6 +25,7 @@ int btstat(const char *s,struct btstat *p) {
 int btfstat(BTCB *btcb,struct btstat *p) {
   BTCB bt;
   int rc;
+  bt.msgident = btcb->msgident;
   bt.root = btcb->root;
   bt.mid = btcb->mid;
   bt.flags = btcb->flags;

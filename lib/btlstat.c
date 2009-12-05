@@ -4,6 +4,7 @@
 int btlstat(const BTCB *btcb,struct btstat *p,struct btlevel *l) {
   BTCB bt;
   int rc;
+  bt.msgident = btcb->msgident;
   bt.root = btcb->root;
   bt.mid = btcb->mid;
   bt.flags = 0;
