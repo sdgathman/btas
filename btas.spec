@@ -1,8 +1,7 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-%define version 2.11.3
-Version: %{version}
-Release: 1.el4
+Version: 2.11.3
+Release: 2.el4
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -184,7 +183,11 @@ fi
 /bms/include/*.h
 
 %changelog
+* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-2
+- libbtas: improve server restart recovery
+- btserve: allow linking to root dir again
 * Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-1
+- libbtas: detect and recover server restart
 - Cisam: enable auto-repair of dupkey on secondary index.
 * Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.2-1
 - Add 6-byte timestamp support to btbr and sql.
