@@ -1,7 +1,5 @@
 /*
-	Q&D program to relink lost directories listed by btddir
-	Ultimately, all lost files & directories should be relinked
-	automatically to a lost+found directory.
+	Q&D program to unlink bogus hardlinks
 */
 #include <stdio.h>
 #include <string.h>

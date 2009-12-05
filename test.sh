@@ -11,6 +11,7 @@ testBigExtent() {
   assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>test.log"
   assertTrue "btutil 'cr tmp'"
   assertTrue "testcisam" "cisam/testcisam >>test.log 2>&1"
+  assertTrue "testlib" "lib/testlib >>test.log 2>&1"
   assertTrue "btsync" "btutil sy"
   assertTrue "btstop" "./btstop"
   # now see if btfs can be opened again

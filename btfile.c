@@ -53,6 +53,9 @@ static const char what[] =
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 2.6  2007/06/21 23:01:36  stuart
+ * Prevent deleting a mounted directory or linking a filesystem root.
+ *
  * Revision 2.5  2001/02/28 21:26:35  stuart
  * support .. from mounted directory
  *
@@ -359,10 +362,12 @@ int btfile::delfile(BTCB *b,t_block root) {
 
 t_block btfile::linkfile(BTCB *b) {
   if (b->rlen > bufpool->maxrec - sizeof b->root) btpost(BTERKLEN);
+#if 0	// until . .. created in btserve, we still need to link 1L
   if (b->u.cache.node == 1L) {
     // prevent linking a filesystem root
     btpost(BTERLINK);
   }
+#endif
   // a link to a 0 root is a symlink
   if (b->u.cache.node) {
     btget(2);

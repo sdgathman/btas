@@ -90,6 +90,15 @@ START_TEST(test_replace) {
   envend
 } END_TEST
 
+START_TEST(test_mkdir) {
+  int rc;
+  char msg[80];
+  btrmdir("/testdir");
+  rc = btmkdir("/testdir",0700);
+  sprintf(msg,"btmkdir failed, got %d",rc);
+  fail_unless(rc == 0,msg);
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *libbtas_suite (void) {
@@ -100,6 +109,7 @@ Suite *libbtas_suite (void) {
   tcase_add_test (tc_api, test_findnone);
   tcase_add_test (tc_api, test_findone);
   tcase_add_test (tc_api, test_replace);
+  tcase_add_test (tc_api, test_mkdir);
   return s;
 }
 
