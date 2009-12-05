@@ -16,9 +16,9 @@ static int server_cnt = 0;	/* number of times server was restarted. */
 /** True if the opcode doesn't rely on existing BTCB state. */
 static int isStateless(BTCB *b,int op) {
   switch (op) {
-  case BTOPEN: case BTFLUSH:
+  case BTOPEN: case BTFLUSH: case BTPSTAT:
     return 1;
-  case BTSTAT:
+  case BTSTAT: case BTMOUNT: case BTUMOUNT:
     return b->root == 0;
   }
   return 0;
