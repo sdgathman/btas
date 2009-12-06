@@ -35,12 +35,13 @@ export CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include"
 make
 export CC=gcc
 export CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include"
-M=PIC CFLAGS="$RPM_OPT_FLAGS -fpic" make -C lib cisam
+M=PIC CFLAGS="$RPM_OPT_FLAGS -fpic" make -C lib 
+M=PIC CFLAGS="$RPM_OPT_FLAGS -fpic" make -C cisam lib 
 LDFLAGS="-s -L../lib -L/bms/lib"
 mkdir lib/pic ||:; cd lib/pic; ar xv ../PIClibbtas.a; cd -
 cd lib; gcc -shared -o libbtas.so pic/*.o -L/bms/lib -lbms; cd -
-CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include"
-LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C cisam isserve bcheck addindex indexinfo istrace
+LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C cisam isserve bcheck addindex indexinfo istrace testcisam
+LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C lib testlib
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C util
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C sql
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C fix
