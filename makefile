@@ -10,7 +10,7 @@ CC=g++
 CXXFLAGS=$(CFLAGS)
 BMSLIB=/bms/lib/libbms.a	# static libbms
 
-make:	btserve btstop btstat btinit $L
+make:	btserve btstop btstat btinit 
 
 btserve: $(OBJS) $L
 	g++ $(LDFLAGS) $(OBJS) $L $(BMSLIB) -o btserve

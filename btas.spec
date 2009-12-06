@@ -8,9 +8,6 @@ Source: file:/linux/btas-%{version}.src.tar.gz
 #Patch: btas-el4.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
-%ifos aix4.1
-Provides: libbtas.a
-%endif
 
 %description
 The BTAS filesystem is a hierarchical filesystem where each file and
@@ -34,22 +31,13 @@ Headers and libraries needed to develop BTAS applications.
 #patch -p1 -b .el4
 
 %build
-%ifos aix4.1
-L="BMSLIB=/bms/slib/libbms.a"
-%else
 L=""
-%endif
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make $L
 CC=gcc; export CC
-%ifos aix4.1
-ln lib/libbtas.a lib/PIClibbtas.a ||:
-LDFLAGS="-s -L../lib -L/bms/lib -Wl,-blibpath:/bms/lib:/lib"
-%else
 M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" make -C lib
 M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" \
 	make -C cisam lib
 LDFLAGS="-s -L../lib -L/bms/lib"
-%endif
 mkdir lib/pic ||:; cd lib/pic; ar xv ../PIClibbtas.a; cd -
 cd lib; gcc -shared -o libbtas.so pic/*.o -L/bms/lib -lbms; cd -
 CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include"
@@ -74,15 +62,8 @@ cp util/btutil util/btpwd util/btar util/btdu util/btfreeze \
 	$RPM_BUILD_ROOT/bms/bin
 cp util/btinit $RPM_BUILD_ROOT/bms/bin/btinitx
 mkdir -p $RPM_BUILD_ROOT/bms/lib
-%ifos aix4.1
-mkdir -p $RPM_BUILD_ROOT/bms/slib
-cp lib/libbtas.a $RPM_BUILD_ROOT/bms/slib
-cp lib/libbtas.so btas.so
-ar rv $RPM_BUILD_ROOT/bms/lib/libbtas.a btas.so
-%else
 cp lib/libbtas.a $RPM_BUILD_ROOT/bms/lib
 cp lib/libbtas.so $RPM_BUILD_ROOT/bms/lib
-%endif
 mkdir -p $RPM_BUILD_ROOT/bms/include
 cp include/[a-z]*.h cisam/isreq.h $RPM_BUILD_ROOT/bms/include
 mkdir -p $RPM_BUILD_ROOT/bms/fbin
@@ -109,10 +90,6 @@ cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
 rm -rf $RPM_BUILD_ROOT
 
 %pre
-%ifos aix4.1
-mkuser -a id=711 pgrp=bms home=/bms \
-	gecos="BTAS/X File System" btas 2>/dev/null || true
-%endif
 %ifos linux
 /usr/sbin/useradd -u 711 -d /bms -M -c "BTAS/X File System" -g bms btas || true
 
@@ -165,27 +142,20 @@ fi
 /bms/bin/btflded.scr
 %attr(2755,btas,bms)/bms/bin/isserve
 %dir /bms/lib
-%ifos aix4.1
-/bms/lib/libbtas.a
-%else
 /bms/lib/libbtas.so
-%endif
 %dir /bms/fbin
 /bms/fbin/btcd
 
 %files devel
 %defattr(-,btas,bms)
-%ifos aix4.1
-/bms/slib/libbtas.a
-%else
 /bms/lib/libbtas.a
-%endif
 /bms/include/*.h
 
 %changelog
 * Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-2
 - libbtas: improve server restart recovery
 - btserve: allow linking to root dir again
+- drop AIX support in spec
 * Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-1
 - libbtas: detect and recover server restart
 - Cisam: enable auto-repair of dupkey on secondary index.
