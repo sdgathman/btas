@@ -31,12 +31,11 @@ Headers and libraries needed to develop BTAS applications.
 #patch -p1 -b .el4
 
 %build
-L=""
-CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make $L
-CC=gcc; export CC
-M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" make -C lib
-M=PIC CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include -fpic" \
-	make -C cisam lib
+export CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include"
+make
+export CC=gcc
+export CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include"
+M=PIC CFLAGS="$RPM_OPT_FLAGS -fpic" make -C lib cisam
 LDFLAGS="-s -L../lib -L/bms/lib"
 mkdir lib/pic ||:; cd lib/pic; ar xv ../PIClibbtas.a; cd -
 cd lib; gcc -shared -o libbtas.so pic/*.o -L/bms/lib -lbms; cd -

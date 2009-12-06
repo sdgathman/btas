@@ -20,10 +20,10 @@ nohash.o hash.o:	btree.h
 $L:	lib.done cisam.done
 
 lib.done:
-	cd lib; CC=gcc CFLAGS="$(CFLAGS) -I../include" $(MAKE) && touch lib.done
+	CC=gcc CFLAGS="-I../include $(CFLAGS)" $(MAKE) -C lib && touch lib.done
 
 cisam.done:
-	cd cisam; CC=gcc CFLAGS="$(CFLAGS) -I../include" $(MAKE) lib && touch cisam.done
+	CC=gcc CFLAGS="-I../include $(CFLAGS)" $(MAKE) -C cisam && touch cisam.done
 
 btstop:	btstop.c include/btas.h
 	$(CC) $(CFLAGS)  $< -o btstop
