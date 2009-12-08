@@ -1,16 +1,20 @@
-/* $Log$
-/* Revision 1.5  2006/10/17 17:21:18  stuart
-/* Add btinitx (manage extents).
 /*
-/* Revision 1.4  2005/05/10 21:41:46  stuart
-/* More stringent checks on records.
-/*
-/* Revision 1.3  2002/11/06 05:18:13  stuart
-/* remove libg++
-/*
-/* Revision 1.2  2001/02/28 22:44:02  stuart
-/* use new API
-/*
+ * $Log$
+ * Revision 1.6  2007/06/25 20:15:44  stuart
+ * First record in block must have 0 dup.
+ *
+ * Revision 1.5  2006/10/17 17:21:18  stuart
+ * Add btinitx (manage extents).
+ *
+ * Revision 1.4  2005/05/10 21:41:46  stuart
+ * More stringent checks on records.
+ *
+ * Revision 1.3  2002/11/06 05:18:13  stuart
+ * remove libg++
+ *
+ * Revision 1.2  2001/02/28 22:44:02  stuart
+ * use new API
+ *
  * Revision 1.1  1999/01/25  22:26:27  stuart
  * Initial revision
  *

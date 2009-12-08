@@ -1,13 +1,17 @@
-/* $Log$
-/* Revision 1.4  2002/11/06 05:13:32  stuart
-/* Convert to STL.
 /*
-/* Revision 1.3  2001/10/17 00:49:32  stuart
-/* Minor AIX build bugs, help message for btreload.
-/*
-/* Revision 1.2  1999/12/14 04:33:03  stuart
-/* handle symlinks correctly
-/*
+ * $Log$
+ * Revision 1.5  2005/02/08 16:16:18  stuart
+ * Port to ISO C++.
+ *
+ * Revision 1.4  2002/11/06 05:13:32  stuart
+ * Convert to STL.
+ *
+ * Revision 1.3  2001/10/17 00:49:32  stuart
+ * Minor AIX build bugs, help message for btreload.
+ *
+ * Revision 1.2  1999/12/14 04:33:03  stuart
+ * handle symlinks correctly
+ *
  */
 #include <stdio.h>
 #include <string>

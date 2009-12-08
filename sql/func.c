@@ -6,6 +6,9 @@ and return the output expression.  The input expression is always an EXHEAD.
 The input code may be checked for sanity or for recursive convenience.
 (I.e. strip the EXHEAD then call yourself.)
  *$Log$
+ *Revision 1.4  2007/09/26 20:21:41  stuart
+ *Implement NULLIF
+ *
  *Revision 1.3  2007/09/26 19:07:06  stuart
  *Create SQLTRUE, SQLFALSE, SQLZERO, SQLNULSTR fixed nodes.
  *
@@ -62,6 +65,7 @@ static sql sql_dayno(sql x) {
   case EXNULL:
   case EXCONST: EXDBL:
     return x;
+  default: ;
   }
   return delayFunc(x,sql_dayno);
 }
@@ -149,6 +153,7 @@ sql sql_if(sql x) {
       }
       rmsql(t);
     }
+  default: ;
   }
   return delayFunc(x,sql_if);
 }
@@ -218,6 +223,7 @@ sql sql_substr(sql x) {
     }
     rmsql(x);
     return sql_nul;
+  default: ;
   }
   return delayFunc(x,sql_substr);
 }
@@ -276,6 +282,7 @@ static sql sql_fmt(sql x,sql (*f1)(sql),sql (*f2)(sql,sql)) {
     }
     rmsql(x);
     return sql_nul;
+  default: ;
   }
   return delayFunc(x,f1);
 }
@@ -377,6 +384,7 @@ static sql sql_isnull(sql x) {
     }
     rmsql(x);
     return sql_nul;
+  default: ;
   }
 delay:
   z = mksql(EXFUNC);
@@ -490,6 +498,7 @@ static sql sql_agg(sql x,enum aggop op) {
   switch (x->op) {
   case EXHEAD:
     return applylist(x,aggtbl[op]);
+  default: ;
   }
   z = mksql(EXAGG);
   z->u.g.op = op;
@@ -502,6 +511,7 @@ static sql sql_avg(sql x) {
   switch (x->op) {
   case EXHEAD:
     return applylist(x,sql_avg);
+  default: ;
   }
   z = sql_eval(x,0);
   return mkbinop(sql_sum(x),EXDIV,sql_cnt(z));

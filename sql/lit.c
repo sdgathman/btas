@@ -14,7 +14,7 @@ static sql basenum(const char *p,int base) {
   int c;
   d.val = zeroM;
   d.fix = 0;
-  while (c = *p++) {
+  while ((c = *p++) != 0) {
     if (isalnum(c)) {
       if (islower(c))
 	c = _toupper(c);
@@ -59,11 +59,11 @@ sql mklit(const char *s,sql x) {
     struct mmddyy mdy;
     strncpy(buf,x->u.name[0],10)[10] = 0;
     mdy.yy = mdy.mm = mdy.dd = 0;
-    if (p = strtok(buf,"-/")) {
+    if ((p = strtok(buf,"-/")) != 0) {
       mdy.yy = atoi(p);
-      if (p = strtok(0,"-/")) {
+      if ((p = strtok(0,"-/")) != 0) {
 	mdy.mm = atoi(p);
-	if (p = strtok(0,"-/"))
+	if ((p = strtok(0,"-/")) != 0)
 	  mdy.dd = atoi(p);
       }
     }
@@ -81,11 +81,11 @@ sql mklit(const char *s,sql x) {
     strncpy(buf,x->u.name[0],127)[127] = 0;
     date = strtok(buf," \t");
     time = strtok(0," \t");
-    if (p = strtok(date,datesep)) {
+    if ((p = strtok(date,datesep)) != 0) {
       t.tm_year = atoi(p) - 1900;
-      if (p = strtok(0,datesep)) {
+      if ((p = strtok(0,datesep)) != 0) {
 	t.tm_mon = atoi(p) - 1;
-	if (p = strtok(0,datesep)) {
+	if ((p = strtok(0,datesep)) != 0) {
 	  t.tm_mday = atoi(p);
 	}
       }
@@ -93,11 +93,11 @@ sql mklit(const char *s,sql x) {
     t.tm_hour = 0;
     t.tm_min = 0;
     t.tm_sec = 0;
-    if (p = strtok(time,":")) {
+    if ((p = strtok(time,":")) != 0) {
       t.tm_hour = atoi(p);
-      if (p = strtok(0,":")) {
+      if ((p = strtok(0,":")) != 0) {
 	t.tm_min = atoi(p);
-	if (p = strtok(0,":")) {
+	if ((p = strtok(0,":")) != 0) {
 	  t.tm_sec = atoi(p);
 	}
       }

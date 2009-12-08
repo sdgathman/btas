@@ -1,10 +1,14 @@
-/* $Log$
-/* Revision 2.5  2006/10/17 17:21:17  stuart
-/* Add btinitx (manage extents).
 /*
-/* Revision 2.4  2001/02/28 21:35:32  stuart
-/* dump method
-/*
+ * $Log$
+ * Revision 2.6  2009/09/25 16:27:43  stuart
+ * Make BLOCK a POD.
+ *
+ * Revision 2.5  2006/10/17 17:21:17  stuart
+ * Add btinitx (manage extents).
+ *
+ * Revision 2.4  2001/02/28 21:35:32  stuart
+ * dump method
+ *
  * Revision 2.3  1997/06/23 15:39:52  stuart
  * use local workrec
  *
@@ -14,7 +18,6 @@
  * Revision 2.1  1996/12/17  16:40:32  stuart
  * C++ node interface
  *
-/*
 	implement node functions
 
 	We need to ensure that inserting in ascending key order is efficient.

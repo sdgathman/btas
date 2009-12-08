@@ -1,5 +1,8 @@
 /*	Directory tables - partly finished, Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.1  2001/02/28 23:00:02  stuart
+ * Old C version of sql recovered as best we can.
+ *
  * Revision 1.2  2000/07/31 22:01:59  stuart
  * max length for name field
  *
@@ -237,6 +240,7 @@ static int DirField_store(Column *c,sql x,char *buf) {
       return 0;
     }
     break;
+  default: ;
   }
   return -1;
 }

@@ -1,7 +1,12 @@
-/* $Log$
-/* Revision 1.3  2001/02/28 22:53:45  stuart
-/* virtual dtor
 /*
+ * $Log$
+ * Revision 1.4  2002/11/06 02:55:24  stuart
+ * Recognize and convert byteswapped image archives.  This only works when
+ * alignments match.
+ *
+ * Revision 1.3  2001/02/28 22:53:45  stuart
+ * virtual dtor
+ *
  * Revision 1.2  2000/10/31  22:01:05  stuart
  * Make an object
  */

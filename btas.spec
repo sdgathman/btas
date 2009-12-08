@@ -30,7 +30,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
-patch -p1 -b .el4
+%patch -p1 -b .el4
 
 %build
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make

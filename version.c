@@ -25,6 +25,6 @@
 /* 2.10 make .. cross join table */
 #include "btbuf.h"
 const char version[] = "\
-BTAS/X v2.10, Copyright 1989-1994 Business Management Systems, Inc.\n\
+BTAS/X v2.11, Copyright 1989-2009 Business Management Systems, Inc.\n\
 ";
-const int version_num = 210;
+const int version_num = 211;
