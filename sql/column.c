@@ -125,6 +125,7 @@ static int Column_store(Column *c,sql x,char *buf) {
   case EXSTRING:
     stchar(x->u.name[0],buf,c->len);
     return 0;
+  default: ;
   }
   return -1;	/* can't convert sql to binary columns */
 }
@@ -342,7 +343,7 @@ Column *Charfld_init(Column *cf,char *buf,int len) {
     sizeof *cf,Column_free,Charfld_print,Charfld_store,Charfld_load,
     Column_copy, Column_dup
   };
-  if (cf = Column_init(cf,buf,len)) {
+  if ((cf = Column_init(cf,buf,len)) != 0) {
     cf->_class = &Charfld_class;
     cf->width = cf->dlen = (short)len;
     cf->type = BT_CHAR;
@@ -542,6 +543,7 @@ static int Sqlfld_store(Column *col,sql x,char *buf) {
   case EXCONST: case EXDATE:
     stnum(x->u.num.val,buf,col->len);
     return 0;
+  default: ;
   }
   return -1;
 }
