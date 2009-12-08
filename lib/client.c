@@ -20,6 +20,8 @@ static int isStateless(BTCB *b,int op) {
     return 1;
   case BTSTAT: case BTMOUNT: case BTUMOUNT:
     return b->root == 0;
+  case BTCLOSE:
+    return b->flags == 0;
   }
   return 0;
 }
