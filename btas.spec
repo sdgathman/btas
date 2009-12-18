@@ -73,6 +73,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/btas
 cp util/btutil.help $RPM_BUILD_ROOT/usr/share/btas
 cp sql/btl.sh $RPM_BUILD_ROOT/bms/bin/btl
 cp sql/btlc.sh $RPM_BUILD_ROOT/bms/bin/btlc
+cp sql/btlx.sh $RPM_BUILD_ROOT/bms/bin/btlx
 cp sql/sql $RPM_BUILD_ROOT/bms/bin
 cp cisam/istrace cisam/isserve cisam/bcheck cisam/addindex cisam/indexinfo \
 	$RPM_BUILD_ROOT/bms/bin
