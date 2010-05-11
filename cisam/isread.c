@@ -1,4 +1,8 @@
-/* $Log$
+/*
+ * $Log$
+ * Revision 1.5  1998/12/17 23:42:45  stuart
+ * Support ISFULL option to use full unique key for ISGREAT,ISLESS
+ *
  * Revision 1.4  1998/06/17  18:24:23  stuart
  * adjust ISCURR behaviour
  *
@@ -130,22 +134,33 @@ int isread(int fd,void *rec,int mode) {
   if ((flags & ISLOCK) && kp == &r->key)
     btmode |= LOCK;
   catch(rc)
+readnext:
   rc = btas(b,(int)op + btmode);	/* read btas (possibly key) record */
   if (rc == 0)
     rc = isCheckRange(r,buf,op);
   if (rc == 0) {
-    if (kp != &r->key) {
+    struct cisam_key *mkp = &r->key;
+    BTCB *m = mkp->btcb;
+    if (kp != mkp) {
+      int mbtmode = btmode;
       b2urec(kp->f->f,buf,r->rlen,b->lbuf,b->rlen);
-      kp = &r->key;
-      b = kp->btcb;
-      u2brec(kp->f->f,buf,r->rlen,b,kp->klen);
-      b->rlen = btrlen(kp->f);
+      u2brec(mkp->f->f,buf,r->rlen,m,mkp->klen);
+      m->rlen = btrlen(mkp->f);
       if (flags & ISLOCK)
-	btmode |= LOCK;
-      rc = btas(b,BTREADEQ + btmode);
+	mbtmode |= LOCK;
+      rc = btas(m,BTREADEQ + mbtmode);
+      if (rc != 0) {
+	b->klen = b->rlen;	/* get the next key record */
+	switch (mode) {
+	case ISLESS: case ISLTEQ: case ISPREV:
+	  op = BTREADLT; goto readnext;
+	case ISGREAT: case ISGTEQ: case ISNEXT:
+	  op = BTREADGT; goto readnext;
+	}
+      }
     }
     if (rc == 0)
-      b2urec(kp->f->f,rec,r->rlen,b->lbuf,b->rlen);
+      b2urec(mkp->f->f,rec,r->rlen,m->lbuf,m->rlen);
   }
   else if (rc == BTEREOF) {
     switch (mode) {
