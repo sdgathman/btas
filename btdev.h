@@ -17,6 +17,8 @@
 
 #include <bttype.h>
 
+enum { MAXMNT = 26 };
+
 struct DEV: btfhdr {
   DEV();
   struct extent {
@@ -97,5 +99,5 @@ private:
   long *blks;
 };
 
-extern FDEV devtbl[MAXDEV];		/* mid table */
+extern FDEV devtbl[MAXMNT];		/* mid table */
 #endif

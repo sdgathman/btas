@@ -53,6 +53,9 @@ static const char what[] =
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 2.7  2009/12/05 21:38:21  stuart
+ * Reenable linking filesystem root - needed to create dirs under root.
+ *
  * Revision 2.6  2007/06/21 23:01:36  stuart
  * Prevent deleting a mounted directory or linking a filesystem root.
  *
@@ -106,11 +109,11 @@ struct btfile::joinrec {
 
 btfile::btfile(BlockCache *c): bttrace(c) {
   joincnt = 0;
-  jointbl = new joinrec[MAXDEV];
+  jointbl = new joinrec[MAXMNT];
 }
 
 int btfile::join(BTCB *b) {
-  if (joincnt >= MAXDEV) return BTERJOIN;
+  if (joincnt >= MAXMNT) return BTERJOIN;
   b->lbuf[b->klen] = 0;
   int mid = bufpool->mount(b->lbuf);
   joinrec *p = jointbl + joincnt++;

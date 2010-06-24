@@ -6,6 +6,9 @@
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
 $Log$
+Revision 2.8  2009/09/25 16:27:43  stuart
+Make BLOCK a POD.
+
 Revision 2.7  2007/06/26 19:16:59  stuart
 Check cache size at startup.
 
@@ -60,10 +63,10 @@ static const char what[] = "$Id$";
 //#include <io.h>
 #include "bterr.h"
 
-FDEV devtbl[MAXDEV];
+FDEV devtbl[MAXMNT];
 
 int BlockCache::btroot(t_block r,short mid) {
-  if (mid < 0 || mid >= MAXDEV) return -1;
+  if (mid < 0 || mid >= MAXMNT) return -1;
   dev = &devtbl[mid];	/* base device for current root node */
   if (!dev->isopen()) return -1;
   root = r;
@@ -80,8 +83,8 @@ void BlockCache::btcheck() { get(0); }
 /* mount filesystem & return mount id */
 short BlockCache::mount(const char *name) {
   int i, rc;
-  for (i = 0; i < MAXDEV && devtbl[i].isopen(); ++i); /* find free mid */
-  if (i >= MAXDEV)
+  for (i = 0; i < MAXMNT && devtbl[i].isopen(); ++i); /* find free mid */
+  if (i >= MAXMNT)
     rc = BTERMTBL;		/* mount table full */
   else
     rc = devtbl[i].open(name);
@@ -115,7 +118,7 @@ int BlockCache::unmount(short m) {		/* unmount filesystem */
 
 int BlockCache::flush() {		/* flush buffers to disk */
   int rc = 0;
-  for (int i = 0; i < MAXDEV; ++i) {	/* update all super blocks */
+  for (int i = 0; i < MAXMNT; ++i) {	/* update all super blocks */
     int j = sync(i);
     if (!rc)
       rc = (j || devtbl[i].isclean()) ? j : BTERBUSY;
@@ -149,7 +152,7 @@ bool BlockCache::ok(int bsize,unsigned cachesize) {
 }
 
 BlockCache::~BlockCache() {
-  for (int i = 0; i < MAXDEV; ++i) {	/* unmount all filesystems */
+  for (int i = 0; i < MAXMNT; ++i) {	/* unmount all filesystems */
     if (devtbl[i].isopen()) {
       devtbl[i].mcnt = 1;
       unmount(i);
