@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.8  2009/04/01 11:46:28  stuart
+ * Release 2.11.1
+ *
  * Revision 2.7  2009/03/31 17:00:38  stuart
  * Trap any exceptions and convert to error.
  *
@@ -115,6 +118,8 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
 	}
 	else	/* Allow client to send bytes needed for key info only. */
 	  p1len = isreclen(rfd);
+#if 0
+	/* Emulate extended read modes (ISLESS,ISLTEQ) on original C-isam. */
 	switch (mode) {
 	case ISLESS:
 	  mode = ISPREV;
@@ -133,6 +138,7 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
 	  }
 	  break;
 	}
+#endif
 	i = isread(rfd,p1buf,mode);
 	if (i) {
 	  *p1lenp = 0;
@@ -183,6 +189,10 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
 	*p1lenp = 4;
 	break;
       }
+    case ISBTASINFO:
+	i = isbtasinfo(rfd,&d.desc,mode);
+	*p1lenp = stbtasinfo(&d.btas,p1buf);
+	break;
     case ISINDEXINFO:
 	i = isindexinfo(rfd,&d.desc,mode);
 	if (mode)

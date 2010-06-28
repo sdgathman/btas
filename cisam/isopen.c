@@ -5,6 +5,9 @@
 	Author: Stuart D. Gathman
  *
  * $Log$
+ * Revision 1.14  2003/09/14 01:25:55  stuart
+ * Test for and fix bugs in iserase
+ *
  * Revision 1.12  2003/07/29 18:53:37  stuart
  * Cache first free fd so repeated calls to isnewfd are fast.
  *
@@ -382,8 +385,8 @@ int isopenx(const char *name,int mode,int rlen) {
 /* normalize keydesc */
 
 int iskeynorm(struct keydesc *k) {
-  register struct keypart *kp;
-  register int i;
+  struct keypart *kp;
+  int i;
   k->k_flags &= ISDUPS;		/* only ISDUPS flag used with BTAS */
   if (k->k_nparts == 0) {
     k->k_len = 4;
@@ -391,7 +394,7 @@ int iskeynorm(struct keydesc *k) {
   }
   kp = k->k_part;
   k->k_len = 0;
-  for (i = 0; i < k->k_nparts; ++i) {
+  for (i = 0; i < k->k_nparts && i < NPARTS; ++i) {
     k->k_len += k->k_part[i].kp_leng;
     if (i > 0 && kp[-1].kp_start + kp[-1].kp_leng == k->k_part[i].kp_start
 	      && kp[-1].kp_type == k->k_part[i].kp_type)

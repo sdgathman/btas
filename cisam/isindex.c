@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.10  2009/03/25 19:55:23  stuart
+ * Make variables used in enverr volatile, not what they point to.
+ *
  * Revision 1.9  2009/03/18 00:22:54  stuart
  * Make vars used after longjump volatile.
  *
@@ -51,6 +54,12 @@ int isindexname(int fd,char *buf,int idx) {
   }
   strcpy(buf,kp->name);
   return iserr(0);
+}
+
+int isbtasinfo(inf fd,struct btstat *st) {
+  struct cisam *r = ischkfd(fd);
+  struct cisam_key *kp = &r->key;
+  return btfstat(kp->btcb,st);
 }
 
 int isindexinfo(int fd,struct keydesc *k,int idx) {

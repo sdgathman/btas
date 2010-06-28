@@ -47,3 +47,18 @@ int stdictinfo(const struct dictinfo *d,char *buf) {
   stlong(d->di_nrecords,p), p += 4;
   return p - buf;
 }
+
+int stbtstat(const struct btstat *d,char *buf) {
+  char *p = buf;
+  stlong(d->bcnt,p), p += 4;
+  stlong(d->rcnt,p), p += 4;
+  stlong(d->atime,p), p += 4;
+  stlong(d->ctime,p), p += 4;
+  stlong(d->mtime,p), p += 4;
+  stshort(d->links,p), p += 2;
+  stshort(d->opens,p), p += 2;
+  stshort(d->id.user,p), p += 2;
+  stshort(d->id.group,p), p += 2;
+  stshort(d->id.mode,p), p += 2;
+  return p - buf;
+}

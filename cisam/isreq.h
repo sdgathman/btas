@@ -2,6 +2,9 @@
  * $Id$
  * Request format for cisam local server
  * $Log$
+ * Revision 1.10  2003/09/14 01:45:34  stuart
+ * Expose iscleanup through isreq.
+ *
  * Revision 1.8  2003/07/29 16:46:35  stuart
  * isfdlimit entry point.  Always use ischkfd.
  *
@@ -84,6 +87,7 @@ int stkeydesc(const struct keydesc *k,char *buf);
 void ldkeydesc(struct keydesc *k,const char *p);
 int stdictinfo(const struct dictinfo *d,char *p);
 void lddictinfo(struct dictinfo *d,const char *p);
+int stbtasictinfo(const struct btstat *d,char *p);
 
 #endif
 
@@ -118,7 +122,8 @@ enum isreqOp {
   ISREADREC,
   ISINDEXNAME,
   ISMKDIR,
-  ISCLEANUP	/* retry erases of open files */
+  ISCLEANUP,	/* retry erases of open files */
+  ISBTASINFO
 };
 
 int isreq(int fd,int op,int *l1,int l2,char *,const char *,int mode,int len);
