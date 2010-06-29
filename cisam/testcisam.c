@@ -413,6 +413,13 @@ START_TEST(test_addindex) {
     isclose(fd1);
 } END_TEST
 
+START_TEST(test_erasedir) {
+  const char *name1 = "/tmp/testerase";
+  btmkdir(name1,0700);
+  fail_unless(iserase(name1) != 0,"iserase shouldn't delete directories");
+  fail_unless(btrmdir(name1) == 0,"btrmdir failed");
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *cisam_suite (void) {
@@ -427,6 +434,7 @@ Suite *cisam_suite (void) {
   //tcase_add_test (tc_api, test_bigrec);
   tcase_add_test (tc_api, test_replace);
   tcase_add_test (tc_api, test_addindex);
+  tcase_add_test (tc_api, test_erasedir);
   return s;
 }
 

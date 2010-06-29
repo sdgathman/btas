@@ -3,6 +3,9 @@
 	Copyright 1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.11  2010/06/28 20:54:13  stuart
+ * Support isbtasinfo
+ *
  * Revision 1.10  2009/03/25 19:55:23  stuart
  * Make variables used in enverr volatile, not what they point to.
  *
@@ -56,7 +59,7 @@ int isindexname(int fd,char *buf,int idx) {
   return iserr(0);
 }
 
-int isbtasinfo(inf fd,struct btstat *st) {
+int isbtasinfo(int fd,struct btstat *st) {
   struct cisam *r = ischkfd(fd);
   struct cisam_key *kp = &r->key;
   return btfstat(kp->btcb,st);

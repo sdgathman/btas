@@ -79,6 +79,7 @@ int iserase(const char *name) {
   char idxname[128];
   BTCB *savdir = btasdir;
   struct btflds * volatile f = 0;
+  struct btstat st;
 
   if (strlen(name) + sizeof idx > sizeof idxname)
     return iserr(EFNAME);
@@ -117,11 +118,15 @@ int iserase(const char *name) {
     btclose(b);
     b = 0;
     free((PTR)f);
-    strcpy(btasdir->lbuf,fname);
-    btasdir->klen = strlen(btasdir->lbuf) + 1;
-    btasdir->rlen = btasdir->klen;
-    btas(btasdir,BTDELETE + NOKEY);
-    rc = 0;
+    if (btstat(fname,&st) == 0 && (st.id.mode & BT_DIR))
+      rc = BTERDIR;
+    else {
+      strcpy(btasdir->lbuf,fname);
+      btasdir->klen = strlen(btasdir->lbuf) + 1;
+      btasdir->rlen = btasdir->klen;
+      btas(btasdir,BTDELETE + NOKEY);
+      rc = 0;
+    }
   }
   enverr
     btclose(b);

@@ -1,4 +1,5 @@
 #include <isamx.h>
+#include <bttype.h>
 #include "isreq.h"
 
 int stkeydesc(const struct keydesc *k,char *buf) {

@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.9  2010/06/28 20:54:14  stuart
+ * Support isbtasinfo
+ *
  * Revision 2.8  2009/04/01 11:46:28  stuart
  * Release 2.11.1
  *
@@ -74,6 +77,7 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
       union {
 	struct keydesc desc;
 	struct dictinfo dict;
+	struct btstat btas;
       } d;
     case ISBUILD:
 	ldkeydesc(&d.desc,p2buf);
