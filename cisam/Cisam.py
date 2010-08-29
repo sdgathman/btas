@@ -1,7 +1,10 @@
 from cisam import *
 import struct
 
-class CharField:
+class Field(object):
+  __slots__ = 'beg','end','size','name'
+
+class CharField(Field):
   def __init__(self,name,pos,len,desc=None):
     self.beg = pos
     self.end = pos + len
@@ -16,44 +19,77 @@ class CharField:
     val = val.ljust(size)
     buf[self.beg:self.end] = val[:size]
 
-class NumField:
+class NumField(Field):
+  __slots__ = 'pad','fmt'
   def __init__(self,name,pos,len,desc=None):
+    self.name = name
     self.beg = pos
     if len > 8: len = 8
     self.end = pos + len
     if len > 4:
       self.pad = 8 - len
       self.fmt = '!q'
-    else:
+    elif len > 2:
       self.pad = 4 - len
       self.fmt = '!l'
+    else:
+      self.pad = 2 - len
+      self.fmt = '!h'
 
   def getvalue(self,buf):
-    b = buf[beg:end]
-    fill = b[0] & 0x80 and '\xff' or '\x00'
-    return struct.unpack(self.fmt,fill * self.pad + b)
+    b = buf[self.beg:self.end]
+    if self.pad:
+      fill = ord(b[0]) & 0x80 and '\xff' or '\x00'
+      return struct.unpack(self.fmt,fill * self.pad + b)[0]
+    return struct.unpack(self.fmt,b)[0]
 
   def setvalue(self,buf,val):
     buf[self.beg:self.end] = struct.pack(self.fmt,val)[self.pad:]
 
-class Record:
+class Record(object):
+  __slots__ = '_map_','_buf_','_flds_'
   def __init__(self,flds,buf=None):
     map = {}
-    for f in flds: map[f.name] = f
-    self.__dict__['_map_'] = map
-    self.__dict__['_buf_'] = buf
+    for f in flds:
+      map[f.name] = f
+    object.__setattr__(self, '_map_',map)
+    self._flds_ = flds
+    self._buf_ = buf
 
   def __getattr__(self,name):
-    return self._map_[name].getvalue(self._buf_)
+    try:
+      return self._map_[name].getvalue(self._buf_)
+    except KeyError:
+      raise AttributeError(name)
+
   def __setattr__(self,name,val):
     try:
       f = self._map_[name]
-    except KeyError:
-      self.__dict__[name] = val
-    else:
       f.setvalue(self._buf_,val)
+    except KeyError:
+      object.__setattr__(self, name,val)
 
-class DataDict:
+  def getrow(self):
+    return [f.getvalue(self._buf_) for f in self._flds_]
+
+  def gethdr(self):
+    return [f.name for f in self._flds_]
+
+class Table(object):
+  def __init__(self,fname):
+    self.fd = None
+
+  def close(self):
+    self.fd.close()
+    self.fd = None
+
+    
+  def first(self):
+    self.fd.read(ISFIRST)
+  def next(self):
+    self.fd.read(ISNEXT)
+
+class DataDict(Table):
   typemap = {
     'C': CharField,
     'N0': NumField
@@ -74,21 +110,19 @@ class DataDict:
     self.rec = Record(self.flds)
     self.fd = None
 
-  def open():
-    self.fd = isopen(btasdir + '/' + self.fname,READONLY)
+  def open(self):
+    self.fd = isopen(self.btasdir + '/' + self.fname,READONLY)
+    self.rec._buf_ = self.fd.recbuf
 
-  def close():
-    self.fd.close()
-    self.fd = None
-
-  def createDesc():
+  def createDesc(self):
     r = self.rec
     return r.fldname,r.fldpos,r.fldlen,r.fldtype,r.fldmask,r.flddesc
 
-  def createField():
+  def createField(self):
     r = self.rec
     return typemap[r.fldtype](r.fldname,r.fldpos,r.fldlen)
 
 class BtasFields:
   def __init__(self):
-    flds = []
+    self.flds = []
+
