@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.10  2010/06/29 03:14:49  stuart
+ * Make iserase fail for directories.
+ *
  * Revision 2.9  2010/06/28 20:54:14  stuart
  * Support isbtasinfo
  *
@@ -194,7 +197,10 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
 	break;
       }
     case ISBTASINFO:
-	i = isbtasinfo(rfd,&d.desc,mode);
+	if (p1len > 0)
+	  i = btstat(p1buf,&d.btas);
+	else
+	  i = isbtasinfo(rfd,&d.desc,mode);
 	*p1lenp = stbtasinfo(&d.btas,p1buf);
 	break;
     case ISINDEXINFO:
