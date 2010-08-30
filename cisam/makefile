@@ -4,9 +4,6 @@ R = 100
 
 all:	bttests bttestc btteste isserve istrace
 
-cisam.so:	cisammodule.c
-	python2 setup.py build
-
 test:	bttestc btteste
 	bttestc $R | tee log
 	btteste $R | tee -a log
