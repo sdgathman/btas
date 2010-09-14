@@ -126,9 +126,11 @@ const char *filesys::init(unsigned bsz,long sz,int mode,int chk) {
     u.d.dtbl->eof = 0;
   }
   else {
-    u.d.dtbl->eof = (sz - blkoffset) / bsz;
-    if (u.d.dtbl->eof > MAXBLK)
-      u.d.dtbl->eof = MAXBLK;
+    long long fsize = (sz - blkoffset) / bsz;
+    if (fsize > 0x7FFFFFFF)
+      u.d.dtbl->eof = 0x7FFFFFFF;
+    else
+      u.d.dtbl->eof = (long)fsize;
   }
   u.d.dtbl->eod = 0L;
   u.d.hdr.space = u.d.dtbl->eof;
@@ -230,6 +232,10 @@ const char *Extent::add(btfs &prim,int i,long size) {
     fs.dtbl[0] = prim.dtbl[i];
     fs.dtbl[0].eof = sz;
     fs.dtbl[1] = prim.dtbl[0];	// primary extent we belong to
+    if (prim.dtbl[0].eof > filesys::MAXBLK) {
+      prim.hdr.space -= prim.dtbl[0].eof - filesys::MAXBLK;
+      prim.dtbl[0].eof = filesys::MAXBLK;
+    }
   }
 
   if (prim.dtbl[i].eof)
@@ -243,11 +249,11 @@ const char *Extent::add(btfs &prim,int i,long size) {
 }
 
 const char *filesys::add(const char *s,long sz) {
-  if (!blksize())
-    return "Not initialized";
-  if (u.d.hdr.dcnt >= MAXDEV) return "Too many extents";
+  if (!blksize())		return "Not initialized";
+  if (u.d.dtbl->eod > MAXBLK)	return "Too big for extents";
+  if (u.d.hdr.dcnt >= MAXDEV)	return "Too many extents";
   Extent efd(s,O_RDWR+O_CREAT+O_BINARY,0666);
-  if (efd < 0) return "Can't open extent";
+  if (efd < 0)			return "Can't open extent";
   strncpy(u.d.dtbl[u.d.hdr.dcnt].name,s,sizeof u.d.dtbl[0].name);
   u.d.dtbl[u.d.hdr.dcnt].eod = 0;
   const char *msg = efd.add(u.d,u.d.hdr.dcnt,sz);
