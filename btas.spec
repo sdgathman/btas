@@ -131,6 +131,7 @@ fi
 %attr(2755,btas,bms)/bms/bin/sql
 /bms/bin/btl
 /bms/bin/btlc
+/bms/bin/btlx
 /bms/bin/bcheck
 /bms/bin/addindex
 /bms/bin/delindex
