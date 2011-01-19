@@ -251,6 +251,7 @@ int isdelcurr(int);
 int isdelrec(int, long);
 int isuniqueid(int, long *);
 int issetunique(int, long);
+struct btstat;
 int isbtasinfo(int, struct btstat *);
 int isindexinfo(int, struct keydesc *, int);
 int isindexname(int, char *buf, int);	/* buf should be MAXKEYSIZE chars */
