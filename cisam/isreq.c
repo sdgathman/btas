@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.11  2010/08/29 02:55:48  stuart
+ * return btstat from ISBTASINFO when passed filename.
+ *
  * Revision 2.10  2010/06/29 03:14:49  stuart
  * Make iserase fail for directories.
  *
@@ -200,7 +203,7 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
 	if (p1len > 0)
 	  i = btstat(p1buf,&d.btas);
 	else
-	  i = isbtasinfo(rfd,&d.desc,mode);
+	  i = isbtasinfo(rfd,&d.btas);
 	*p1lenp = stbtasinfo(&d.btas,p1buf);
 	break;
     case ISINDEXINFO:
