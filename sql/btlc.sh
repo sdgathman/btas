@@ -24,7 +24,7 @@ if [ $# -gt 0 ] ; then
   done
 fi
 
-sql -q <<EOF | pr -4 -w80 -t
+sql -q <<EOF | pr -4 -l10000000 -w80 -t
 select name from ""
 where name like $WILD
 ;
