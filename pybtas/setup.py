@@ -3,7 +3,7 @@ from distutils.core import setup, Extension
 
 libs = ["btas"]
 
-setup(name = "cisam", version = "0.1.0",
+setup(name = "cisam", version = "0.1",
 	description="Python interface to BTAS/X C-isam API",
 	long_description="""\
 This is a python extension module to enable python scripts to

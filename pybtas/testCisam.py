@@ -4,9 +4,7 @@ dd = Cisam.DataDict('/edx')
 dd.open()
 try:
   print dd.rec.gethdr()
-  dd.first()
-  while True:
-    print dd.rec.getrow()
-    dd.next()
+  for r in dd.getrows():
+    print r
 finally:
   dd.close()

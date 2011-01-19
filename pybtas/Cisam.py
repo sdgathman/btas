@@ -82,12 +82,20 @@ class Table(object):
   def close(self):
     self.fd.close()
     self.fd = None
-
     
   def first(self):
     self.fd.read(ISFIRST)
   def next(self):
     self.fd.read(ISNEXT)
+
+  def getrows(self):
+    try:
+      self.first()
+      while True:
+        yield self.rec.getrow()
+        self.next()
+    except error,x:
+      if self.fd.iserrno != 110: raise
 
 class DataDict(Table):
   typemap = {
@@ -95,7 +103,7 @@ class DataDict(Table):
     'N0': NumField
   }
   def __init__(self,dir='/edx'):
-    self.flds = (
+    flds = (
       CharField('tblname',0,18),
       NumField('fldidx',18,2),
       NumField('fldpos',20,2),
@@ -107,7 +115,7 @@ class DataDict(Table):
     )
     self.fname = 'DATA.DICT'
     self.btasdir = dir
-    self.rec = Record(self.flds)
+    self.rec = Record(flds)
     self.fd = None
 
   def open(self):
