@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.6  2010/05/11 18:31:15  stuart
+ * Auto-skip key records with missing master.
+ *
  * Revision 1.5  1998/12/17 23:42:45  stuart
  * Support ISFULL option to use full unique key for ISGREAT,ISLESS
  *
@@ -149,12 +152,12 @@ readnext:
       if (flags & ISLOCK)
 	mbtmode |= LOCK;
       rc = btas(m,BTREADEQ + mbtmode);
-      if (rc != 0) {
+      if (rc != 0) {		/* can't find master! */
 	b->klen = b->rlen;	/* get the next key record */
 	switch (mode) {
-	case ISLESS: case ISLTEQ: case ISPREV:
+	case ISLESS: case ISLTEQ: case ISPREV: case ISLAST:
 	  op = BTREADLT; goto readnext;
-	case ISGREAT: case ISGTEQ: case ISNEXT:
+	case ISGREAT: case ISGTEQ: case ISNEXT: case ISFIRST:
 	  op = BTREADGT; goto readnext;
 	}
       }
