@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.12  2011/01/19 18:43:50  stuart
+ * Fix isbtasinfo call
+ *
  * Revision 2.11  2010/08/29 02:55:48  stuart
  * return btstat from ISBTASINFO when passed filename.
  *
@@ -204,7 +207,7 @@ int isreq(int rfd,int fxn, int *p1lenp, int p2len,
 	  i = btstat(p1buf,&d.btas);
 	else
 	  i = isbtasinfo(rfd,&d.btas);
-	*p1lenp = stbtasinfo(&d.btas,p1buf);
+	*p1lenp = stbtstat(&d.btas,p1buf);
 	break;
     case ISINDEXINFO:
 	i = isindexinfo(rfd,&d.desc,mode);
