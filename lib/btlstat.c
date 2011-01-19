@@ -1,4 +1,5 @@
 #include <btas.h>
+#include <bterr.h>
 #include <errenv.h>
 
 /** Return information about file pointed to by symlink.
