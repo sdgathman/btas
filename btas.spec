@@ -154,6 +154,10 @@ fi
 /bms/include/*.h
 
 %changelog
+* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.4-1
+- Cisam: support isbtasinfo
+* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-3
+- prevent iserase from erasing directories
 * Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-2
 - libbtas: improve server restart recovery
 - btserve: allow linking to root dir again
