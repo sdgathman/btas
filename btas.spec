@@ -87,33 +87,32 @@ cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
   strip istrace isserve bcheck || true
   ln addindex delindex
 }
+mkdir -p $RPM_BUILD_ROOT/var/log/btas
+chmod 0664 $RPM_BUILD_ROOT/var/log/btas
+chmod g+s $RPM_BUILD_ROOT/var/log/btas
+
+cp -p btbackup.sh $RPM_BUILD_ROOT/bms/bin/btbackup
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %pre
-%ifos linux
 /usr/sbin/useradd -u 711 -d /bms -M -c "BTAS/X File System" -g bms btas || true
 
 %post
 /sbin/ldconfig
 /sbin/chkconfig --add btas
-%else
-%post
-%endif
-if test ! -f /var/log/btas.log; then
-  touch /var/log/btas.log
-  chown btas:bms /var/log/btas.log
-  chmod 0644 /var/log/btas.log
-fi
 
 %files
 %defattr(-,btas,bms)
 %dir /bms/bin
+%dir /var/log/btas
 %config(noreplace) /bms/bin/btstart
+%config(noreplace) /bms/etc/btfstab
 %attr(0755,root,root)/etc/init.d/btas
 %attr(0644,root,root)/etc/logrotate.d/btas
 /usr/share/btas/btutil.help
+/bms/bin/btbackup
 /bms/bin/btar
 /bms/bin/btddir
 /bms/bin/btdu
@@ -155,15 +154,18 @@ fi
 /bms/include/*.h
 
 %changelog
-* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.4-1
+* Thu Apr 21 2011 Stuart Gathman <stuart@bmsi.com> 2.11.4-2
+- Make btstart and backup use /bms/etc/btfstab
+* Wed Jan 19 2011 Stuart Gathman <stuart@bmsi.com> 2.11.4-1
 - Cisam: support isbtasinfo
-* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-3
+- Cisam: skip bad index records on read (see testBadIndex in DatasetTest.java)
+* Mon Jun 28 2010 Stuart Gathman <stuart@bmsi.com> 2.11.3-3
 - prevent iserase from erasing directories
-* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-2
+* Tue Dec 08 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-2
 - libbtas: improve server restart recovery
 - btserve: allow linking to root dir again
 - drop AIX support in spec
-* Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-1
+* Fri Sep 29 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-1
 - libbtas: detect and recover server restart
 - Cisam: enable auto-repair of dupkey on secondary index.
 * Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.2-1

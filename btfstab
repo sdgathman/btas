@@ -1,0 +1,2 @@
+# filesys	mountpt	blksiz	backup
+/btdata/ROOT	/	2048	1
