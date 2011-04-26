@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.3  2007/09/26 17:43:03  stuart
+ * Support DATE +/- INT
+ *
  * Revision 1.2  2001/11/14 19:16:45  stuart
  * Implement INSERT INTO ... VALUES
  * Fix assignment bug.
@@ -295,7 +298,6 @@ static int resolve(sql x,struct tabinfo *ti,sql parent) {
 	    parent->u.opd[1] = l;
 	    parent = l;
 	  }
-	  return 0;
 	}
 	else {
 	  x->op = EXHEAD;
@@ -307,8 +309,8 @@ static int resolve(sql x,struct tabinfo *ti,sql parent) {
 	    ++ti->ref[i];
 	    addlist(x,c);
 	  }
-	  return 0;
 	}
+	return 0;
       }
       if (fname[0] == '#') {
 	j = atoi(fname+1) - 1;

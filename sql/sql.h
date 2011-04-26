@@ -85,6 +85,8 @@ struct sql_stmt {
 /* parse.y */
 struct sql_stmt *parse_sql(const char *);
 	/* report syntax error */
+/* sqlexec.c */
+void sqlexec(const struct sql_stmt *cmd,const char *formatch,int verbose);
 void sql_syntax(const char *,const char *,const char *);
 extern int yydebug;
 /* func.c */

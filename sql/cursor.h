@@ -60,3 +60,4 @@ extern Cursor System_table;
 
 /* cause immediate EOF on all cursors */
 extern volatile int cancel;
+extern volatile int inexec;

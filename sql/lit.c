@@ -59,6 +59,7 @@ sql mklit(const char *s,sql x) {
     struct mmddyy mdy;
     strncpy(buf,x->u.name[0],10)[10] = 0;
     mdy.yy = mdy.mm = mdy.dd = 0;
+    /* YYYY-MM-DD */
     if ((p = strtok(buf,"-/")) != 0) {
       mdy.yy = atoi(p);
       if ((p = strtok(0,"-/")) != 0) {
@@ -105,6 +106,9 @@ sql mklit(const char *s,sql x) {
     d.val = ltoM(mktime(&t));
     d.fix = 0;
     z = mkconst(&d);
+  }
+  else {
+    /* FIXME: unrecognized literal */
   }
   rmsql(x);
   return z;

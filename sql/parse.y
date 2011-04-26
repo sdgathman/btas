@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.5  2007/09/26 20:38:36  stuart
+ * Implemented COALESCE
+ *
  * Revision 1.4  2007/09/26 20:21:41  stuart
  * Implement NULLIF
  *
@@ -342,6 +345,19 @@ logical	: expr '=' expr
 		    $$ = mkbinop($$,EXOR,
 			mkbinop(sql_eval($1,0),EXEQ,x->u.opd[0]));
 		}
+	| expr maybeis IN '(' tabexp ')'
+		{ sql q = mksql(EXQUERY), c = mklist();
+		  q->u.q.qry = $5; q->u.q.name = "t";
+		  $$ = q;
+		  q = mksql(EXQUERY);
+		  q->u.q.qry = select_init();
+		  c = mklist();
+		  addlist(c,$$);
+		  q->u.q.qry->table_list = c;
+		  c = mkname((const char *)0,"#1");
+		  q->u.q.qry->where_sql = mkbinop(c,EXEQ,$1);
+		  // FIXME: need operator to search query, EXISTS is wrong
+		  $$ = mkunop(EXEXIST,q); }
 	| expr maybeis NOT IN '(' exprlist ')'
 		{
 		  sql x = $6->u.opd[1];
@@ -468,12 +484,12 @@ expr	: atom
 		  $$ = sql_substr($$); }
 	/* | NUL */
 		/* { $$ = sql_nul; } */
+	| '(' tabexp ')'
+		{ $$ = mksql(EXQUERY); $$->u.q.qry = $2; $$->u.q.name = 0; }
 	| '(' expr ')'
 		{ $$ = $2; }
 	| '(' exprlist ')'
 		{ $$ = $2; }
-	| '(' tabexp ')'
-		{ $$ = mksql(EXQUERY); $$->u.q.qry = $2; $$->u.q.name = 0; }
 	| '-' expr %prec '*'
 		{ $$ = mkunop(EXNEG,$2); }
 	| expr CONCAT expr
