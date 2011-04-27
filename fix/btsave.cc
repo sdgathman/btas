@@ -35,7 +35,10 @@ Usage:	btsave [-f] osfile >archive\n\
   btasXFS fs(argv[i],
 	isatty(0) ? fsio::FS_RDONLY : fsio::FS_RDONLY + fsio::FS_BGND);
   if (!fs) {
-    fprintf(stderr,"%s: not a BTAS/X filesystem.\n",argv[i]);
+    if (access(argv[i],R_OK))
+      fprintf(stderr,"%s: read permission denied.\n",argv[i]);
+    else
+      fprintf(stderr,"%s: not a BTAS/X filesystem.\n",argv[i]);
     return 1;
   }
   { // write BTSAVE header

@@ -59,9 +59,9 @@ btasXFS::~btasXFS() {
 
 int btasFS::fsopen(const char *name,int flags) {
   fsclose();
-  fs = new fstbl(this,flags);
-  if (open(name,flags))
+  if (open(name,flags) < 0)
     return errno;
+  fs = new fstbl(this,flags);
 
   fs->typex = buftypex;
 
@@ -69,11 +69,15 @@ int btasFS::fsopen(const char *name,int flags) {
 
   if (rc == sizeof fs->u.buf && !fs->validate(0)) {
     rc = read(0,fs->u.buf,sizeof fs->u.buf);
-    if (rc == sizeof fs->u.buf && !fs->validate(sizeof fs->u.buf))
+    if (rc == sizeof fs->u.buf && !fs->validate(sizeof fs->u.buf)) {
+      delete fs; fs = 0;
       return BTERBMNT;
+    }
   }
-  if (rc != sizeof fs->u.buf)
+  if (rc != sizeof fs->u.buf) {
+    delete fs; fs = 0;
     return errno;
+  }
 
   for (int i = 1; i < fs->u.f.hdr.dcnt; ++i) {
     int fd = open(fs->u.f.dtbl[i].name,flags);
