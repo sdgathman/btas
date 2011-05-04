@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <libgen.h>
 #include <isamx.h>
 #include <ftype.h>
 #include <btflds.h>
@@ -420,6 +421,30 @@ START_TEST(test_erasedir) {
   fail_unless(btrmdir(name1) == 0,"btrmdir failed");
 } END_TEST
 
+START_TEST(test_update) {
+  static struct keydesc Ktest = { 0, 1, { { 0, 4, CHARTYPE } } };
+  static const char ftbl[] = { 0,1,BT_NUM,4, BT_CHAR,8 };
+  const char *fname1 = "/tmp/testupdate";
+  char buf[32];
+  struct btflds *f = ldflds(0,ftbl,sizeof ftbl);
+  int fd = isbuildx(fname1,sizeof buf,&Ktest,ISINOUT + ISEXCLLOCK,f);
+  int rc;
+  fail_unless(fd >= 0,"isopenx failed");
+  stlong(1455,buf);
+  stchar("bar",buf+4,8);
+  fail_unless(iswrite(fd,buf) == 0,"iswrite failed");
+  fail_unless(isread(fd,buf,ISFIRST) == 0,"isfirst failed");
+  fail_unless(ldlong(buf) == 1455,"iswrite didn't take");
+  stlong(722,buf);
+  rc = isupdate(fd,buf);
+  sprintf(buf,"isupdate failed, iserrno=%d",iserrno);
+  fail_unless(rc == 0,buf);
+  fail_unless(isread(fd,buf,ISNEXT) < 0,"isnext should have eof");
+  fail_unless(isread(fd,buf,ISFIRST) == 0,"isfirst failed");
+  fail_unless(ldlong(buf) == 722,"isupdate didn't take");
+  isclose(fd);
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *cisam_suite (void) {
@@ -435,6 +460,7 @@ Suite *cisam_suite (void) {
   tcase_add_test (tc_api, test_replace);
   tcase_add_test (tc_api, test_addindex);
   tcase_add_test (tc_api, test_erasedir);
+  tcase_add_test (tc_api, test_update);
   return s;
 }
 
