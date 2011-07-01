@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.6  2011/04/26 18:14:45  stuart
+ * Move sqlexec to its own file.
+ *
  * Revision 1.5  2007/09/26 20:38:36  stuart
  * Implemented COALESCE
  *
@@ -24,13 +27,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "sql.h"
 
-static int yyparse(void);
+static int yyparse(struct sql_stmt *);
 static int yylex(void);
 static char *quotes(int);
 static struct select *select_init(void);
 static struct sql_stmt s;	/* result of parsing */
+#define YYDEBUG 0
+#if !YYDEBUG
+int yydebug;
+#endif
 %}
 
 %union {
@@ -46,7 +54,7 @@ static struct sql_stmt s;	/* result of parsing */
 %token	IS NUL SELECT ORDER BY WHERE FROM DISTINCT GROUP ERROR DESC ASC OUTER
 %token	ALL ANY CONNECT INSERT VALUES INTO AS UPDATE SET DELETE ALTER MODIFY
 %token	ADD UNIQUE INDEX ON DROP RENAME TO PRIOR TABLE VIEW START WITH CLUSTER
-%token	UNION INTERSECT MINUS CREATE HAVING USE JOIN TABLE CROSS
+%token	UNION INTERSECT MINUS CREATE HAVING USE JOIN TABLE CROSS PRIMARY KEY
 %token	CASE WHEN THEN ELSE END SUBSTRING FOR EXISTS NULLIF COALESCE
 %left	<exp> OR
 %left	<exp> AND
@@ -61,62 +69,68 @@ static struct sql_stmt s;	/* result of parsing */
 %type	<exp> collist atom atomlist rowval rowlist whenlist whenxlist string
 %type	<qry> filelist join where joinlist tabexp joinexp
 %type	<qry> nonjoin values
+%parse-param { struct sql_stmt *s }
 
 %%
 
 start	: tabexp ';'
-		{ s.cmd = SQL_SELECT;
-		  s.src = $1; }
+		{ s->cmd = SQL_SELECT;
+		  s->src = $1; }
 	| tabexp ORDER BY olist ';'
-		{ s.cmd = SQL_SELECT;
-		  s.src = $1;
+		{ s->cmd = SQL_SELECT;
+		  s->src = $1;
 		  $1->order_list = $4; }
 	| DELETE FROM joinlist WHERE logical ';'
-		{ s.cmd = SQL_DELETE;
-		  s.dst = $3;
-		  s.dst->where_sql = $5; }
+		{ s->cmd = SQL_DELETE;
+		  s->dst = $3;
+		  s->dst->where_sql = $5; }
 	| DELETE FROM joinlist ';'
-		{ s.cmd = SQL_DELETE;
-		  s.dst = $3; }
+		{ s->cmd = SQL_DELETE;
+		  s->dst = $3; }
 	| INSERT INTO filelist tabexp ';'
-		{ s.cmd = SQL_INSERT;
-		  s.dst = $3;
-		  s.src = $4; }
+		{ s->cmd = SQL_INSERT;
+		  s->dst = $3;
+		  s->src = $4; }
 	| INSERT INTO filelist '(' identlist ')' tabexp ';'
-		{ s.cmd = SQL_INSERT;
-		  s.dst = $3;
-		  s.dst->select_list = $5;
-		  s.src = $7; }
+		{ s->cmd = SQL_INSERT;
+		  s->dst = $3;
+		  s->dst->select_list = $5;
+		  s->src = $7; }
 	| UPDATE joinlist SET assignlist ';'
-		{ s.cmd = SQL_UPDATE;
-		  s.dst = $2;
-		  s.dst->select_list = $4; }
+		{ s->cmd = SQL_UPDATE;
+		  s->dst = $2;
+		  s->dst->select_list = $4; }
 	| UPDATE joinlist SET assignlist WHERE logical ';'
-		{ s.cmd = SQL_UPDATE;
-		  s.dst = $2;
-		  s.dst->where_sql = $6;
-		  s.dst->select_list = $4; }
+		{ s->cmd = SQL_UPDATE;
+		  s->dst = $2;
+		  s->dst->where_sql = $6;
+		  s->dst->select_list = $4; }
 	| CREATE TABLE IDENT '(' typelist ')' ';'
-		{ s.cmd = SQL_CREATE;
-		  s.dst = select_init();
-		  s.dst->table_list = mkname($3,$3);
-		  s.val = $5;
+		{ s->cmd = SQL_CREATE;
+		  s->dst = select_init();
+		  s->dst->table_list = mkname($3,$3);
+		  s->val = $5;
+		  assert(s->val->op == EXHEAD);
+		  assert(s->val->u.opd[1]->op == EXLIST);
+		  assert(s->val->u.opd[1]->u.opd[0]->op == EXTYPE);
 		}
+	| CREATE INDEX IDENT ON IDENT '(' filelist ')' ';'
+	| CREATE UNIQUE INDEX IDENT ON IDENT '(' filelist ')' ';'
 	| USE IDENT ';'
-		{ s.cmd = SQL_USE;
-		  s.val = mkname($2,$2);
+		{ s->cmd = SQL_USE;
+		  s->val = mkname($2,$2);
 		}
 	| DROP TABLE filelist ';'
-		{ s.cmd = SQL_DROP;
-		  s.dst = $3; }
+		{ s->cmd = SQL_DROP;
+		  s->dst = $3; }
 	| alist ';'
-		{ s.cmd = SQL_SELECT;
-		  s.src = select_init();
-		  addlist(s.src->table_list = mklist(),
+		{ s->cmd = SQL_SELECT;
+		  s->src = select_init();
+		  addlist(s->src->table_list = mklist(),
 			mkname("system","system"));
-		  s.src->select_list = $1; }
+		  s->src->select_list = $1; }
 	| error
-		{ s.cmd = SQL_ERROR; }
+		{ s->cmd = SQL_ERROR; }
 	;
 
 values	: VALUES rowlist
@@ -175,14 +189,18 @@ fldlist	: alist
 	;
 
 typelist: IDENT type
-		{ addlist($$ = mklist(),$2); $2->u.t.def = mkname($1,$1); }
+		{ addlist($$ = mklist(),$2); assert($2->op == EXTYPE);
+		  $2->u.t.def = mkname($1,$1); }
 	| IDENT type NOT NUL
 		{ addlist($$ = mklist(),$2); $2->u.t.def = mkname($1,$1); }
 	| typelist ',' IDENT type
 		{ addlist($$ = $1,$4); $4->u.t.def = mkname($3,$3); }
 	| typelist ',' IDENT type NOT NUL
 		{ addlist($$ = $1,$4); $4->u.t.def = mkname($3,$3); }
-	| typelist ',' UNIQUE '(' filelist ')'
+	| typelist ',' UNIQUE '(' identlist ')'
+		{ addlist($$ = $1,$5); }
+	| typelist ',' PRIMARY KEY '(' identlist ')'
+		{ addlist($$ = $1,$6); }
 	;
 
 type	: IDENT IDENT
@@ -536,11 +554,11 @@ static int yylex() {
     { "FOR", FOR }, { "FROM", FROM }, { "GROUP", GROUP },
     { "HAVING", HAVING }, { "IN", IN }, { "INDEX", INDEX },
     { "INSERT", INSERT }, {"INTERSECT", INTERSECT },
-    { "INTO", INTO }, { "IS", IS }, { "JOIN", JOIN }, { "LIKE", LIKE },
-    { "MINUS", MINUS }, { "MODIFY", MODIFY }, { "NOT", NOT },
-    { "NULL", NUL }, { "NULLIF", NULLIF },
+    { "INTO", INTO }, { "IS", IS }, { "JOIN", JOIN }, { "KEY", KEY },
+    { "LIKE", LIKE }, { "MINUS", MINUS }, { "MODIFY", MODIFY },
+    { "NOT", NOT }, { "NULL", NUL }, { "NULLIF", NULLIF },
     { "ON", ON }, { "OR", OR }, { "ORDER", ORDER }, { "OUTER", OUTER },
-    { "PRIOR", PRIOR }, { "RENAME", RENAME },
+    { "PRIMARY", PRIMARY }, { "PRIOR", PRIOR }, { "RENAME", RENAME },
     { "SELECT", SELECT }, { "SET", SET }, { "START", START },
     { "SUBSTRING", SUBSTRING },
     { "TABLE", TABLE }, { "THEN", THEN }, { "TO", TO },
@@ -616,8 +634,8 @@ doline:
   return (getconst(&yylval.num,&lexptr)) ? CONST : ERROR;
 }
 
-void yyerror(const char *s) {
-  sql_syntax(s,expptr,lexptr);
+void yyerror(struct sql_stmt *s,const char *msg) {
+  sql_syntax(msg,expptr,lexptr);
 }
 
 static struct select *select_init() {
@@ -634,9 +652,10 @@ static struct select *select_init() {
 
 struct sql_stmt *parse_sql(const char *txt) {
   expptr = lexptr = txt;
-  s.src = 0;
-  s.dst = 0;
-  s.val = 0;
-  if (yyparse()) return 0;
-  return &s;
+  struct sql_stmt *s = obstack_alloc(sqltree,sizeof *s);
+  s->src = 0;
+  s->dst = 0;
+  s->val = 0;
+  if (yyparse(s)) return 0;
+  return s;
 }

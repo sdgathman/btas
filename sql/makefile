@@ -41,8 +41,8 @@ cursor.o : cursor.c config.h object.h cursor.h column.h sql.h obmem.h \
 	sql.def coldate.h 
 
 parse.c:	parse.y
-	yacc -vl parse.y
-	mv y.tab.c parse.c
+	bison -vl parse.y
+	mv parse.tab.c parse.c
 
 tar:
 	tar cvf sql.tar *.c *.h *.def makefile *.y

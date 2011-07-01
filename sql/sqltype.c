@@ -14,6 +14,10 @@ static enum sql_type parse_type(const char *s1,const char *s2) {
     if (strcasecmp(s2,"VARYING") == 0) return SQL_VARCHAR;
     return SQL_ERRTYPE;
   }
+  if (strcasecmp(s1,"VARCHAR") == 0) {
+    if (s2 == 0) return SQL_VARCHAR;
+    return SQL_ERRTYPE;
+  }
   if (strcasecmp(s1,"BIT") == 0) {
     if (s2 == 0) return SQL_BIT;
     if (strcasecmp(s2,"VARYING") == 0) return SQL_VARBIT;

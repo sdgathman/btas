@@ -131,7 +131,7 @@ void sql_print(sql, int);
 double const2dbl(const sconst *num);
 extern struct sqlform { const char *name, *fmt, *op; } sql_form[];
 extern struct obstack *sqltree;
-void yyerror(const char *);
+void yyerror(struct sql_stmt *,const char *);
 extern int debug, mapupper;
 extern sql sql_nul;
 #endif

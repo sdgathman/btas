@@ -6,6 +6,9 @@ and return the output expression.  The input expression is always an EXHEAD.
 The input code may be checked for sanity or for recursive convenience.
 (I.e. strip the EXHEAD then call yourself.)
  *$Log$
+ *Revision 1.5  2009/12/08 23:31:09  stuart
+ *Fix compiler warnings, change object version.
+ *
  *Revision 1.4  2007/09/26 20:21:41  stuart
  *Implement NULLIF
  *
@@ -551,7 +554,7 @@ sql mkfunc(const char *f,sql a) {
   if (p->name == 0) {
     char buf[80];
     sprintf(buf,"Function name '%s' not recognized.",f);
-    yyerror(buf);
+    yyerror(0,buf);
     return sql_nul;
   }
   return (*p->func)(a);

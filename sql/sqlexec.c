@@ -2,6 +2,7 @@
 #include <btflds.h>
 #include <errenv.h>
 #include <assert.h>
+#include <isamx.h>
 #include "config.h"
 #include "cursor.h"
 #include "object.h"
@@ -182,28 +183,80 @@ void sqlexec(const struct sql_stmt *cmd,const char *formatch,int verbose) {
       struct btflds f;
       int i,pos = 0;
       const char *tblname;
+      const char *colname[MAXFLDS+1];
+      sql prim = 0;
       x = cmd->dst->table_list;
       assert(x != 0);
       assert(x->op == EXNAME);
       tblname = x->u.name[0];
-      x = cmd->val->u.opd[1];
-      for (i = 0; x && i < MAXFLDS; ++i) {
+      x = cmd->val;
+      assert(x->op == EXHEAD);
+      x = x->u.opd[1];
+      for (i = 0; x && i < MAXFLDS; x = x->u.opd[1]) {
         sql typ = x->u.opd[0];
+	assert(x->op == EXLIST);
+	if (typ->op == EXHEAD) {
+	  prim = typ;
+	  continue;
+	}
+	if (typ->op != EXTYPE)
+	  fprintf(stderr,"op=%d\n",typ->op);
 	assert(typ->op == EXTYPE);
 	f.f[i].pos = pos;
 	f.f[i].type = typ->u.t.type;
 	f.f[i].len  = typ->u.t.len;
+	assert(typ->u.t.def->op == EXNAME);
+	colname[i] = typ->u.t.def->u.name[0];
+	assert(colname[i] != 0);
+	if (verbose)
+	  fprintf(stderr,"%32s %02x %3d %2d\n",
+	  	colname[i],f.f[i].type,pos,f.f[i].len);
 	pos += typ->u.t.len;
-	x = x->u.opd[1];
+	++i;
       }
       f.f[i].pos = pos;
       f.f[i].type = 0;
       f.f[i].len = 0;
+      colname[i] = 0;
       f.rlen = i;
       f.klen = f.rlen;	/* FIXME */
       fprintf(stderr,"Creating new table %s, cols = %d, rlen = %d\n",
         tblname,i,pos);
-      if (btcreate(tblname,&f,0666)) break;
+      if (!prim) {
+        if (btcreate(tblname,&f,0666)) break;
+      }
+      else {
+        struct keydesc kd;
+	kd.k_flags = ISNODUPS+ISCLUSTER;
+	kd.k_nparts = 0;
+	x = prim->u.opd[1];
+	for (i = 0; x && i < NPARTS; ++i) {
+	  sql nm = x->u.opd[0];
+	  const char *n = nm->u.name[1];
+	  int colidx;
+	  assert(nm->op == EXNAME);
+	  assert(n != 0);
+	  for (colidx = 0; colname[colidx] != 0; ++colidx) {
+	    if (strcmp(colname[colidx],n) == 0) break;
+	  }
+	  if (colname[colidx] == 0) {
+	    fprintf(stderr,"Primary key col not found: %s\n",n);
+	    break;
+	  }
+	  struct keypart *kp = &kd.k_part[i];
+	  kp->kp_start = f.f[colidx].pos;
+	  kp->kp_leng = f.f[colidx].len;
+	  kp->kp_type = CHARTYPE;
+	  if (verbose)
+	    fprintf(stderr,"%32s %3d %2d\n",
+		  n,kp->kp_start,kp->kp_leng);
+	  x = x->u.opd[1];
+	}
+	kd.k_nparts = i;
+	int fd = isbuildx(tblname,pos,&kd,0666,&f);
+	if (fd < 0) break;
+	isclose(fd);
+      }
     }
     break;
   }
