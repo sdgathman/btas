@@ -33,6 +33,39 @@ static void uniplex_print(Cursor *c, enum Column_type type, const char *s) {
   }
 }
 
+int mkkeydesc(struct keydesc *kd,sql flist,const char *colname[],
+	struct btflds *f,int verbose) {
+  sql x;
+  int i;
+  assert(flist->op == EXHEAD);
+  x = flist->u.opd[1];
+  kd->k_nparts = 0;
+  for (i = 0; x && i < NPARTS; ++i) {
+    sql nm = x->u.opd[0];
+    const char *n = nm->u.name[1];
+    int colidx;
+    assert(nm->op == EXNAME);
+    assert(n != 0);
+    for (colidx = 0; colname[colidx] != 0; ++colidx) {
+      if (strcmp(colname[colidx],n) == 0) break;
+    }
+    if (colname[colidx] == 0) {
+      fprintf(stderr,"Key col not found: %s\n",n);
+      return 0;
+    }
+    struct keypart *kp = &kd->k_part[i];
+    kp->kp_start = f->f[colidx].pos;
+    kp->kp_leng = f->f[colidx].len;
+    kp->kp_type = CHARTYPE;
+    if (verbose)
+      fprintf(stderr,"%32s %3d %2d\n",
+	    n,kp->kp_start,kp->kp_leng);
+    x = x->u.opd[1];
+  }
+  kd->k_nparts = i;
+  return i;
+}
+
 void sqlexec(const struct sql_stmt *cmd,const char *formatch,int verbose) {
   Cursor *t = 0, *s = 0;
   sql x;
@@ -229,36 +262,34 @@ void sqlexec(const struct sql_stmt *cmd,const char *formatch,int verbose) {
       else {
         struct keydesc kd;
 	kd.k_flags = ISNODUPS+ISCLUSTER;
-	kd.k_nparts = 0;
-	x = prim->u.opd[1];
-	for (i = 0; x && i < NPARTS; ++i) {
-	  sql nm = x->u.opd[0];
-	  const char *n = nm->u.name[1];
-	  int colidx;
-	  assert(nm->op == EXNAME);
-	  assert(n != 0);
-	  for (colidx = 0; colname[colidx] != 0; ++colidx) {
-	    if (strcmp(colname[colidx],n) == 0) break;
-	  }
-	  if (colname[colidx] == 0) {
-	    fprintf(stderr,"Primary key col not found: %s\n",n);
-	    break;
-	  }
-	  struct keypart *kp = &kd.k_part[i];
-	  kp->kp_start = f.f[colidx].pos;
-	  kp->kp_leng = f.f[colidx].len;
-	  kp->kp_type = CHARTYPE;
-	  if (verbose)
-	    fprintf(stderr,"%32s %3d %2d\n",
-		  n,kp->kp_start,kp->kp_leng);
-	  x = x->u.opd[1];
-	}
-	kd.k_nparts = i;
+	if (!mkkeydesc(&kd,prim,colname,&f,verbose)) break;
 	int fd = isbuildx(tblname,pos,&kd,0666,&f);
 	if (fd < 0) break;
 	isdictdel(tblname);
 	isdictadd(tblname,colname,isflds(fd));
 	isclose(fd);
+      }
+    }
+    break;
+  case SQL_INDEX:
+    {
+      const char *idxname = cmd->dst->table_list->u.name[0];
+      const char *tblname = cmd->src->table_list->u.name[0];
+      const char *colname[MAXFLDS+1];
+      int i,fd;
+      struct keydesc kd;
+      s = Table_init(tblname,2);
+      if (s == 0) break;
+      for (i = 0; i < s->ncol; ++i)
+        colname[i] = s->col[i]->name;
+      kd.k_flags = cmd->dst->distinct ? ISNODUPS : 0;
+      fd = Isam_getfd(s);
+      i = mkkeydesc(&kd,cmd->val,colname,isflds(fd),verbose);
+      if (i) {
+	fprintf(stderr,"Creating new index %s, cols = %d, rlen = %d\n",
+	  idxname,i,isrlen(isflds(fd)));
+	if (isaddindexn(fd,&kd,idxname))
+	  fprintf(stderr,"Failed, iserrno=%d\n",iserrno);
       }
     }
     break;

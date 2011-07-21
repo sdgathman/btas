@@ -73,7 +73,7 @@ struct sqlnode {
 };
 
 enum sqlcmd { SQL_SELECT, SQL_INSERT, SQL_UPDATE, SQL_DELETE,
-		SQL_USE, SQL_DROP, SQL_CREATE, SQL_ERROR };
+		SQL_USE, SQL_DROP, SQL_CREATE, SQL_INDEX, SQL_ERROR };
 
 struct sql_stmt {
   enum sqlcmd cmd;

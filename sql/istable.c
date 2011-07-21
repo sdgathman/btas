@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.5  2009/01/15 19:02:07  stuart
+ * Add isupdate call to update key fields and save key position.
+ *
  * Revision 1.4  2005/02/08 15:17:42  stuart
  * Release 2.10.8
  *
@@ -37,22 +40,29 @@ static int Isam_insert(Cursor *);
 static int Isam_update(Cursor *);
 static int Isam_delete(Cursor *);
 static void Isam_optim(Cursor *, Column **, int , int);
+static struct Cursor_class Isam_class = {
+  sizeof (Isam), Isam_free, Isam_first, Isam_next,
+  Isam_find, Cursor_print, Isam_insert, Isam_update,
+  Isam_delete, Isam_optim
+};
 
-Cursor *Table_init(const char *name,int rdonly) {
+Cursor *Table_init(const char *name,int flag) {
   Isam *t;
   struct dictinfo d;
   struct btflds *f;
-  static struct Cursor_class Isam_class = {
-    sizeof *t, Isam_free, Isam_first, Isam_next,
-    Isam_find, Cursor_print, Isam_insert, Isam_update,
-    Isam_delete, Isam_optim
-  };
   int fd;
+  int mode;
   if (*name == 0)
     name = btgetcwd();
-  fd = isopen(name,rdonly ? ISINPUT : ISINOUT + ISMANULOCK);
+  if (flag == 1)
+    mode = ISINPUT;
+  else if (flag == 2)
+    mode = ISINOUT + ISEXCLLOCK;
+  else
+    mode = ISINOUT + ISMANULOCK;
+  fd = isopen(name,mode);
   if (fd == -1) {
-    struct Cursor *dir = Directory_init(name,rdonly);
+    struct Cursor *dir = Directory_init(name,flag == 1);
     if (dir) return dir;
     fprintf(stderr,"istable: Cannot open \"%s\".\n",name);
     return 0;
@@ -67,7 +77,7 @@ Cursor *Table_init(const char *name,int rdonly) {
   t->cnt = 0;
   t->fd = fd;
   t->ubuf = 0;
-  t->rdonly = rdonly;
+  t->rdonly = flag == 1;
   f = isflds(fd);
   if (isindexinfo(t->fd,&t->kd,1))	/* save primary keydesc */
     t->kd.k_nparts = 0;
@@ -78,6 +88,12 @@ Cursor *Table_init(const char *name,int rdonly) {
   t->ubuf = (char *)xmalloc(t->rlen);
   getdict((Cursor *)t,name,t->ubuf,f);
   return (Cursor *)t;
+}
+
+int Isam_getfd(Cursor *t) {
+  if (t->_class == &Isam_class)
+    return ((Isam *)t)->fd;
+  return -1;
 }
 
 static void Isam_optim(Cursor *c,Column **col,int ncol,int klen) {

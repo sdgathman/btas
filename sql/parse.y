@@ -1,5 +1,9 @@
 /*
  * $Log$
+ * Revision 1.7  2011/07/01 21:45:16  stuart
+ * Use bison and allocate sql_stmt per parse.
+ * Implement PRIMARY KEY for CREATE TABLE.
+ *
  * Revision 1.6  2011/04/26 18:14:45  stuart
  * Move sqlexec to its own file.
  *
@@ -114,8 +118,23 @@ start	: tabexp ';'
 		  assert(s->val->u.opd[1]->op == EXLIST);
 		  assert(s->val->u.opd[1]->u.opd[0]->op == EXTYPE);
 		}
-	| CREATE INDEX IDENT ON IDENT '(' filelist ')' ';'
-	| CREATE UNIQUE INDEX IDENT ON IDENT '(' filelist ')' ';'
+	| CREATE INDEX IDENT ON IDENT '(' identlist ')' ';'
+		{ s->cmd = SQL_INDEX;
+		  s->dst = select_init();
+		  s->dst->table_list = mkname($3,$3);
+		  s->src = select_init();
+		  s->src->table_list = mkname($5,$5);
+		  s->val = $7;
+		}
+	| CREATE UNIQUE INDEX IDENT ON IDENT '(' identlist ')' ';'
+		{ s->cmd = SQL_INDEX;
+		  s->dst = select_init();
+		  s->dst->table_list = mkname($4,$4);
+		  s->dst->distinct = 1;
+		  s->src = select_init();
+		  s->src->table_list = mkname($6,$6);
+		  s->val = $8;
+		}
 	| USE IDENT ';'
 		{ s->cmd = SQL_USE;
 		  s->val = mkname($2,$2);

@@ -35,6 +35,7 @@ struct Cursor {
 
 /* ??table.c */
 Cursor *Table_init(const char *,int);
+int Isam_getfd(Cursor *);
 Cursor *Directory_init(const char *,int);
 struct btflds;
 void getdict(Cursor *, const char *, char *, const struct btflds *);
