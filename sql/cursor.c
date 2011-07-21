@@ -1,4 +1,5 @@
 #include <stdio.h>
+#define __USE_GNU
 #include <string.h>
 #include "config.h"
 #include <btas.h>
@@ -7,6 +8,7 @@
 #include "object.h"
 #include "cursor.h"
 #include "coldate.h"
+#include "isdict.h"
 
 void Cursor_print(Cursor *c,enum Column_type type,const char *s) {
   char sep = s[0];
@@ -58,17 +60,6 @@ int Cursor_fail(Cursor *c) {
 	Lookup data dictionary info
 */
 
-#define FNAMESIZE	18
-struct dictrec {
-  char file[FNAMESIZE];
-  FSHORT seq;
-  FSHORT pos;
-  char name[8];
-  char type[2];
-  FSHORT len;
-  char fmt[15];
-  char desc[24];
-};
 
 static BTCB *tryname(const char *,struct btflds *,const char *);
 
@@ -87,7 +78,7 @@ static BTCB *tryname(const char *name,struct btflds *f,const char *dictname) {
     return 0;
   }
   ldflds(f,b->lbuf,b->rlen);
-  name = basename((char *)name);
+  name = basename(name);
   strncpy(b->lbuf,name,FNAMESIZE);
   b->klen = (short)strlen(name) + 1;
   if (b->klen > FNAMESIZE) b->klen = FNAMESIZE;
@@ -119,7 +110,7 @@ void getdict(Cursor *cur,const char *name,char *ubuf,const struct btflds *f) {
   /* first try to find DATA.DICT in the same directory as the file */
 
   b = tryname(name,&flds,"DATA.DICT");
-  name = basename((char *)name);
+  name = basename(name);
   if (!b)
     b = tryname(name,&flds,"/DATA.DICT");
   if (!b) {

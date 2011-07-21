@@ -8,7 +8,7 @@ LIBS = -lbtas -lbms -lm		# for most others
 
 OBJS = parse.o exec.o vwsel.o vwopt.o join.o version.o cursor.o	\
        istable.o sql.o column.o order.o like.o coldate.o fdbl.o selcol.o \
-       system.o func.o btdir.o lit.o values.o sqltype.o sqlexec.o
+       system.o func.o btdir.o lit.o values.o sqltype.o sqlexec.o isdict.o
 
 sql:	main.o $(OBJS)
 	$(CC) $(LDFLAGS) main.o $(OBJS) $(LIBS) -o sql
@@ -38,7 +38,8 @@ column.o : column.c config.h cursor.h column.h sql.h obmem.h sql.def \
 coldate.o : coldate.c config.h column.h sql.h obmem.h sql.def coldate.h \
 	object.h 
 cursor.o : cursor.c config.h object.h cursor.h column.h sql.h obmem.h \
-	sql.def coldate.h 
+	sql.def coldate.h isdict.h
+isdict.o : isdict.c isdict.h
 
 parse.c:	parse.y
 	bison -vl parse.y

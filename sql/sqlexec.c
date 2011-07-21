@@ -6,6 +6,7 @@
 #include "config.h"
 #include "cursor.h"
 #include "object.h"
+#include "isdict.h"
 
 volatile int inexec = 1;
 volatile int cancel = 0;
@@ -255,6 +256,8 @@ void sqlexec(const struct sql_stmt *cmd,const char *formatch,int verbose) {
 	kd.k_nparts = i;
 	int fd = isbuildx(tblname,pos,&kd,0666,&f);
 	if (fd < 0) break;
+	isdictdel(tblname);
+	isdictadd(tblname,colname,isflds(fd));
 	isclose(fd);
       }
     }
