@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.8  2011/07/21 05:02:11  stuart
+ * CREATE INDEX implemented.
+ *
  * Revision 1.7  2011/07/01 21:45:16  stuart
  * Use bison and allocate sql_stmt per parse.
  * Implement PRIMARY KEY for CREATE TABLE.
@@ -467,6 +470,8 @@ atom	: CONST
 		{ $$ = $1; }
 	| IDENT string
 		{ $$ = mklit($1,$2); }
+	| NUL
+		{ $$ = mksql(EXNULL); }
 	;
 
 whenlist: WHEN logical THEN expr

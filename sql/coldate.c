@@ -124,6 +124,9 @@ Column *Julian_init(Column *this,char *buf) {
 static int Julian_store(Column *this,sql x,char *buf) {
   double val;
   switch (x->op) {
+  case EXNULL:
+    stlong(0L,buf);
+    return 0;
   case EXCONST: case EXDATE:
     if (sgnM(&x->u.num.val) == 0) {
       stlong(0L,buf);
