@@ -91,7 +91,7 @@ cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
   ln addindex delindex
 }
 mkdir -p $RPM_BUILD_ROOT/var/log/btas
-chmod 0664 $RPM_BUILD_ROOT/var/log/btas
+chmod 0775 $RPM_BUILD_ROOT/var/log/btas
 chmod g+s $RPM_BUILD_ROOT/var/log/btas
 
 %clean
