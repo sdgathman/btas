@@ -44,7 +44,7 @@ tar:	$(SRCTAR)
 
 rpm:	$(SRCTAR)
 	mv btas-$(VERS).src.tar.gz /bms/rpm/SOURCES
-	rpm -ba btas.spec
+	rpmbuild -ba btas.spec
 
 depend::
 	gcc -MM $(CFLAGS) *.cc *.c >depend

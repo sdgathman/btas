@@ -54,9 +54,12 @@ mkdir -p $RPM_BUILD_ROOT/etc/init.d
 cp -p btas.rc $RPM_BUILD_ROOT/etc/init.d/btas
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
 cp -p btas.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/btas
+mkdir -p $RPM_BUILD_ROOT/bms/etc
+cp -p btfstab $RPM_BUILD_ROOT/bms/etc
 mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
-cp btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
+cp -p btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
+cp -p btbackup.sh $RPM_BUILD_ROOT/bms/bin/btbackup
 cp fix/btsave fix/btddir fix/btreload fix/btfree fix/btrcvr fix/btrest \
 	fix/btdb $RPM_BUILD_ROOT/bms/bin
 cp util/btutil util/btpwd util/btar util/btdu util/btfreeze \
@@ -90,8 +93,6 @@ cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
 mkdir -p $RPM_BUILD_ROOT/var/log/btas
 chmod 0664 $RPM_BUILD_ROOT/var/log/btas
 chmod g+s $RPM_BUILD_ROOT/var/log/btas
-
-cp -p btbackup.sh $RPM_BUILD_ROOT/bms/bin/btbackup
 
 %clean
 rm -rf $RPM_BUILD_ROOT
