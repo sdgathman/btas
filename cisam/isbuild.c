@@ -1,10 +1,14 @@
-/* $Log$
-/* Revision 1.5  2003/07/29 18:15:38  stuart
-/* Auto expand file descriptor array.
 /*
-/* Revision 1.4  2001/02/28 23:14:39  stuart
-/* better handling of recno key
-/*
+ * $Log$
+ * Revision 1.6  2003/07/29 18:41:41  stuart
+ * Check for fd avail before creating file in isbuildx.
+ *
+ * Revision 1.5  2003/07/29 18:15:38  stuart
+ * Auto expand file descriptor array.
+ *
+ * Revision 1.4  2001/02/28 23:14:39  stuart
+ * better handling of recno key
+ *
  * Revision 1.3  1998/12/17  23:56:12  stuart
  * build with rlen == 0 in any directory (bug fix)
  * try to make isopen get correct klen for rlen == 0,

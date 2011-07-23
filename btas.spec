@@ -1,6 +1,6 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-Version: 2.11.4
+Version: 2.11.5
 Release: 1%{dist}
 License: Commercial
 Group: System Environment/Base
@@ -107,7 +107,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,btas,bms)
 %dir /bms/bin
 %dir /var/log/btas
-%config(noreplace) /bms/bin/btstart
+/bms/bin/btstart
 %config(noreplace) /bms/etc/btfstab
 %attr(0755,root,root)/etc/init.d/btas
 %attr(0644,root,root)/etc/logrotate.d/btas
@@ -154,7 +154,8 @@ rm -rf $RPM_BUILD_ROOT
 /bms/include/*.h
 
 %changelog
-* Thu Apr 21 2011 Stuart Gathman <stuart@bmsi.com> 2.11.4-2
+* Thu Apr 21 2011 Stuart Gathman <stuart@bmsi.com> 2.11.5-1
+- support CREATE TABLE PRIMARY KEY and CREATE INDEX in sql
 - Make btstart and backup use /bms/etc/btfstab
 * Wed Jan 19 2011 Stuart Gathman <stuart@bmsi.com> 2.11.4-1
 - Cisam: support isbtasinfo

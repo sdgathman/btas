@@ -427,8 +427,9 @@ START_TEST(test_update) {
   const char *fname1 = "/tmp/testupdate";
   char buf[32];
   struct btflds *f = ldflds(0,ftbl,sizeof ftbl);
-  int fd = isbuildx(fname1,sizeof buf,&Ktest,ISINOUT + ISEXCLLOCK,f);
-  int rc;
+  int rc = 0, fd = -1;
+  iserase(fname1);
+  fd = isbuildx(fname1,sizeof buf,&Ktest,ISINOUT + ISEXCLLOCK,f);
   fail_unless(fd >= 0,"isopenx failed");
   stlong(1455,buf);
   stchar("bar",buf+4,8);
