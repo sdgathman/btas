@@ -39,3 +39,29 @@ while read fs mnt tb back; do
   esac
   /bms/bin/btutil "mo $fs $mnt"
 done <"${FSTAB}"
+
+# Clear lock files
+tmplock=/tmp/btstart.$$
+for locklist in $(ls /bms/etc/clrlock.d/*)
+do
+  cat $locklist | while read lockfile 
+  do
+    case "$lockfile" in
+    *LOCK*) # Sanity check - only clear files with LOCK in their name
+      /bms/bin/btutil "du $lockfile" >$tmplock
+      if test -s $tmplock
+      then
+        if fgrep -q 'Fatal error 212' $tmplock
+        then
+          : # echo "Ignore missing $lockfile"
+        else
+          echo "Clearing $lockfile"
+          cat $tmplock
+          btutil "cl $lockfile"
+        fi
+      fi
+      ;;
+    esac
+  done
+done
+rm -f $tmplock
