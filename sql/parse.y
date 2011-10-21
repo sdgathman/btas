@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.9  2011/07/21 18:51:23  stuart
+ * Handle NULL VALUES
+ *
  * Revision 1.8  2011/07/21 05:02:11  stuart
  * CREATE INDEX implemented.
  *
@@ -62,11 +65,14 @@ int yydebug;
 %token	ALL ANY CONNECT INSERT VALUES INTO AS UPDATE SET DELETE ALTER MODIFY
 %token	ADD UNIQUE INDEX ON DROP RENAME TO PRIOR TABLE VIEW START WITH CLUSTER
 %token	UNION INTERSECT MINUS CREATE HAVING USE JOIN TABLE CROSS PRIMARY KEY
-%token	CASE WHEN THEN ELSE END SUBSTRING FOR EXISTS NULLIF COALESCE
+%token	CASE WHEN THEN ELSE END SUBSTRING FOR EXISTS NULLIF COALESCE 
 %left	<exp> OR
 %left	<exp> AND
 %right	NOT
 %nonassoc <exp> '=' '>' '<' NE LE GE BETWEEN IN LIKE
+%left	'|'
+%left	'&'
+%right	'~'
 %left	'+' '-'
 %left	'*' '/'
 %left	CONCAT
@@ -611,6 +617,7 @@ doline:
     }
   case '*': case '+': case '-': case '=':
   case '(': case ')': case ',': case ';':
+  case '&': case '~':
     return *lexptr++;
   case '.':
     return getconst(&yylval.num,&lexptr) ? CONST : (thistok = '.');
@@ -622,9 +629,9 @@ doline:
   case '!':
     return (*++lexptr == '=') ? ++lexptr,NE : ERROR;
   case '^':
-    return (*++lexptr == '=') ? ++lexptr,NE : ERROR;
+    return (*++lexptr == '=') ? ++lexptr,NE : '^';
   case '|':
-    return (*++lexptr == '|') ? ++lexptr,CONCAT : ERROR;
+    return (*++lexptr == '|') ? ++lexptr,CONCAT : '|';
   }
   if (isalpha(*lexptr) || *lexptr == '#') {
     struct resword *p;
