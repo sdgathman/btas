@@ -1,7 +1,7 @@
 #LIBS = -lbtas -lbms -lmc -lbms		# for MEDICOMP
 LIBS = -lbtas -lbms -lm		# for most others
-#CFLAGS = -O -I$(BMS)/include		# if not in environment
-#LDFLAGS = -g -L$(BMS)/lib
+CFLAGS = -O -I$(BMS)/include		# if not in environment
+LDFLAGS = -g -L$(BMS)/lib
 
 .DEFAULT:
 	co -rV129 $(<:.o=.c)

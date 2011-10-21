@@ -253,10 +253,22 @@ static void Number_print(Column *c,enum Column_type type, char *buf) {
     }
     else
       len = 0;
-    for (i = 0; i < num->width - len; ++i)
-      putchar(' ');	/* leading spaces */
-    for (i = 0; i < len; ++i)
-      putchar(fbuf[i]);
+    if (type == DATA) {
+      int lead;
+      for (i = 0; i < len; ++i)
+        if (fbuf[i] != ' ') break;
+      lead = i;
+      while (i < len)
+	putchar(fbuf[i++]);
+      if (lead > 0)
+        putchar(0);
+    }
+    else {
+      for (i = 0; i < num->width - len; ++i)
+	putchar(' ');	/* leading spaces */
+      for (i = 0; i < len; ++i)
+	putchar(fbuf[i]);
+    }
   }
 }
 
@@ -356,9 +368,14 @@ static void Charfld_print(Column *cf,enum Column_type type,char *buf) {
   if (type < VALUE)
     Column_print(cf,type,buf);
   else {
-    for (i = 0; i < cf->len; ++i)
+    int len = cf->len;
+    if (type == DATA)
+      while (len > 0 && cf->buf[len-1] == ' ') --len;
+    for (i = 0; i < len; ++i)
       putchar(cf->buf[i]);
-    while (i++ < cf->width)
+    if (type == DATA)
+      putchar(0);
+    else while (i++ < cf->width)
       putchar(' ');
   }
 }
