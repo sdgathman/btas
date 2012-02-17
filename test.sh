@@ -21,6 +21,27 @@ testBigExtent() {
   assertTrue "./btstop"
 }
 
+testMountLimit() {
+  rm -f test.bt
+  ./btstop 2>/dev/null
+  assertTrue "btinit" "./btinit -f -b 2048 -e 16777210 test.bt"
+  for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21; do
+    cp test.bt test$i.bt
+  done
+  assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>test.log"
+  for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21; do
+    assertTrue "btutil 'cr mnt$i'"
+    assertTrue "btutil 'mo test$i.bt /mnt$i'"
+  done
+  assertTrue "btutil df>>test.log"
+  lastline=`tail -1 test.log`
+  assertEquals "mount failed: $lastline" "test21.bt 16777211 used" "$lastline"
+  assertTrue "btstop" "./btstop"
+  for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21; do
+    rm test$i.bt
+  done
+}
+
 testFSLimit() {
   startSkipping	# doesn't work yet
   rm -f test.bt
