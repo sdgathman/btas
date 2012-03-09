@@ -161,9 +161,7 @@ int FDEV::sync(long &chkpntCount) {
   }
   else
     lastsize = size;
-#ifndef m88k
   fsync(fd);
-#endif
   if (::lseek(fd,superoffset,0) != superoffset || ::write(fd,buf,size) != size)
     return errno;
   return 0;

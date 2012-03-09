@@ -1,2 +1,3 @@
 # filesys	mountpt	blksiz	backup
 /btdata/ROOT	/	2048	1
+cache		cache	20000000

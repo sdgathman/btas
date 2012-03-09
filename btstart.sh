@@ -1,7 +1,7 @@
 #!/bin/sh
 FSTAB="/bms/etc/btfstab$BTSERVE"
 
-btstat >/dev/null && {
+/bms/bin/btstat >/dev/null && {
  echo "Server $BTSERVE already running."
  exit 1
 }

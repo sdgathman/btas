@@ -1,10 +1,14 @@
-/* $Log$
-/* Revision 2.5  2005/02/08 16:16:17  stuart
-/* Port to ISO C++.
 /*
-/* Revision 2.4  2001/02/28 21:32:31  stuart
-/* flush LRU buffer if we run out
-/*
+ * $Log$
+ * Revision 2.6  2007/06/26 19:16:59  stuart
+ * Check cache size at startup.
+ *
+ * Revision 2.5  2005/02/08 16:16:17  stuart
+ * Port to ISO C++.
+ *
+ * Revision 2.4  2001/02/28 21:32:31  stuart
+ * flush LRU buffer if we run out
+ *
  * Revision 2.3  1999/10/03  04:49:36  stuart
  * mark buffers removed from touched
  *

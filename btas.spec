@@ -56,6 +56,7 @@ mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
 cp -p btas.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/btas
 mkdir -p $RPM_BUILD_ROOT/bms/etc
 cp -p btfstab $RPM_BUILD_ROOT/bms/etc
+mkdir -p $RPM_BUILD_ROOT/bms/etc/clrlock.d
 mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
 cp -p btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
