@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <alloca.h>
 #include <bterr.h>
 #include "btserve.h"
 #include "btdev.h"

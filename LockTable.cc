@@ -1,4 +1,7 @@
 // $Log$
+// Revision 1.5  2005/02/08 16:16:17  stuart
+// Port to ISO C++.
+//
 // Revision 1.4  2003/03/05 04:34:08  stuart
 // Simplify STL LockTable
 //
@@ -12,6 +15,7 @@
 #include "LockTable.h"
 #include <stdio.h>
 #include <errno.h>
+#include <alloca.h>
 #include <btas.h>
 #include <signal.h>
 

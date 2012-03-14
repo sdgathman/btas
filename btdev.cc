@@ -12,6 +12,7 @@ const char what[] = "$Revision$";
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
+#include <alloca.h>
 #include <bterr.h>
 #include <assert.h>
 #include "btserve.h"
