@@ -1,4 +1,6 @@
+#define _GNU_SOURCE
 #include <string.h>
+#include <libgen.h>
 #include <btas.h>
 
 BTCB *btopendir(const char *path,int mode) {

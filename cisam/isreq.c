@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 2.13  2011/01/19 18:53:01  stuart
+ * stbtasinfo renamed to stbtstat
+ *
  * Revision 2.12  2011/01/19 18:43:50  stuart
  * Fix isbtasinfo call
  *
@@ -19,6 +22,7 @@
  * Trap any exceptions and convert to error.
  *
  */
+#include <alloca.h>
 #include <isamx.h>
 #include <btas.h>
 #include <btflds.h>

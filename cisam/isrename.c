@@ -3,7 +3,9 @@
 	tack .idx and .n to the end in turn and make BTAS calls
 */
 
+#define _GNU_SOURCE
 #include <string.h>
+#include <libgen.h>
 #include <errenv.h>
 #include <btas.h>
 #include <bterr.h>
@@ -37,8 +39,8 @@ int isrename(const char *from, const char *to) {
       tname = (char *)basename(tobuf);
       strcpy(buf,from);
       fname = (char *)basename(buf);
-      oldname = basename(from);
-      newname = basename(to);
+      oldname = basename((char *)from);
+      newname = basename((char *)to);
       len = strlen(oldname);
       b->lbuf[0] = 0;
       b->klen = 1;

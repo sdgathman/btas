@@ -3,7 +3,9 @@
 	tack .idx and .n to the end in turn and make BTAS calls
 */
 
+#define _GNU_SOURCE
 #include <string.h>
+#include <libgen.h>
 #include <errenv.h>
 #include <btas.h>
 #include <bterr.h>

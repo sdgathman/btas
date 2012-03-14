@@ -19,14 +19,12 @@ const char what[] = "$Revision$";
 #include "btdev.h"
 #include "btbuf.h"
 
-#ifdef _AIX41
-#define lseek64 llseek
-#endif
 #if _LFS64_LARGEFILE
-#define _open open64
+#define OPEN open64
 #else
 #warn "No LARGEFILE support"
 #define O_LARGEFILE 0
+#define OPEN _open
 #endif
 
 unsigned short DEV::maxblksize = 1024;
@@ -165,7 +163,7 @@ int DEV::open(const char *name,bool rdonly) {
   int rc = getrlimit(RLIMIT_FSIZE,&rlim);
   if (rc == -1) return errno;
 
-  int fd = ::_open(name,mode);	/* can we open the file ? */
+  int fd = ::OPEN(name,mode);	/* can we open the file ? */
   if (fd == -1) return errno;
   rc = ::_read(fd,u.buf,sizeof u.buf);/* can we read the superblock ? */
 
@@ -241,7 +239,7 @@ int DEV::open(const char *name,bool rdonly) {
 	char dname[sizeof p->d.name + 1];
 	/* FIXME: prepend primary extent directory if no leading '/' */
 	strncpy(dname,p->d.name,sizeof p->d.name)[sizeof p->d.name] = 0;
-	fd = ::_open(p->d.name,mode);
+	fd = ::OPEN(p->d.name,mode);
 	if (fd == -1) {
 	  rc = errno ? errno : BTERMBLK;
 	  --j;

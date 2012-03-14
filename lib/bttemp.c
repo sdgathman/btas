@@ -5,6 +5,7 @@ deletes the temp files if they already exist.  This is not strictly
 kosher and will go away on real OS's.
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <btas.h>

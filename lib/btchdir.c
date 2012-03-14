@@ -1,9 +1,13 @@
 /*
  * $Log$
+ * Revision 1.3  2006/06/23 18:09:30  stuart
+ * fix btgetdir() when BTASDIR not set
+ *
  * Revision 1.2  2003/11/12 23:41:11  stuart
  * btchdir needs to save BTASDIR env even when btasdir is null.
  *
  */
+#include <stdio.h>
 #include <btas.h>
 #include <string.h>
 #include <stdlib.h>

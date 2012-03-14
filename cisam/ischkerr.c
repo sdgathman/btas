@@ -1,4 +1,5 @@
 /* check errors encountered by cisam calls */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <isamx.h>

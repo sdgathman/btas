@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.7  2011/07/23 19:12:30  stuart
+ * Release 2.11.5
+ *
  * Revision 1.6  2003/07/29 18:41:41  stuart
  * Check for fd avail before creating file in isbuildx.
  *
@@ -22,7 +25,9 @@
  *
  */
 #include <errenv.h>
+#define _GNU_SOURCE
 #include <string.h>
+#include <libgen.h>
 #include "cisam.h"
 
 /* construct default field table from key description */
