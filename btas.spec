@@ -1,13 +1,16 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 Version: 2.11.5
-Release: 1%{dist}
+Release: 2%{dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-#Patch: btas-el4.patch
+Patch: btas-el6.patch
 BuildRoot: /var/tmp/%{name}-root
-BuildRequires: libbms-devel >= 1.1.5, libstdc++-devel
+BuildRequires: libbms-devel >= 1.1.7, libstdc++-devel, gcc-c++, check-devel
+BuildRequires: bison
+# needed to build btdb
+#BuildRequires: libb++-devel
 # workaround for libb++ bug in lib/client.c 
 #Conflicts: libb++ < 3.0.2
 
@@ -30,7 +33,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
-#patch -p1 -b .el4
+%patch -p1 -b .el6
 
 %build
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make
@@ -44,7 +47,7 @@ export CFLAGS="$RPM_OPT_FLAGS -I../include -I/bms/include"
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C cisam isserve bcheck addindex indexinfo istrace testcisam
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C lib testlib
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C util
-LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C sql
+LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -e -C sql
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C fix
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C btbr
 
@@ -62,7 +65,7 @@ cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
 cp -p btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
 cp -p btbackup.sh $RPM_BUILD_ROOT/bms/bin/btbackup
 cp fix/btsave fix/btddir fix/btreload fix/btfree fix/btrcvr fix/btrest \
-	fix/btdb $RPM_BUILD_ROOT/bms/bin
+	$RPM_BUILD_ROOT/bms/bin
 cp util/btutil util/btpwd util/btar util/btdu util/btfreeze \
 	$RPM_BUILD_ROOT/bms/bin
 cp util/btinit $RPM_BUILD_ROOT/bms/bin/btinitx
@@ -139,7 +142,6 @@ rm -rf $RPM_BUILD_ROOT
 /bms/bin/istrace
 /bms/bin/indexinfo
 /bms/bin/btbr
-/bms/bin/btdb
 /bms/bin/btinitx
 /bms/bin/btfreeze
 /bms/bin/btflded

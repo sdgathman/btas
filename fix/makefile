@@ -3,7 +3,7 @@ CXXFLAGS = $(CFLAGS)
 
 L=-lbtas
 
-all:	$F btreload btrcvr btfree btddir btsave btrest btdb
+all:	$F btreload btrcvr btfree btddir btsave btrest #btdb
 
 .PRECIOUS:	$F
 
