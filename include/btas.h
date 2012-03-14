@@ -89,6 +89,7 @@ enum {
 
 /* flag bits */
 
+  BT_EXTEND =	0x4000,	/* extended BTCB format */
   BTEXCL =	0x2000,	/* exclusive open option */
   BT_OPEN =	0x0008,	/* btcb opened */
   BT_READ =	0x0004,	/* has read permission */
