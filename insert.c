@@ -1,4 +1,8 @@
-/* $Log$
+/*
+ * $Log$
+ * Revision 2.1  1996/12/17 16:42:46  stuart
+ * C++ node interface
+ *
  */
 #include <stdio.h>
 #include <string.h>
@@ -67,7 +71,7 @@ bool BLOCK::insert(int idx,const char *rec,int len) {
   tgt = np->rptr(++i);
   if (i < n) {
     dst = np->rptr(n);	/* shift existing data */
-    memcpy(dst,src,tgt - dst);
+    memmove(dst,src,tgt - dst);
   }
   *tgt++ = dup;				/* key compression for new record */
   memcpy(tgt,rec+dup,len - 1);	/* insert new record */
