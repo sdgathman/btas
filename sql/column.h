@@ -46,4 +46,4 @@ void Column_print(Column *, enum Column_type, char *);
 void Column_name(Column *, const char *, const char *);
 void Column_copy(Column *, char *);
 Column *Column_dup(Column *, char *);
-void printColumn(Column *, enum Column_type);
+void printColumn(Column *, enum Column_type, const char *);

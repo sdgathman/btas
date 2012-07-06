@@ -518,14 +518,14 @@ void Vwsel_print(const Vwsel *a) {
   }
   fputs("     ",stdout);
   for (i = 0; i < sp->kcol; putchar((++i == sp->kcol) ? '\n' : ' '))
-    printColumn(sp->col[i],TITLE);
+    printColumn(sp->col[i],TITLE,0);
   do {
     if (sp->kcol)
       fputs("MIN: ",stdout), pos = 0;
     for (i = 0; i < sp->kcol; putchar((++i == sp->kcol) ? '\n' : ' ')) {
       char *sav = sp->col[i]->buf;
       sp->col[i]->buf = a->min + pos;	/* HACK for C++ optional arg */
-      printColumn(sp->col[i],VALUE);
+      printColumn(sp->col[i],VALUE,0);
       sp->col[i]->buf = sav;
       pos += sp->col[i]->len;
     }
@@ -534,7 +534,7 @@ void Vwsel_print(const Vwsel *a) {
     for (i = 0; i < sp->kcol; putchar((++i == sp->kcol) ? '\n' : ' ')) {
       char *sav = sp->col[i]->buf;
       sp->col[i]->buf = a->max + pos;	/* HACK for C++ optional arg */
-      printColumn(sp->col[i],VALUE);
+      printColumn(sp->col[i],VALUE,0);
       sp->col[i]->buf = sav;
       pos += sp->col[i]->len;
     }

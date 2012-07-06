@@ -26,5 +26,5 @@ done
 for i
 do
   file=${i%%.idx}
-  btl $opts $(btutil "du $file.idx"|cut -c0-18)
+  btl $opts $(btutil "du $file.idx"|cut -c1-18)
 done

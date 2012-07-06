@@ -19,25 +19,7 @@ void Cursor_print(Cursor *c,enum Column_type type,const char *s) {
     puts("");
   for (;;) {
     Column *col = c->col[i];
-    if (type == DATA) {
-      char *p = (char *)alloca(col->width+1);
-      /* printf("w = %2d ",col->width); */
-      p[col->width] = 0;
-      do2(col,print,type,p);
-      if (strchr(p,quote) || sep && strchr(p,sep)) {
-	putchar(quote);
-	while (*p) {
-	  if (*p == quote)
-	    putchar(quote);
-	  putchar(*p++);
-	}
-	putchar(quote);
-      }
-      else
-	fputs(p,stdout);
-    }
-    else
-      printColumn(col,type);
+    printColumn(col,type,s);
     if (++i < c->ncol) {
       if (sep) putchar(sep);
     }

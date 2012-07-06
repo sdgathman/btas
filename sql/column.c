@@ -742,10 +742,29 @@ static sql Dblfld_load(Column *col) {
   return x;
 }
 
-void printColumn(Column *col,enum Column_type type) {
+void printColumn(Column *col,enum Column_type type,const char *s) {
   char *buf = (char *)alloca(col->width+1);
   /* printf("w = %2d ",col->width); */
   buf[col->width] = 0;
   do2(col,print,type,buf);
+  if (type == DATA) {
+    char sep = s[0];
+    char quote = s[1];
+    int len;
+    if (strchr(buf,quote) || sep && strchr(buf,sep)) {
+      putchar(quote);
+      while (*buf) {
+	if (*buf == quote)
+	  putchar(quote);
+	putchar(*buf++);
+      }
+      putchar(quote);
+      return;
+    }
+    while (*buf == ' ') ++buf;
+    len = strlen(buf);
+    while (buf[len-1] == ' ') --len;
+    buf[len] = 0;
+  }
   fputs(buf,stdout);
 }
