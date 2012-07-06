@@ -533,7 +533,10 @@ static void Sqlfld_print(Column *c,enum Column_type type,char *buf) {
   x = tostring(sql_eval(col->exp,MAXTABLE));
   switch (x->op) {
   case EXSTRING:
-    sprintf(buf,"%-*s",col->width,x->u.name[0]);
+    if (type == DATA)
+      strcpy(buf,x->u.name[0]);
+    else
+      sprintf(buf,"%-*s",col->width,x->u.name[0]);
     break;
   default:
     sql_print(x,0);	/* let us see what happened for debugging */
@@ -601,7 +604,6 @@ void sql_frec(sql x,struct btfrec *f) {
     f->type = BT_NUM + (char)x->u.num.fix;
     return;
   case EXDBL:
-  default:
     f->len = 8;
     f->type = BT_FLT;		/* store as floating point */
     return;
@@ -616,6 +618,10 @@ void sql_frec(sql x,struct btfrec *f) {
     len = (short)g[0].len + (short)g[1].len;
     f->len = (len > 255) ? 255 : (unsigned char)len;
     f->type = BT_CHAR;
+    return;
+  default:
+    f->len = 10;
+    f->type = BT_BIN;		/* store as binary */
     return;
   }
 }
