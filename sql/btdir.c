@@ -1,5 +1,8 @@
 /*	Directory tables - partly finished, Author: Stuart D. Gathman
  * $Log$
+ * Revision 1.2  2009/12/08 23:31:09  stuart
+ * Fix compiler warnings, change object version.
+ *
  * Revision 1.1  2001/02/28 23:00:02  stuart
  * Old C version of sql recovered as best we can.
  *
@@ -44,7 +47,7 @@ enum dirField {
   dirMode,
   dirRlen,
   dirKlen,
-#if 0
+#if 1
   dirFlds,
   dirKflds,
 #endif
@@ -81,6 +84,7 @@ typedef struct Directory {
   BTCB *dir;
   struct btstat st;	/* file status */
   struct btlevel loc;	/* file location */
+  short flds, kflds, fklen, frlen;
 /* Directory columns  */
   struct DirField dcols[dirNcols];
 } Directory;
@@ -108,12 +112,12 @@ static struct {
   { "locks","Locks",	offsetof(Directory,st.opens),	5,  2,  BT_NUM },
   { "recs", "Records",  offsetof(Directory,st.rcnt),	8,  4,  BT_NUM },
   { "blks", "Blocks",  	offsetof(Directory,st.bcnt),	8,  4,  BT_NUM },
-  { "mode", "Mode",  	offsetof(Directory,st.id.mode), 5,  2,  BT_NUM },
-  { "rlen", "Rlen",  	0, 5,  2,  BT_NUM },
-  { "klen", "Klen",  	0, 5,  2,  BT_NUM },
-#if 0
-  { "flds", "Flds",  	0, 5,  2,  BT_NUM },
-  { "kflds", "Kflds",  	0, 5,  2,  BT_NUM }
+  { "mode", "Mode",  	offsetof(Directory,st.id.mode),	5,  2,  BT_NUM },
+  { "rlen", "Rlen",  	offsetof(Directory,frlen),	5,  2,  BT_NUM },
+  { "klen", "Klen",  	offsetof(Directory,fklen),	5,  2,  BT_NUM },
+#if 1
+  { "flds", "Flds",  	offsetof(Directory,flds),	5,  2,  BT_NUM },
+  { "kflds", "Kflds",  	offsetof(Directory,kflds),	5,  2,  BT_NUM }
 #endif
 };
 
@@ -164,8 +168,16 @@ static const char *grName(int gid) {
 
 static void Directory_stat(Directory *dir) {
   if (!dir->stat) {
-    dir->dir->klen = strlen(dir->dir->lbuf);
+    int klen = dir->dir->klen = strlen(dir->dir->lbuf) + 1;
     btlstat(dir->dir,&dir->st,&dir->loc);
+    if (dir->st.id.mode & BT_DIR)
+      dir->kflds = dir->flds = dir->frlen = dir->fklen = 0;
+    else {
+      dir->kflds = dir->dir->lbuf[klen];
+      dir->flds = strlen(dir->dir->lbuf + klen)/2;
+      dir->frlen = bt_rlen(dir->dir->lbuf,dir->dir->rlen);
+      dir->fklen = bt_klen(dir->dir->lbuf);
+    }
     dir->stat = 1;
   }
 }
@@ -205,19 +217,19 @@ static void DirField_print(Column *c,enum Column_type what,char *buf) {
       timemask(*(long *)this->buf,ftmask,buf);
       sprintf(buf,"%12.12s",buf);
       break;
-    case dirRlen:
+    case dirRlen: case dirFlds:
       if (dir->st.id.mode & BT_DIR)
 	sprintf(buf,"%5s","DIR");
       else {
-	i = bt_rlen(dir->dir->lbuf,dir->dir->rlen);
+	i = (this->fld == dirRlen) ? dir->frlen : dir->flds;
 	if (i)
 	  sprintf(buf,"%5d",i);
 	else
 	  sprintf(buf,"%5s","");
       }
       break;
-    case dirKlen:
-      i = bt_klen(dir->dir->lbuf);
+    case dirKlen: case dirKflds:
+      i = (this->fld == dirKlen) ? dir->fklen : dir->kflds;
       if (i == 0 || (dir->st.id.mode & BT_DIR))
 	sprintf(buf,"%5s","---");
       else
@@ -258,7 +270,8 @@ static sql DirField_load(Column *c) {
     x->u.name[0] = obstack_copy0(sqltree,dir->dir->lbuf,strlen(dir->dir->lbuf));
     break;
   case dirMid: case dirUid: case dirGid: case dirMode:
-  case dirLinks: case dirLocks:
+  case dirLinks: case dirLocks: case dirKflds: case dirFlds:
+  case dirRlen: case dirKlen:
     x = mksql(EXCONST);
     x->u.num.val = ltoM((long)*(short *)this->buf);
     x->u.num.fix = 0;
@@ -284,22 +297,6 @@ static sql DirField_load(Column *c) {
     x->u.num.val = ltoM(*(long *)this->buf);
     x->u.num.fix = 0;
     break;
-  case dirRlen:
-    x = mksql(EXCONST);
-    if (dir->st.id.mode & BT_DIR)
-      x->u.num.val = zeroM;
-    else
-      x->u.num.val = ltoM(bt_rlen(dir->dir->lbuf,dir->dir->rlen));
-    x->u.num.fix = 0;
-    break;
-  case dirKlen:
-    x = mksql(EXCONST);
-    if (dir->st.id.mode & BT_DIR)
-      x->u.num.val = zeroM;
-    else
-      x->u.num.val = ltoM(bt_klen(dir->dir->lbuf));
-    x->u.num.fix = 0;
-    break;
   }
   return x;
 }
@@ -322,6 +319,8 @@ static Column *DirField_dup(Column *c,char *buf) {
     c = Number_init_mask(0,buf,this->len,"ZZZZ#"); break;
   case dirRlen: case dirKlen:
     c = Number_init_mask(0,buf,this->len,"ZZZZZ"); break;
+  case dirFlds: case dirKflds:
+    c = Number_init_mask(0,buf,this->len,"ZZ#"); break;
   case dirMtime: case dirAtime: case dirCtime:
     c = Time_init_mask(0,buf,ftmask); break;
   }
@@ -342,6 +341,7 @@ static void DirField_copy(Column *c,char *buf) {
     stlong(*(t_block *)this->buf,buf); break;
   case dirMid: case dirUid: case dirGid: case dirMode:
   case dirLinks: case dirLocks:
+  case dirRlen: case dirKlen: case dirFlds: case dirKflds:
     stshort(*(short *)this->buf,buf); break;
   case dirUser:
     stchar(pwName(dir->st.id.user),buf,this->len); break;
@@ -349,16 +349,6 @@ static void DirField_copy(Column *c,char *buf) {
     stchar(grName(dir->st.id.group),buf,this->len); break;
   case dirPerm:
     stchar(permstr(dir->st.id.mode),buf,this->len); break;
-  case dirRlen:
-    if (dir->st.id.mode & BT_DIR)
-      stshort(0,buf);
-    else
-      stshort(bt_rlen(dir->dir->lbuf,dir->dir->rlen),buf); break;
-  case dirKlen:
-    if (dir->st.id.mode & BT_DIR)
-      stshort(0,buf);
-    else
-      stshort(bt_klen(dir->dir->lbuf),buf); break;
   }
 }
 
@@ -414,6 +404,7 @@ Cursor *Directory_init(const char *name,int rdonly) {
     this->klen = 1;
     this->ncol = dirNcols;	/* this many implemented */
     this->col = xmalloc(this->ncol * sizeof *this->col);
+    this->flds = this->kflds = this->frlen = this->fklen = 0;
     for (i = 0; i < this->ncol; ++i)
       this->col[i] = DirField_init(this->dcols + i,this,i);
   enverr
