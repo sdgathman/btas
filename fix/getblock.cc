@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.3  2006/07/06 16:14:47  stuart
+ * 64-bit getblock, move btfreeze to util
+ *
  * Revision 1.2  2002/11/06 02:55:24  stuart
  * Recognize and convert byteswapped image archives.  This only works when
  * alignments match.
@@ -112,8 +115,9 @@ void *fstbl::get(t_block blk) {
   if (fd == curext && blk > base + 1 && blk <= base + bcnt)
     last_buf = buf + (int)(blk - base - 1) * u.f.hdr.blksize;
   else {	/* we really have to do it */
-    if (io->seek(fd,blk_pos(blk)) == -1L)
+    if (io->seek(fd,blk_pos(blk)) == -1L) { 
 	return 0;				/* seek error, give up */
+    }
 
     /* determine buffer to use */
     if (cur != 1) {
@@ -169,7 +173,7 @@ void *fstbl::get() {
       cnt = (int)(eod - base);	/* short final buffer */
     }
     if (seek) {
-      long pos = blk_pos(base+1);
+      fsio::t_off64 pos = blk_pos(base+1);
       /* if ((flags & io->FS_BGND) == 0) */
 	/* fprintf(stderr,"Dataset #%d, seek(%ld), size(%ld)\n", */
 	  /* curext+1,pos,eod); */
