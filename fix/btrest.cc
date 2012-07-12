@@ -3,6 +3,9 @@
 	Copyright 1991 Business Management Systems, Inc.
 */
 // $Log$
+// Revision 1.6  2001/02/28 22:47:29  stuart
+// add option to adjust free space during restore
+//
 // Revision 1.5  2000/10/31  20:22:27  stuart
 // change checkpoint size while restoring
 //
@@ -86,7 +89,7 @@ Usage:	btrest [-6] [-cchksize] osfile <archive\n\
 
   FILE *outf;
   if (strcmp(outputname,"-"))
-    outf = fopen(outputname,"w");
+    outf = fopen64(outputname,"w");
   else {
     outf = stdout;
     outputname = "(stdout)";
