@@ -556,7 +556,10 @@ static const char *dump_date(const sconst *n) {
   return buf;
 }
 
-static const char *dump_num(const sconst *n) {
+/** Simple number format.  
+ * @return pointer to static buffer.
+ */
+const char *dump_num(const sconst *n) {
   int fix = n->fix;
   char *p = buf, *q = buf;
   char sign = 0;

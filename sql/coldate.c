@@ -190,8 +190,10 @@ static void Julian_print(Column *this,enum Column_type type,char *buf) {
     };
     sprintf(buf,"%10s",table[(int)d%7]);
   }
-  else
+  else if (type < DATA)
     sprintf(buf,"%10s","");
+  else
+    *buf = 0;
 }
 
 struct Time {

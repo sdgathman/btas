@@ -118,6 +118,7 @@ sql mklit(const char *,sql);
 sql tostring(sql);
 sql toconst(sql,int);
 int getconst(sconst *p,const char **lexptr);
+const char *dump_num(const sconst *n);
 sql free_sql(struct obstack *);
 void pop_sql(sql);
 sql sql_eval(sql, int);

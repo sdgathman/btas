@@ -193,7 +193,7 @@ Column *Number_init_mask(Number *num,char *buf,int len,const char *mask) {
     int i, decpnt;
     Column_init((Column *)num,buf,len);
     num->_class = &Number_class;
-    num->dlen = (short)strlen(mask);
+    num->dlen = (short)strlen(mask);	// FIXME: check for pathological mask
     num->fix = 0;
     decpnt = 0;
     for (i = 0; i < num->dlen; ++i) {
@@ -231,6 +231,7 @@ static void Number_print(Column *c,enum Column_type type, char *buf) {
   Number *num = (Number *)c;
   int i,len;
   MONEY m;
+  sconst s;
   char fbuf[20], *p;
   switch (type) {
   case TITLE:
@@ -246,24 +247,22 @@ static void Number_print(Column *c,enum Column_type type, char *buf) {
     Column_print(c,type,buf);
     break;
   default:
-    m = ldnum(num->buf,num->len);
-    if (cmpM(&m,&nullM)) {
-      pic(&m,num->fmt,fbuf);
-      len = num->dlen;
-    }
-    else
-      len = 0;
+    s.val = ldnum(num->buf,num->len);
+    s.fix = num->fix;
     if (type == DATA) {
-      int lead;
-      for (i = 0; i < len; ++i)
-        if (fbuf[i] != ' ') break;
-      lead = i;
-      while (i < len)
-	putchar(fbuf[i++]);
-      if (lead > 0)
-        putchar(0);
+      // FIXME: make reentrant form of dump_num
+      const char *p = dump_num(&s);
+      for (i = 0; i < num->width && *p; ++i) 
+	putchar(*p++);
+      putchar(0);
     }
     else {
+      if (cmpM(&s.val,&nullM)) {
+	pic(&m,num->fmt,fbuf);
+	len = num->dlen;
+      }
+      else
+	len = 0;
       for (i = 0; i < num->width - len; ++i)
 	putchar(' ');	/* leading spaces */
       for (i = 0; i < len; ++i)
