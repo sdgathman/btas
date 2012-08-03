@@ -81,8 +81,7 @@ void Column_free(Column *col) {
   free((PTR)col);
 }
 
-#undef putchar
-#define putchar(c) (*buf++ = (c))
+#define bufchar(c) (*buf++ = (c))
 
 void Column_print(Column *col,enum Column_type what, char *buf) {
   int i,len;
@@ -93,23 +92,23 @@ void Column_print(Column *col,enum Column_type what, char *buf) {
     if (len == 0 || len > col->width)
       len = (col->name) ? strlen(p = col->name) : 0;
     for (i = 0; i < len; ++i)
-      putchar(p[i]);
+      bufchar(p[i]);
     break;
   case SCORE:
     len = col->width;
     for (i = 0; i < len; ++i)
-      putchar('-');
+      bufchar('-');
     break;
   default:
     for (i = 0; i < col->len; ++i) {
       static char tbl[] = "0123456789ABCDEF";
-      putchar(tbl[col->buf[i]>>4&15]);
-      putchar(tbl[col->buf[i]&15]);
+      bufchar(tbl[col->buf[i]>>4&15]);
+      bufchar(tbl[col->buf[i]&15]);
     }
     i *= 2;
   }
   if (what < DATA) while (i++ < col->width)
-    putchar(' ');
+    bufchar(' ');
 }
 
 static int Column_store(Column *c,sql x,char *buf) {
@@ -239,9 +238,9 @@ static void Number_print(Column *c,enum Column_type type, char *buf) {
     if (!len || len > num->width)
       len = num->name ? strlen(p = num->name) : 0;
     for (i = 0; i < num->width - len; ++i)
-      putchar(' ');
+      bufchar(' ');
     for (i = 0; i < len; ++i)
-      putchar(p[i]);
+      bufchar(p[i]);
     break;
   case SCORE:
     Column_print(c,type,buf);
@@ -253,8 +252,8 @@ static void Number_print(Column *c,enum Column_type type, char *buf) {
       // FIXME: make reentrant form of dump_num
       const char *p = dump_num(&s);
       for (i = 0; i < num->width && *p; ++i) 
-	putchar(*p++);
-      putchar(0);
+	bufchar(*p++);
+      bufchar(0);
     }
     else {
       if (cmpM(&s.val,&nullM)) {
@@ -264,9 +263,9 @@ static void Number_print(Column *c,enum Column_type type, char *buf) {
       else
 	len = 0;
       for (i = 0; i < num->width - len; ++i)
-	putchar(' ');	/* leading spaces */
+	bufchar(' ');	/* leading spaces */
       for (i = 0; i < len; ++i)
-	putchar(fbuf[i]);
+	bufchar(fbuf[i]);
     }
   }
 }
@@ -285,9 +284,9 @@ static void Pnum_print(Column *num,enum Column_type type, char *buf) {
       int i;
       int len = num->len - 1;
       for (i = 0; i < num->width - len; ++i)
-	putchar(' ');	/* leading spaces */
+	bufchar(' ');	/* leading spaces */
       for (i = 1; i <= len; ++i)
-	putchar(ebcdic(num->buf[i]));
+	bufchar(ebcdic(num->buf[i]));
       return;
     }
     break;
@@ -371,11 +370,11 @@ static void Charfld_print(Column *cf,enum Column_type type,char *buf) {
     if (type == DATA)
       while (len > 0 && cf->buf[len-1] == ' ') --len;
     for (i = 0; i < len; ++i)
-      putchar(cf->buf[i]);
+      bufchar(cf->buf[i]);
     if (type == DATA)
-      putchar(0);
+      bufchar(0);
     else while (i++ < cf->width)
-      putchar(' ');
+      bufchar(' ');
   }
 }
 
@@ -643,9 +642,9 @@ static void Ebcdic_print(Column *col,enum Column_type type,char *buf) {
     Column_print(col,type,buf);
   else {
     for (i = 0; i < col->len; ++i)
-      putchar(ebcdic(col->buf[i]));
+      bufchar(ebcdic(col->buf[i]));
     while (i++ < col->width)
-      putchar(' ');
+      bufchar(' ');
   }
 }
 
