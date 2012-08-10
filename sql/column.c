@@ -229,7 +229,6 @@ Column *Number_dup(Column *c,char *buf) {
 static void Number_print(Column *c,enum Column_type type, char *buf) {
   Number *num = (Number *)c;
   int i,len;
-  MONEY m;
   sconst s;
   char fbuf[20], *p;
   switch (type) {
@@ -257,7 +256,7 @@ static void Number_print(Column *c,enum Column_type type, char *buf) {
     }
     else {
       if (cmpM(&s.val,&nullM)) {
-	pic(&m,num->fmt,fbuf);
+	pic(&s.val,num->fmt,fbuf);
 	len = num->dlen;
       }
       else
