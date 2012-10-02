@@ -1,4 +1,6 @@
 #!/bin/sh
+export MONEY=NEW
+
 FSTAB="/bms/etc/btfstab$BTSERVE"
 
 /bms/bin/btstat >/dev/null && {
@@ -40,6 +42,9 @@ while read fs mnt tb back; do
   /bms/bin/btutil "mo $fs $mnt"
 done <"${FSTAB}"
 
+# Log current state
+/bms/bin/btutil df
+
 # Clear lock files
 tmplock=/tmp/btstart.$$
 for locklist in $(ls /bms/etc/clrlock.d/*)
@@ -57,7 +62,7 @@ do
         else
           echo "Clearing $lockfile"
           cat $tmplock
-          btutil "cl $lockfile"
+          /bms/bin/btutil "di $lockfile" "cl $lockfile"
         fi
       fi
       ;;
