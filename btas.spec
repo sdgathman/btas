@@ -1,7 +1,7 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-Version: 2.11.5
-Release: 3%{dist}
+Version: 2.11.6
+Release: 1%{dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -114,6 +114,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir /var/log/btas
 /bms/bin/btstart
 %config(noreplace) /bms/etc/btfstab
+%dir /bms/etc/clrlock.d
 %attr(0755,root,root)/etc/init.d/btas
 %attr(0644,root,root)/etc/logrotate.d/btas
 /usr/share/btas/btutil.help
@@ -158,9 +159,14 @@ rm -rf $RPM_BUILD_ROOT
 /bms/include/*.h
 
 %changelog
-* Thu Apr 21 2011 Stuart Gathman <stuart@bmsi.com> 2.11.5-3
+* Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.11.6-1
+- LFS support for btsave,btrest,btddir.
+- support nflds and nkflds in sql directory tables
+- fix CSV output bugs in sql, issue817
+* Wed Mar 14 2012 Stuart Gathman <stuart@bmsi.com> 2.11.5-3
 - Fix undefined call to memcpy in insert.c
-* Thu Apr 21 2011 Stuart Gathman <stuart@bmsi.com> 2.11.5-2
+- Include /bms/etc/clrlock.d
+* Fri Mar 09 2012 Stuart Gathman <stuart@bmsi.com> 2.11.5-2
 - Compile on EL6
 * Thu Apr 21 2011 Stuart Gathman <stuart@bmsi.com> 2.11.5-1
 - support CREATE TABLE PRIMARY KEY and CREATE INDEX in sql
