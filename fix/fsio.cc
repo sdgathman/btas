@@ -1,5 +1,6 @@
 #pragma implementation
 #define _LARGEFILE64_SOURCE
+#include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include "fsio.h"

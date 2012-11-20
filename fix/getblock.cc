@@ -1,5 +1,8 @@
 /*
  * $Log$
+ * Revision 1.4  2012/07/11 20:40:44  stuart
+ * Missed spot needing 64-bit offset.
+ *
  * Revision 1.3  2006/07/06 16:14:47  stuart
  * 64-bit getblock, move btfreeze to util
  *
@@ -178,7 +181,9 @@ void *fstbl::get() {
 	/* fprintf(stderr,"Dataset #%d, seek(%ld), size(%ld)\n", */
 	  /* curext+1,pos,eod); */
       if (io->seek(fd,pos) == -1L) {
-	perror("seek");
+        char buf[40];
+	sprintf(buf,"seek(%d,%lld)",fd,pos);
+	perror(buf);
 	return 0;		/* seek failed, give up */
       }
       seek = false;
