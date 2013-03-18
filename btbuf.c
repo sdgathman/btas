@@ -5,7 +5,26 @@
 	11-04-88 keep track of free space
 	02-17-89 multi-device filesystems
 	05-18-90 hashed block lookup
+    Copyright (C) 1985-2013 Business Management Systems, Inc
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
 $Log$
+Revision 2.9  2010/06/24 18:25:14  stuart
+Use separate MAXMNT config, increase to 26.
+
 Revision 2.8  2009/09/25 16:27:43  stuart
 Make BLOCK a POD.
 

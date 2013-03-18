@@ -4,17 +4,28 @@
 #ifndef MORE
 #include <port.h>
 #endif
-// physical I/O to a BTAS/X filesystem.
-// Handles superblock offset, checkpoints, background writes, etc.
-// Handles filesystem header revisions.
-// FIXME: align 1st block to block boundary to improve filesystems
-// 	  using regular (not-raw) os files.
-// FIXME: put super block on second sector.  1st sector is boot sector
-//	  and is reserved for AIX logical volumes (raw I/O) and when
-//	  BTAS/X is the primary filesystem.
-// FIXME: checkpoint should follow superblock, so both can be written
-//	  in one operation.
+/*
+    Translate block IO to BTAS/X filesystem extents.
+    Handles superblock offset, checkpoints, background writes, etc.
+    Handles filesystem header revisions.
+    Maximum filesystem size is 2**31 * blocksize - or 16T for 4K blocks.
 
+    Copyright (C) 1985-2013 Business Management Systems, Inc
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 #include <bttype.h>
 
 enum { MAXMNT = 26 };
@@ -78,6 +89,7 @@ private:
 };
 #endif
 
+/** Checkpointed physical IO. */
 struct FDEV: DEV {
   FDEV();
   int open(const char *osname,bool rdonly = false);

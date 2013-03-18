@@ -23,8 +23,9 @@
 /* 2.08 fix symlink support */
 /* 2.09 don't log symlink notices */
 /* 2.10 make .. cross join table */
+/* 2.11+ See btas.spec */
 #include "btbuf.h"
 const char version[] = "\
-BTAS/X v2.11, Copyright 1989-2009 Business Management Systems, Inc.\n\
+BTAS/X v2.11, Copyright 1985-2013 Business Management Systems, Inc.\n\
 ";
 const int version_num = 211;

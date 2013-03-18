@@ -5,7 +5,7 @@ Release: 1%{dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-Patch: btas-el6.patch
+#Patch: btas-el6.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.7, libstdc++-devel, gcc-c++, check-devel
 BuildRequires: bison
@@ -33,7 +33,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
-%patch -p1 -b .el6
+#patch -p1 -b .el6
 
 %build
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make

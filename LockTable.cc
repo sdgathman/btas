@@ -1,16 +1,36 @@
-// $Log$
-// Revision 1.5  2005/02/08 16:16:17  stuart
-// Port to ISO C++.
-//
-// Revision 1.4  2003/03/05 04:34:08  stuart
-// Simplify STL LockTable
-//
-// Revision 1.3  2003/03/05 02:50:30  stuart
-// Conversion to STL
-//
-// Revision 1.2  2001/02/28 21:48:19  stuart
-// record lock table
-//
+/*  Record lock table.
+  
+    Copyright (C) 1985-2013 Business Management Systems, Inc
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * $Log$
+ * Revision 1.6  2012/03/14 18:27:17  stuart
+ * Include alloca.h
+ *
+ * Revision 1.5  2005/02/08 16:16:17  stuart
+ * Port to ISO C++.
+ *
+ * Revision 1.4  2003/03/05 04:34:08  stuart
+ * Simplify STL LockTable
+ *
+ * Revision 1.3  2003/03/05 02:50:30  stuart
+ * Conversion to STL
+ *
+ * Revision 1.2  2001/02/28 21:48:19  stuart
+ * record lock table
+*/
 #pragma implementation "LockTable.h"
 #include "LockTable.h"
 #include <stdio.h>

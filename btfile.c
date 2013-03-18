@@ -5,6 +5,22 @@ static const char what[] =
 /*
 	BTAS/2 directory operations
 
+    Copyright (C) 1985-2013 Business Management Systems, Inc
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
 	Ultimately, we want to allow *any* record to be a link
 	to another file.  BTWRITE creates a record without a link;
 	BTCREATE creates a record with a link to a new empty file.  
@@ -53,6 +69,9 @@ static const char what[] =
 
 	BTUNJOIN removes a filesystem from the mount table and frees the mid.
  * $Log$
+ * Revision 2.8  2010/06/24 18:25:14  stuart
+ * Use separate MAXMNT config, increase to 26.
+ *
  * Revision 2.7  2009/12/05 21:38:21  stuart
  * Reenable linking filesystem root - needed to create dirs under root.
  *
