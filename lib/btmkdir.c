@@ -1,5 +1,22 @@
 /*
-	btmkdir.c - Creates a btas directory with standard links.
+	Copyright 1994,2001,2009,2011 Business Management Systems, Inc.
+	Author: Stuart D. Gathman
+
+    This file is part of the BTAS client library.
+
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
+
 */
 
 #include <string.h>
@@ -7,9 +24,12 @@
 #include <errenv.h>
 #include <btas.h>
 
-/* btmkdir - creates a new directory
+/* Create a new directory with standard links.
    Returns BTERDUP if file already exists, and 0 on success.
    Returns BTERKEY if a parent directory doesn't exist.
+   @param path pathname to create
+   @param mode posix-like mode and permissions
+   @return 0 on success
 */
 int btmkdir(const char *path,int mode) {
   BTCB * volatile b = 0;

@@ -1,3 +1,19 @@
+/*
+    This file is part of the BTAS client library.
+
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #include <stdlib.h>
 #include <btas.h>
 #include <bterr.h>
@@ -26,6 +42,14 @@ static int isStateless(BTCB *b,int op) {
   return 0;
 }
   
+/** Low level BTAS client operation.  Normally, all errors are
+ * fatal and invoke errpost (lightweight C exceptions).  Certain
+ * errors, like BTERKEY, can be trapped (returned as error codes)
+ * with the DUPKEY, NOKEY, and LOCK op code flags.
+ * @param b	pointer to BTCB
+ * @param op	op code logically ored with flags
+ * @return 0 on success
+ */
 int btas(BTCB *b,int op) {
   register int rc, size;
   // this doesn't detect stale bttag from old btas.h
@@ -83,11 +107,18 @@ int btas(BTCB *b,int op) {
   return b->op;
 }
 
+/** Save a passive form of an open BTCB.  The file will be kept
+ * open, but the tag form is much smaller, and can be stored and
+ * retrieved from files.  (Unless some process comes along and forcibly
+ * closes it - as it likely to happen with temp files.)
+ */
 void btcb2tag(const BTCB *b, struct bttag *t) {
   t->ident = b->msgident;
   t->root = b->root; t->mid = b->mid; t->flags = b->flags;
 }
 
+/** Restore a BTCB from a saved tag.
+ */
 void tag2btcb(BTCB *b, const struct bttag *t) {
   b->msgident = t->ident;
   b->root = t->root; b->mid = t->mid; b->flags = t->flags;

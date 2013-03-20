@@ -1,4 +1,19 @@
-/*	%M% %I% %H%
+/*
+    This file is part of the BTAS client library.
+
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
+
 	convert long to/from file format 
 	This module assumes:
 	1) At least 8 bits per char
@@ -7,7 +22,8 @@
 	   b) signed shift right
 	You can do much better than these generic routines
 	on CISC processors.  68k and x86 assembler versions are
-	supplied.  For RISC, these are already fairly optimal.
+	supplied (obsolete since 1995).  For RISC, these are already fairly
+	optimal.
 */
 
 #undef m68k	/* so we don't get m68k macros */

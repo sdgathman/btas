@@ -1,20 +1,25 @@
 /*
 	convert BTAS/1 - BTAS/X data records
 
-	This is similar to pack.c used by the C-isam emulator,
-	but character fields are translated EBCDIC/ASCII and
-	scatter/gather is not required.  Accordingly, the btflds
-	structure is not used and the field tables are stored
-	as they appear in the directory records to save memory.
+    This file is part of the BTAS client library.
 
-	pack.c removes trailing nulls when packing records.  We indicate
-	BTAS/1 locked records by appending a trailing null.  This uses
-	one additional byte only for locked records and the records are
-	still read correctly by pack.c.  It follows that the BTAS/1
-	lock status is not detected by the C library routines.  (But
-	maybe we'll add the feature.)  Anyway, we aren't using locked
-	records in EDX anymore either!
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
+
  * $Log$
+ * Revision 1.7  2003/05/19 18:24:49  stuart
+ * Typo defining away farblkfntl
+ *
  * Revision 1.6  2001/02/28 22:25:02  stuart
  * define away x86 abominations
  *
@@ -47,8 +52,12 @@ void e2brec_begin(unsigned rlen) {	/* large record length */
   e2brec_skip = 0;
 }
 
-/*
-	convert BTAS/X record to EDL
+/** Convert BTAS/X record to EDL.  Unpacks records packed b7 e2brec.
+ * @param p	field table as stored in directory record
+ * @param urec	unpacked EDX record
+ * @param ulen	size of EDX record
+ * @param buf	BTAS/X record buffer
+ * @param len	size of BTAS/X record
 */
 void b2erec(const BYTE *p,BYTE far *urec,int ulen,const char *buf,int len) {
   register int pos = 0;
@@ -143,6 +152,28 @@ void b2erec(const BYTE *p,BYTE far *urec,int ulen,const char *buf,int len) {
 #endif
 }
 
+/** Pack EDX BTAS/1 record into BTCB.  The BTCB will contained
+   the packed record length and key length.
+<p>
+	This is similar to pack.c used by the C-isam emulator,
+	but character fields are translated EBCDIC/ASCII and
+	scatter/gather is not required.  Accordingly, the btflds
+	structure is not used and the field tables are stored
+	as they appear in the directory records to save memory.
+<p>
+	pack.c removes trailing nulls when packing records.  We indicate
+	BTAS/1 locked records by appending a trailing null.  This uses
+	one additional byte only for locked records and the records are
+	still read correctly by pack.c.  It follows that the BTAS/1
+	lock status is not detected by the C library routines.  (But
+	maybe we'll add the feature.)  Anyway, we aren't using locked
+	records in EDX anymore either!
+ @param p field table as stored in directory record
+ @param urec	unpacked user record
+ @param ulen	size of user record
+ @param btcb	BTCB with lbuf to hold packed record
+ @param klen	logical key length
+*/
 unsigned e2brec(
   const BYTE *p,	/* field table */
   const BYTE far *urec,	/* unpacked user record */
@@ -276,7 +307,7 @@ void unlockrec(BTCB *b) {
 }
 #endif
 
-/* convert record segment to stand alone field table */
+/** Convert EDX record segment to stand alone field table */
 int e2brec_conv(BYTE *dst,const BYTE *src,int maxlen,int skip) {
   int rlen = 0;
   int pos = 0;

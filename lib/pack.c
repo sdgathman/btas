@@ -1,17 +1,26 @@
-/* pack.c	load and store packed records
-
+/*
 	Copyright 1989,1990 Business Management Systems, Inc.
 	Author: Stuart D. Gathman
 
-	Since records need to be copied in and out of the BTCB, we
-take advantage of this opportunity to compress the record while
-copying with minimal CPU overhead.  Compression is based on the standard field
-table.  Characters fields have leading and trailing blanks trimmed.  Others
-are left alone.  The resulting compressed record will never be larger
-than the original, but non-printing bytes in character fields may be lost.
+    This file is part of the BTAS client library.
 
-Character field compression is designed to preserve sort order.
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
+
  * $Log$
+ * Revision 1.4  2001/10/16 19:26:28  stuart
+ * send key only on ISREAD in isserve.c, minor release
+ *
  * Revision 1.3  2001/02/28 22:17:33  stuart
  * handle complemented strings
  *
@@ -26,8 +35,22 @@ Character field compression is designed to preserve sort order.
 #include <ftype.h>
 #include "btflds.h"
 
+/** Record number used by C-isam emulation.  C-isam uses a synthetic 
+ * 32-bit key called a "record number".  Although record numbers are
+ * stored physically in packed records (when there is a key by record number),
+ * they are packed/unpacked from/to this global variable instead of the
+ * unpacked record.
+ */
 long isrecnum;   /* klunky C-isam interface */
 
+/* Unpack a packed record into a fixed length record.
+   This restores a record packed by u2brec.
+  @param p	field table
+  @param urec	fixed length record buffer
+  @param ulen	fixed length record size
+  @param buf	packed record buffer
+  @param len	size of packed buffer
+ */
 void b2urec(p,urec,ulen,buf,len)
   const struct btfrec *p;	/* field table */
   char *urec;		/* uncompressed user buffer */
@@ -115,6 +138,21 @@ static int fldccpy(char *tbuf,const char *ubuf,int flen) {
   return buf - tbuf;
 }
 
+/* Pack a fixed length record into BTCB buffer.
+	Since records need to be copied in and out of the BTCB, we
+take advantage of this opportunity to compress the record while
+copying with minimal CPU overhead.  Compression is based on the standard field
+table.  Characters fields have leading and trailing blanks trimmed.  Others
+are left alone.  The resulting compressed record will never be larger
+than the original, but non-printing bytes in character fields may be lost.
+
+Character field compression is designed to preserve sort order.
+ @param p	field table
+ @param urec	unpacked fixed length record
+ @param ulen	size of unpacked record
+ @param b	BTCB to hold packed record with new record and key length
+ @param klen	logical key length of unpacked record
+ */
 void u2brec(p,urec,ulen,b,klen)
   const struct btfrec *p;	/* field table */
   const char *urec;		/* unpacked user record */

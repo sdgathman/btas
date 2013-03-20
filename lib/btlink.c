@@ -1,5 +1,18 @@
 /*
-	btlink.c - hard link 2 btas files together
+    This file is part of the BTAS client library.
+
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <string.h>
@@ -7,6 +20,13 @@
 #include <btas.h>
 #include <bterr.h>
 
+/** Hard link 2 btas files together.  Return BTERDUP is destination
+ * name already exists, BTERLINK if source and destination are not
+ * on the same filesystem.
+ * @param src	source path name
+ * @param dst	destination path name
+ * @return 0 on success
+ */
 int btlink(const char *src,const char *dst) {
   BTCB * volatile b = 0;
   BTCB bt;

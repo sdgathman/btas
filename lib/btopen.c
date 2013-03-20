@@ -1,13 +1,30 @@
-/* $Log$
-/* Revision 1.3  2001/02/28 22:31:11  stuart
-/* debugging for following symlinks
 /*
+    This file is part of the BTAS client library.
+
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * $Log$
+ * Revision 1.4  2009/03/31 17:29:02  stuart
+ * Never throw errenv exception from btclose.
+ *
+ * Revision 1.3  2001/02/28 22:31:11  stuart
+ * debugging for following symlinks
+ *
  * Revision 1.2  1999/01/22  23:50:52  stuart
  * Fix symlinks that are not the last part of the path.
  *
-  Allocate & open a BTAS/2 file with support for "current" directory.  
-  The "current" directory is passed to programs through the environment.
-*/
+ */
 
 #include <string.h>
 #include <stdlib.h>
@@ -32,7 +49,10 @@ static short perms[16] = {
 	BT_DIR+05, BT_DIR+03, BT_DIR+07, BT_DIR+01,
 };
 
-BTCB *btasdir = 0;			/* current directory */
+/** Current directory BTCB.  The path name of the directory is saved
+ * in the buffer of the BTCB.
+ */
+BTCB *btasdir = 0;
 
 static char btdirname[] = "BTASDIR";	/* environment name */
 
@@ -40,6 +60,11 @@ static void cdecl closedir(void) {
   (void)btclose(btasdir);
 }
 
+/** Allocate & open a BTAS/2 file with support for "current" directory.  
+  The "current" directory is passed to programs through the environment,
+  and is available within a process through the <code>btasdir</code> 
+  global pointer to a BTCB.
+ */
 BTCB *btopen(const char *name,int mode,int rlen) {
   BTCB *b, bt;
   (void)btopenf(&bt,name,mode,sizeof bt.lbuf);
@@ -54,6 +79,11 @@ BTCB *btopen(const char *name,int mode,int rlen) {
   return b;
 }
 
+/** Open a BTAS file in an existing BTCB with support for "current" directory.  
+  The "current" directory is passed to programs through the environment,
+  and is available within a process through the <code>btasdir</code> 
+  global pointer to a BTCB.
+ */
 int btopenf(BTCB *b,const char *name,int mode,int rlen) {
   int rc,i;
   char *dirname;

@@ -1,5 +1,26 @@
+/*  Test cases for BTAS library.
+ 
+    This file is part of the BTAS client library.
+
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
+*/
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <ftype.h>
+#include <btas.h>
 #include <btflds.h>
 #include <bterr.h>
 #include <errenv.h>
@@ -99,6 +120,12 @@ START_TEST(test_mkdir) {
   fail_unless(rc == 0,msg);
 } END_TEST
 
+START_TEST(test_pathopt) {
+  char buf[80];
+  char *p = pathopt(buf,"this/is/../a/./test");
+  fail_unless(strcmp(p,"this/a/test") == 0,"pathopt failed");
+} END_TEST
+
 /* Collect all the tests.  This will make more sense when tests are
  *  * in multiple source files. */
 Suite *libbtas_suite (void) {
@@ -110,6 +137,7 @@ Suite *libbtas_suite (void) {
   tcase_add_test (tc_api, test_findone);
   tcase_add_test (tc_api, test_replace);
   tcase_add_test (tc_api, test_mkdir);
+  tcase_add_test (tc_api, test_pathopt);
   return s;
 }
 
