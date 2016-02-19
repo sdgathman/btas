@@ -73,11 +73,11 @@ int unmountfs() {
     puts("Can't open directory.");
     return 0;
   }
-  envelope
+  catch(rc)
     btas(&t,BTUMOUNT);
     puts("Unmounted");
   enverr
-    puts("Unmount failed");
+    printf("Unmount failed: %d\n",rc);
   envend
   btas(&t,BTCLOSE);
   return 0;
