@@ -1,14 +1,14 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 Version: 2.11.6
-Release: 1%{dist}
+Release: 2%{dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
 #Patch: btas-el6.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libbms-devel >= 1.1.7, libstdc++-devel, gcc-c++, check-devel
-BuildRequires: bison
+BuildRequires: bison, ncurses-devel
 # needed to build btdb
 #BuildRequires: libb++-devel
 # workaround for libb++ bug in lib/client.c 
@@ -62,6 +62,7 @@ cp -p btfstab $RPM_BUILD_ROOT/bms/etc
 mkdir -p $RPM_BUILD_ROOT/bms/etc/clrlock.d
 mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
+chmod a+x *.sh
 cp -p btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
 cp -p btbackup.sh $RPM_BUILD_ROOT/bms/bin/btbackup
 cp fix/btsave fix/btddir fix/btreload fix/btfree fix/btrcvr fix/btrest \
@@ -159,99 +160,137 @@ rm -rf $RPM_BUILD_ROOT
 /bms/include/*.h
 
 %changelog
+* Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.11.6-2
+- Fix logrotate
+- Add BR: ncurses-devel
+
 * Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.11.6-1
 - LFS support for btsave,btrest,btddir.
 - support nflds and nkflds in sql directory tables
 - fix CSV output bugs in sql, issue817
+
 * Wed Mar 14 2012 Stuart Gathman <stuart@bmsi.com> 2.11.5-3
 - Fix undefined call to memcpy in insert.c
 - Include /bms/etc/clrlock.d
+
 * Fri Mar 09 2012 Stuart Gathman <stuart@bmsi.com> 2.11.5-2
 - Compile on EL6
+
 * Thu Apr 21 2011 Stuart Gathman <stuart@bmsi.com> 2.11.5-1
 - support CREATE TABLE PRIMARY KEY and CREATE INDEX in sql
 - Make btstart and backup use /bms/etc/btfstab
+
 * Wed Jan 19 2011 Stuart Gathman <stuart@bmsi.com> 2.11.4-1
 - Cisam: support isbtasinfo
 - Cisam: skip bad index records on read (see testBadIndex in DatasetTest.java)
+
 * Mon Jun 28 2010 Stuart Gathman <stuart@bmsi.com> 2.11.3-3
 - prevent iserase from erasing directories
+
 * Tue Dec 08 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-2
 - libbtas: improve server restart recovery
 - btserve: allow linking to root dir again
 - drop AIX support in spec
+
 * Fri Sep 29 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-1
 - libbtas: detect and recover server restart
 - Cisam: enable auto-repair of dupkey on secondary index.
+
 * Thu Jul 30 2009 Stuart Gathman <stuart@bmsi.com> 2.11.2-1
 - Add 6-byte timestamp support to btbr and sql.
+
 * Tue Mar 31 2009 Stuart Gathman <stuart@bmsi.com> 2.11.1-1
 - Prevent exception for btclose.  Return error code instead.
 - btutil: fix keylength for delete.  ('cr bl' 'cr bl.a' 'de bl' -> 211)
+
 * Thu Jun 21 2007 Stuart Gathman <stuart@bmsi.com> 2.11.0-2
 - Fix update of key field.
+
 * Thu Jun 21 2007 Stuart Gathman <stuart@bmsi.com> 2.11-1
 - Fix issue363 - 203 on REPLACE with tiny key
 - Fix issue353 - rename of mounted dir should fail
 - Check for big enough cache at startup.
 - Support for btas extents bigger than 2G
 - Enhance SQL NULL and fix delimited date output.
+
 * Tue Oct 17 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-2
 - provide btinitx to manage extents
+
 * Fri Jun 30 2006 Stuart Gathman <stuart@bmsi.com> 2.10.9-1
 - LARGEFILE support
 - btfreeze, btdb
+
 * Fri Mar 03 2006 Stuart Gathman <stuart@bmsi.com> 2.10.8-3
 - Move log to /var/log and rotate
 - provide sysvinit service script
 - impose update ordering via fsync on datablocks vs superblock
 - stricter record checks in btddir
+
 * Mon May 16 2005 Stuart Gathman <stuart@bmsi.com> 2.10.8-2
 - work with new C++ and STL (use standard map and set, use namespace std)
+
 * Tue Feb 08 2005 Stuart Gathman <stuart@bmsi.com> 2.10.8-1
 - check ulimit when mounting filesystems
 - fix error reporting on startup
 - fix btchdir when btasdir is NULL
 - fix isserve to set isfdlimit for local connection
 - fix sql update to rewrite by primary key
+
 * Sat Sep 13 2003 Stuart Gathman <stuart@bmsi.com> 2.10.7-1
 - fix iserase of open files
+
 * Wed Aug 06 2003 Stuart Gathman <stuart@bmsi.com>
 - fix sql -f with negative numbers
 - add sql -e for alternate quote char
+
 * Tue Jul 29 2003 Stuart Gathman <stuart@bmsi.com>
 - auto expand fd array for cisam emulator
 - isfdlimit call for cisam emulator
+
 * Mon May 19 2003 Stuart Gathman <stuart@bmsi.com>
 - fix ebtconv.c and copy.c
+
 * Fri Apr  4 2003 Stuart Gathman <stuart@bmsi.com>
 - fix isaddindex bug
+
 * Tue Mar  4 2003 Stuart Gathman <stuart@bmsi.com>
 - finish converting to STL and test
+
 * Tue Nov  5 2002 Stuart Gathman <stuart@bmsi.com>
 - convert to STL
+
 * Thu Nov 22 2001 Stuart Gathman <stuart@bmsi.com>
 - sql bugfixes
+
 * Wed Oct 17 2001 Stuart Gathman <stuart@bmsi.com>
 - fix dyn lib packaging for AIX
 - auto add btas user
 - include btbr, btflded
+
 * Wed Feb 28 2001 Stuart Gathman <stuart@bmsi.com>
 - move to CVS
+
 * Fri Sep  8 2000 Stuart Gathman <stuart@bmsi.com>
 - include btstat
+
 * Fri Aug  4 2000 Stuart Gathman <stuart@bmsi.com>
 - include addindex, delindex, indexinfo
+
 * Mon Jul 10 2000 Stuart Gathman <stuart@bmsi.com>
 - include isserve, bcheck
+
 * Wed Jul  5 2000 Stuart Gathman <stuart@bmsi.com>
 - uncomment terminate on SIGINT for sql
+
 * Fri Jun  9 2000 Stuart Gathman <stuart@bmsi.com>
 - make ".." cross join (mount) boundary on file open
+
 * Mon May 29 2000 Stuart Gathman <stuart@bmsi.com>
 - include cisam emulation
 - include sql
+
 * Fri May 12 2000 Stuart Gathman <stuart@bmsi.com>
 - include more utilities
+
 * Tue May  9 2000 Stuart Gathman <stuart@bmsi.com>
 - first RPM release
