@@ -192,7 +192,7 @@ rm -rf $RPM_BUILD_ROOT
 - btserve: allow linking to root dir again
 - drop AIX support in spec
 
-* Fri Sep 29 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-1
+* Tue Sep 29 2009 Stuart Gathman <stuart@bmsi.com> 2.11.3-1
 - libbtas: detect and recover server restart
 - Cisam: enable auto-repair of dupkey on secondary index.
 
