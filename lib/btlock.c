@@ -32,7 +32,7 @@ are OK, they just reduce parallelism.
 library routines to contain lock/unlock pairs without knowing about
 application usage.
 <p>
-	For single user systems, btlock and btunlock are #defined away
+	For single user systems, btlock and btunlock are \#defined away
 in btas.h.
  */
 int btlock(b,op)

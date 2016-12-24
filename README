@@ -1,0 +1,11 @@
+	MATURITY
+
+This software is very stable, having been in production for 20+ years.
+However, it has only ever been used by one set of applications.  Certain
+minor bugs have not been fixed due to time pressure.  So it is not
+polished for general consumption.  I am working to rectify that now.
+
+	LICENSE
+
+This software consists of a shared server and a client library.  The
+server is licensed under GPL.  The client library under LGPL.

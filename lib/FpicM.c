@@ -19,7 +19,7 @@
 /** Direct format a MONEY variable from file format input to output buffer.
   A pointer to a static MONEY variable is returned to allow the user to use
   addM,subM, etc.  
-  @see #pic
+  @see pic()
   @param p	source FMONEY (MONEY in file format)
   @param m	mask to use with pic
   @param b	output character buffer

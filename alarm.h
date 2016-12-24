@@ -1,4 +1,7 @@
 /* $Log$
+ * Revision 1.3  2013/03/18 20:09:43  stuart
+ * Add GPL License
+ *
     Alarm class monitors time to auto-flush buffers and signals a shutdown
     for fatal signals.
     Copyright (C) 1985-2013 Business Management Systems, Inc

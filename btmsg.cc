@@ -1,4 +1,4 @@
-/* Attempt to encapsulate messages between BTAS server and clients.
+/** Attempt to encapsulate messages between BTAS server and clients.
    This is the POSIX version, and isn't used yet.  See server.c
    Must work for 
      Windows

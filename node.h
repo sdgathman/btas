@@ -17,6 +17,9 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  * $Log$
+ * Revision 2.5  2013/03/18 20:09:43  stuart
+ * Add GPL License
+ *
  * Revision 2.4  2009/09/25 16:27:43  stuart
  * Make BLOCK a POD.
  *
@@ -131,14 +134,21 @@ struct BLOCK {
   BLOCK *init();
   union node *np;	/* pointer to data area of node */
   union btree buf;
-  int cnt() const { return count; }	// return record count
+  /** Return count of records in node. */
+  int cnt() const { return count; }
   short size(int i) const;		// return record size
   void setblksize(unsigned blksize);	// set block size
+  /** Return the size of the block this node points to. */
   unsigned getblksize() const {
     return (char *)np->dat + np->size() - buf.data; }
-  static short maxrec(unsigned blksz) {	// return max record size
+  /** Return maximum record size for a block size.
+   * @param blksz	block size in bytes
+   * @return maximum logical record size
+   */
+  static short maxrec(unsigned blksz) {
     return (blksz - offsetof(leaf,data[3])) / 2 - 1;
   }
+  /** Return maximum record size for this node. */
   short maxrec() const { return maxrec(getblksize()); }
 
   // extract a record.  dup byte are already in buffer (from sequential

@@ -100,7 +100,7 @@ s1tar::~s1tar() {
   close(fd);
 }
 
-/** hook to output files in #TAR format. */
+/** hook to output files in \#TAR format. */
 
 void s1tar::doroot(root_n *r) {
   long recs = addfile(r->root,r->path);

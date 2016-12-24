@@ -31,7 +31,7 @@
  * used by the BTAS algorithm.  There is no equivalent in C libraries. 
  * @param s1 pointer to beginning of first block to compare
  * @param s2 pointer to beginning of second block to compare
- * @len number of bytes to compare
+ * @param len number of bytes to compare
  */
 int blkcmp(s1,s2,len)	
   const unsigned char *s1, *s2;
@@ -45,8 +45,8 @@ int blkcmp(s1,s2,len)
 /** Move block left.   This can be replaced by memmove(dst-len,src-len,len) in
  * modern C libraries, which handles overlapping ranges, and is optimized to
  * move by words after handling all the fiddly boundary conditions.  
- * @param dst pointer to the first char <emph>after</emph> the last to write.
- * @param src pointer to the first char <emph>after</emph> the last to copy.
+ * @param dst pointer to the first char <i>after</i> the last to write.
+ * @param src pointer to the first char <i>after</i> the last to copy.
  * @param len the number of chars to copy
  */
 void blkmovl(dst,src,len)

@@ -24,7 +24,7 @@
  * n/2 - 1 fields for an empty string filename, but an extra field at the
  * end stores the logical record length).
  * @param fcb	pointer to btflds, or NULL to malloc one
- * @param directory record buffer
+ * @param buf	directory record buffer
  * @param len	length of directory record buffer
  * @return pointer to btflds
  */

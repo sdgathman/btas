@@ -1,9 +1,18 @@
 /*
-	btree operations all use the following structure.  The
-	key/record is supplied and returned in 'lbuf'.  Additional
-	interface routines may be used to copy logical records in and
-	out of 'lbuf' if required.  Note that for secondary keys and
-	variable length records, the data must be copied anyway.
+    This file is part of the BTAS client library.
+
+    The BTAS client library is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    BTAS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
 */
 #ifndef BTASKEY
 #include <port.h>
@@ -19,6 +28,12 @@
 
 #include "bttype.h"
 
+/** Btree operations all use the following structure.  The
+    key/record is supplied and returned in 'lbuf'.  Additional
+    interface routines may be used to copy logical records in and
+    out of 'lbuf' if required.  Note that for secondary keys and
+    variable length records, the data must be copied anyway.
+*/
 typedef struct BTCB {
   long msgident;	/* message originator */
   t_block root; 	/* root node - identifies file */

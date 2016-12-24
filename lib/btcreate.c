@@ -35,7 +35,7 @@ int getperm(int mask) {
  * directory records have a null terminated filename, and the field
  * table follows the null terminator.
  * @param fld field table as btflds
- * @param directory record buffer
+ * @param buf directory record buffer
  * @return new directory record length
  */
 int stflds(const struct btflds *fld,char *buf) {
