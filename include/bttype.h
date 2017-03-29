@@ -88,17 +88,17 @@ struct btfs {
 /* record returned by BTPSTAT operation */
 
 struct btpstat {		/* performance statistics */
-  int bufs, hsize;		/* buffer pool */
-  long searches, probes;	/* hashing statistics */
-  long lreads,preads,pwrites;	/* cache statistics */
-  long fbufs, fcnt;		/* btflush statistics */
-  long trans;			/* transaction count */
-  long sum2;			/* sum of squared I/O count */
-  long checkpoints;		/* number of checkpoints written */
-  long uptime;			/* time server started */
-  long version;			/* server version */
-  int dirty;			/* dirty buffers in server */
-  long lwriteb;			/* total bytes in update requests */
+  int32_t bufs, hsize;		/* buffer pool */
+  int32_t searches, probes;	/* hashing statistics */
+  int32_t lreads,preads,pwrites;	/* cache statistics */
+  int32_t fbufs, fcnt;		/* btflush statistics */
+  int32_t trans;			/* transaction count */
+  int32_t sum2;			/* sum of squared I/O count */
+  int32_t checkpoints;		/* number of checkpoints written */
+  time_t uptime;			/* time server started */
+  int32_t version;			/* server version */
+  int32_t dirty;			/* dirty buffers in server */
+  int32_t lwriteb;			/* total bytes in update requests */
 };
 
 #define BTMAGIC		0x0911

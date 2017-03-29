@@ -156,7 +156,7 @@ static void docmd(char *line) {
 /* print a long directory entry */
 
 struct ls {
-  long mtime;
+  time_t mtime;
   char txt[128];
 };
 

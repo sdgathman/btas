@@ -87,8 +87,9 @@ static void stat1(int drive) {
   struct btfs f;
   register int i;
   if (btfsstat(drive,&f) == 0) {
+    time_t mount_time = f.hdr.mount_time;
     printf("%c: %8ld %.16s %6d %6d %s\n", drive + 'A',
-	f.hdr.space, ctime(&f.hdr.mount_time),
+	f.hdr.space, ctime(&mount_time),
 	f.hdr.blksize, f.hdr.mcnt,
 	(f.hdr.flag == 0xFF) ? "Dirty" : (f.hdr.flag ? "ChkPnt" : "Clean")
     );
