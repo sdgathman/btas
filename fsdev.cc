@@ -161,7 +161,7 @@ int FDEV::load_chkpoint() {
   return wait();
 }
 
-int FDEV::sync(long &chkpntCount) {
+int FDEV::sync(int32_t &chkpntCount) {
   if (!nblks) return DEV::sync(chkpntCount);
   ++chkpntCount;
   int fd = ext(0).fd;

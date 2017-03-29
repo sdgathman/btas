@@ -177,7 +177,7 @@ int btinit(const char *s,int mode,long size,unsigned blksize,unsigned chk) {
       u.r.root = 1L;
       u.r.stat.bcnt = 1L;
       u.r.stat.links = 1;
-      u.r.stat.mtime = u.r.stat.atime = time(&u.r.stat.ctime);
+      u.r.stat.mtime = u.r.stat.atime = u.r.stat.ctime = time(0);
       u.r.stat.id.user = getuid();
       u.r.stat.id.group = getgid();
       u.r.stat.id.mode = mode;

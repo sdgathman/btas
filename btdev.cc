@@ -395,7 +395,7 @@ int DEV::writehdr() const {
   return 0;
 }
 
-int DEV::sync(long &) {
+int DEV::sync(int32_t &) {
   if (blksize && flag) {
     flag = 0;
     return writehdr();

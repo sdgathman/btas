@@ -163,7 +163,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %changelog
 * Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.12-1
-- 64bit clean
+- 64bit clean, builds and runs on CentOS-7
 
 * Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.11.6-2
 - Fix logrotate

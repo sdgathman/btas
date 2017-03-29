@@ -41,7 +41,7 @@ struct DEV: btfhdr {
   virtual int open(const char *osname,bool rdonly = false);
   virtual int write(t_block blk,const char *buf);
   virtual int read(t_block blk,char *buf);
-  virtual int sync(long &chkpntCnt);
+  virtual int sync(int32_t &chkpntCnt);
   virtual int wait();	// wait for sync
   int chkspace(int needed,bool safe_eof = true);
   int gethdr(char *buf,int len) const;
@@ -79,7 +79,7 @@ struct PipeDEV: DEV {
   PipeDEV();
   int open(const char *osname,bool rdonly = false);
   int write(t_block blk,const char *buf);
-  int sync(long &);
+  int sync(int32_t &);
   int wait();
   int close();
   ~PipeDEV();
@@ -95,7 +95,7 @@ struct FDEV: DEV {
   int open(const char *osname,bool rdonly = false);
   int write(t_block blk,const char *buf);
   int read(t_block blk,char *buf);
-  int sync(long &);
+  int sync(int32_t &);
   int wait();
   int max() const { return maxblks; }
   ~FDEV();
