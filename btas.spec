@@ -9,6 +9,8 @@ Source: file:/linux/btas-%{version}.src.tar.gz
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libstdc++-devel, gcc-c++, check-devel
 BuildRequires: bison, ncurses-devel
+# needed to build until libbms references purged
+BuildRequires: libbms-devel >= 1.1.7
 # needed to build btdb
 #BuildRequires: libb++-devel
 # workaround for libb++ bug in lib/client.c 
@@ -160,6 +162,9 @@ rm -rf $RPM_BUILD_ROOT
 /bms/include/*.h
 
 %changelog
+* Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.12-1
+- 64bit clean
+
 * Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.11.6-2
 - Fix logrotate
 - Add BR: ncurses-devel

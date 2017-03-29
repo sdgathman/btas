@@ -80,6 +80,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/poll.h>
 #include <errno.h>
 #ifdef _AIX
 #include <sys/lock.h>
@@ -99,7 +100,14 @@ extern time_t time(time_t *);
 #endif
 
 extern const char version[];
-extern "C" int nap(long);
+
+/* emulate BSD nap() function for SYSV */
+
+long nap(long ms) {
+  static struct pollfd fds = { -1 };
+  /* it is too expensive to compute a better return value . . . */
+  return (poll(&fds,1,(int)ms)) ? -1 : ms;
+}
 
 static unsigned char btflags[32] = {
   0, 0, 8, 0, 0, 0, 0,0, 0, 0, 8,
