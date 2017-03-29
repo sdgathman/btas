@@ -1,13 +1,13 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-Version: 2.11.6
-Release: 2%{dist}
+Version: 2.12
+Release: 1%{dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
 #Patch: btas-el6.patch
 BuildRoot: /var/tmp/%{name}-root
-BuildRequires: libbms-devel >= 1.1.7, libstdc++-devel, gcc-c++, check-devel
+BuildRequires: libstdc++-devel, gcc-c++, check-devel
 BuildRequires: bison, ncurses-devel
 # needed to build btdb
 #BuildRequires: libb++-devel

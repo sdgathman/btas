@@ -1,5 +1,6 @@
 #pragma implementation
 #include <errno.h>
+#include <stdio.h>
 #include <bterr.h>
 #include "fs.h"
 
@@ -50,11 +51,21 @@ btasFS::~btasFS() {
 }
 
 btasXFS::btasXFS(const char *s,char f): unixio(MAXDEV) {
-  fsopen(s,f);
+  err = fsopen(s,f);
 }
 
 btasXFS::~btasXFS() {
   fsclose();
+}
+
+const char *btasXFS::getStatus() const {
+  if (fs) return 0;
+  if (err < BTERROOT) {
+    return strerror(err);
+  }
+  static char errmsg[16];
+  snprintf(errmsg,sizeof errmsg,"errno=%d",err);
+  return errmsg;
 }
 
 int btasFS::fsopen(const char *name,int flags) {

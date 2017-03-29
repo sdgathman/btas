@@ -202,7 +202,7 @@ int DEV::open(const char *name,bool rdonly) {
     superoffset,blkoffset,extoffset,blksize
   );
 #endif
-  long long maxsects = 0xFFFFFFFFLL;	// max sector in 4k ext2/3
+  int64_t maxsects = 0xFFFFFFFFLL;	// max sector in 4k ext2/3
   if (rlim.rlim_cur != RLIM_INFINITY)
     maxsects = rlim.rlim_cur / SECT_SIZE;
 
@@ -236,7 +236,7 @@ int DEV::open(const char *name,bool rdonly) {
     (btfhdr &)*this = u.d.hdr;	/* install new table entry */
     server = index;		/* set server ID */
     mcnt = 0;			/* reset mount count */
-    btserve::curtime = time(&mount_time);		/* mark mount time */
+    mount_time = time(&btserve::curtime);		/* mark mount time */
     if (strlen(name) > sizeof u.d.dtbl->name) {
       for (const char *p = name; *p; ++p) {
   #ifdef __MSDOS__
@@ -419,13 +419,13 @@ DEV::t_off64 DEV::blk_pos(t_block b) const {
 }
 
 /** Return the most blocks that will fit in sectors for an extent. */
-t_block DEV::blk_sects(int ext,long long sects) const {
+t_block DEV::blk_sects(int ext,int64_t sects) const {
   long offset = ext ? extoffset : blkoffset;
   int sectsperblk = blksize/SECT_SIZE;
 #if 0
   fprintf(stderr,"sects = %ld, offset = %ld, sectsperblk = %d\n",
      sects,offset/SECT_SIZE,sectsperblk);
 #endif
-  long long maxblks = (sects - offset/SECT_SIZE) / sectsperblk;
-  return (maxblks > 0x7FFFFFFFL) ? 0x7FFFFFFFL : (long)maxblks;
+  int64_t maxblks = (sects - offset/SECT_SIZE) / sectsperblk;
+  return (maxblks > 0x7FFFFFFFL) ? 0x7FFFFFFFL : (int32_t)maxblks;
 }

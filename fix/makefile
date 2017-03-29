@@ -1,7 +1,7 @@
 F=btfix.a
 CXXFLAGS = $(CFLAGS)
 
-L=-lbtas
+L=-L/bms/lib -lbtas
 
 all:	$F btreload btrcvr btfree btddir btsave btrest #btdb
 
@@ -34,7 +34,7 @@ btfree:	btfree.o $F
 #	g++ $(CPPFLAGS) -c btfree.c
 
 btddir: btddir.o $F
-	g++ $(LDFLAGS) btddir.o $F $L -lbms -o btddir
+	g++ $(LDFLAGS) btddir.o $F $L -o btddir
 
 btddir1: btddir1.o s1fs.o $F
 	g++ -L/bms/lib -g btddir1.o s1fs.o $F -lptrep -lg++ $L -lbms -o btddir1
@@ -46,7 +46,7 @@ btsave: btsave.o $F
 	g++ $(LDFLAGS) btsave.o $F $L -lbms -o btsave
 
 btrest:	btrest.o $F
-	g++ $(LDFLAGS) btrest.o $F $L -lbms -o btrest
+	g++ $(LDFLAGS) btrest.o $F $L -o btrest
 
 btundup btzap btlink: %: %.o
 	$(CC) $(LDFLAGS) $^ $L -lbms -o $@

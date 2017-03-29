@@ -50,7 +50,7 @@ int main(int argc,char **argv) {
       break;
   }
   if (i + 1 != argc) {
-    fputs("$Id$\n\
+    fputs("DEBUG\n\
 Usage:	btrest [-6] [-cchksize] osfile <archive\n\
 	-6	convert root nodes from 68k to RISC format (add padding)\n\
 	-c	specify checkpoint size to reserve\n\
@@ -62,7 +62,7 @@ Usage:	btrest [-6] [-cchksize] osfile <archive\n\
   btasXFS fs(0,isatty(2) ? fsio::FS_RDONLY : fsio::FS_RDONLY + fsio::FS_BGND);
   btree *b;
   if (!fs || (b = fs.get()) == 0) {
-    fprintf(stderr,"[stdin]: not a BTAS/X filesystem.\n");
+    fprintf(stderr,"[stdin]: not a BTAS/X filesystem.\n%s\n",fs.getStatus());
     return 1;
   }
   const char *outputname = argv[i];

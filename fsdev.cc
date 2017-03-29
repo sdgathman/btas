@@ -154,8 +154,9 @@ int FDEV::load_chkpoint() {
 
     // update blocks
     nblks = flag;
+    time_t mount_time = g->hdr.mount_time;
     fprintf(stderr,"Checkpoint loaded: %d blocks from %s",
-	  nblks,ctime(&g->hdr.mount_time));
+	  nblks,ctime(&mount_time));
   }
   return wait();
 }
@@ -170,7 +171,7 @@ int FDEV::sync(long &chkpntCount) {
   gethdr(buf + size,SECT_SIZE);	// get current header
   btfs *g = (btfs *)(buf + size);	// new SB
   btfs *f = (btfs *)(buf);		// backup SB in case of partial CP
-  btserve::curtime = time(&g->hdr.mount_time);	// record time of checkpoint
+  g->hdr.mount_time = time(&btserve::curtime);	// record time of checkpoint
   if (flag < blkmax) blks[flag] = 0L;	// redundant end of blks mark
   f->hdr.flag = flag;
   size += SECT_SIZE;

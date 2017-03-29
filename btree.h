@@ -18,9 +18,9 @@
 */
 #ifndef __BTREE_H
 #define __BTREE_H
-#include <port.h>
 #include <stdlib.h>
 #include <setjmp.h>
+#include <port.h>
 
 enum {
   MAXLEV = 8,		/* maximum tree levels */

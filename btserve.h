@@ -17,6 +17,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #pragma interface
+#include <time.h>
 
 class btserve {
   class BlockCache *bufpool;
@@ -32,7 +33,7 @@ public:
   int flush();
   void setSafeEof(bool);
   void incTrans(int msglen = 0); // increment transaction statistics
-  static long curtime;
+  static time_t curtime;
   //virtual void message(const char *msg); // display a diagnostic message
   ~btserve();
 };

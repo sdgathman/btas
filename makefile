@@ -1,5 +1,5 @@
-VERS = btas-2.11.6
-TAG = btas-2_11_6
+VERS = btas-2.12
+TAG = $(VERS)
 
 OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
 	btfile.o btkey.o assert.o server.o btdev.o fsdev.o alarm.o	\
@@ -8,12 +8,11 @@ OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
 L = lib/libbtas.a
 CC=g++
 CXXFLAGS=$(CFLAGS)
-BMSLIB=/bms/lib/libbms.a	# static libbms
 
 make:	btserve btstop btstat btinit 
 
 btserve: $(OBJS) $L
-	g++ $(LDFLAGS) $(OBJS) $L $(BMSLIB) -o btserve
+	g++ $(LDFLAGS) $(OBJS) $L -o btserve
 
 nohash.o hash.o:	btree.h
 
@@ -29,7 +28,7 @@ btstop:	btstop.c include/btas.h
 	$(CC) $(CFLAGS)  $< -o btstop
 
 btinit:	btinit.c btbuf.h
-	$(CC) $(CFLAGS) $(LDFLAGS) $< $(BMSLIB) -o btinit
+	$(CC) $(CFLAGS) $(LDFLAGS) $< -o btinit
 
 SRCTAR=$(VERS).src.tar.gz
 

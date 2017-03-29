@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "fsio.h"
 
 #ifdef _AIX41
@@ -26,7 +27,10 @@ unixio::~unixio() {
 }
 
 int unixio::open(const char *name,int flag) {
-  if (dcnt >= maxcnt) return -1;
+  if (dcnt >= maxcnt) {
+    errno = 215;
+    return -1;
+  }
   int f = 0;
   if (name)
     f = ::_open(name,(flag & FS_RDONLY) ? O_RDONLY : O_RDWR);

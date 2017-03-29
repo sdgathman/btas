@@ -293,7 +293,7 @@ int btfile::openfile(BTCB *b,int stat) {
       return BTERLOCK;
     ++bp->buf.r.stat.opens;
   }
-  btserve::curtime = time(&bp->buf.r.stat.atime);	// new access time
+  bp->buf.r.stat.atime = time(&btserve::curtime);	// new access time
   bp->flags |= BLK_MOD;
 #endif
   b->flags = id.mode | BT_OPEN;

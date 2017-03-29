@@ -18,6 +18,7 @@
 */
 
 #ifndef BTMAGIC
+#include <sys/types.h>
 enum {
   MAXDEV    = 20,	/* max extents in a filesystem */
   BLKSIZE   = 1024,	/* default block size */
@@ -25,7 +26,7 @@ enum {
   MAXKEY    = 256	/* maximum key size */
 };
 
-typedef long t_block;
+typedef int32_t t_block;
 
 struct btperm {
   short user,group;	/* file owner, group */
@@ -40,11 +41,11 @@ struct btlevel {	/* physical record/file address */
 /* status record returned by BTSTAT operation */
 
 struct btstat {
-  long bcnt;		/* block count */
-  long rcnt;		/* record count */
-  long atime;		/* access time */
-  long ctime;		/* file create time */
-  long mtime;		/* modified time */
+  int32_t bcnt;		/* block count */
+  int32_t rcnt;		/* record count */
+  int32_t atime;	/* access time */
+  int32_t ctime;	/* file create time */
+  int32_t mtime;	/* modified time */
   short links;		/* link count */
   short opens;		/* open count */
   struct btperm id;
@@ -61,8 +62,8 @@ struct btfhdr {
   char server;		/* server index */
   char rootext;		/* extent index of root file */
   unsigned short root;	/* sector offset of root file of filesystem */
-  long space;		/* number of free blocks */
-  long mount_time;	/* time filesystem last mounted (unsigned?) */
+  int32_t space;	/* number of free blocks */
+  int32_t mount_time;	/* time filesystem last mounted (unsigned?) */
   unsigned char chkseq;	/* chkpoint sequence number */
   unsigned char errcnt;	/* filesystem errors detected since rebuild */
   unsigned short blksize;	/* block size for this device */

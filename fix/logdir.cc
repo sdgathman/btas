@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include "Obstack.h"
 extern "C" {
-#include <tsearch.h>
+#include <search.h>
+#include <port.h>
 }
 #include <string.h>
 #include "logdir.h"
@@ -37,22 +38,23 @@ Logdir::~Logdir() {
 void Logdir::doroot(root_n *) { }
 
 Logdir::root_n *Logdir::addroot(long blk, const struct btstat *st) {
-  root_n *r;
-  PTR *p = tsearch(&blk,&t,cmp);
-  if (*p == &blk) {
-    *p = r = (root_n *)h.alloc(sizeof *r);
+  root_n *r = (root_n *)h.alloc(sizeof *r);
+  r->root = blk;
+  root_n *p = *(root_n **)tsearch(r,&t,cmp);
+  if (p == r) {
     if (!st)
       memset(&r->st,0,sizeof r->st);
     r->dir = 0;
     r->last = 0;
-    r->root = blk;
     r->path = 0;
     r->bcnt = 0L;
     r->rcnt = 0L;
     r->links = 0;
   }
-  else
-    r = (root_n *)*p;
+  else {
+    h.free(r);
+    r = (root_n *)p;
+  }
   if (st) {
     r->st = *st;
   }
@@ -153,13 +155,12 @@ static void loghdr(const char *title) {
 
 static Logdir *log;
 
-void Logdir::logchk(PTR p) {
-  root_n *r = (root_n *)p;
+void Logdir::logchk(root_n *r) {
   if (r->path == 0) {
     puts("");
     loghdr("DISCONNECTED TREE");
     ++r->links;
-    log->lostcnt += log->printroot(r,0,"?");
+    lostcnt += printroot(r,0,"?");
   }
 }
 
@@ -172,9 +173,16 @@ void Logdir::logprint(t_block root) {
     cnt = printroot(r,0,"/");
     printf("\n%8ld blocks in accessible files and directories.\n",cnt);
   }
+  struct local {
+    static void logchk(const void *p, const VISIT w, const int depth) {
+      if (w == preorder || w == endorder) return;
+      Logdir::root_n *r = *(Logdir::root_n **)p;
+      log->logchk(r);
+    }
+  };
   // FIXME: not thread safe
   log = this;
-  tsort(t,logchk);
+  twalk(t,local::logchk);
   log = 0;
   printf("\n%8ld blocks in lost files and directories.\n",lostcnt);
 }

@@ -20,7 +20,7 @@
     Copyright (C) 2000 Business Management Systems, Inc.
  */
 class Logdir {
-  struct tree *t;
+  void *t;
   class Obstack &h;
   long lostcnt;
   char *path;
@@ -47,6 +47,6 @@ protected:
   virtual void doroot(root_n *);
 private:
   root_n *addroot(long blk, const struct btstat *st);
+  void logchk(root_n *r);
   long printroot(root_n *r,int lev,const char *name);
-  static void logchk(PTR p);
 };

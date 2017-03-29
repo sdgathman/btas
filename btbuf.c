@@ -248,8 +248,8 @@ BLOCK *BlockCache::btnew(short flag) {
     bp->buf.r.stat.id.group = 0;	/* current group */
     bp->buf.r.stat.id.mode = 0;	/* no permissions, data file */
     /* file create time */
-    btserve::curtime = bp->buf.r.stat.mtime = bp->buf.r.stat.atime
-	= time(&bp->buf.r.stat.ctime);
+    bp->buf.r.stat.mtime = bp->buf.r.stat.atime
+	= bp->buf.r.stat.ctime = time(&btserve::curtime);
   }
   else {
     bp->np = (union node *)bp->buf.s.data;

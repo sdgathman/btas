@@ -125,5 +125,8 @@ struct btasXFS: btasFS, unixio {
   btasXFS(const char *s,char flags = fstbl::FS_RDONLY);
   btasXFS(int mid);
   ~btasXFS();
+  const char *getStatus() const;
+private:
+  int err;
 };
 #endif

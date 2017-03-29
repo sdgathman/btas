@@ -234,6 +234,7 @@ void rcvr::summary() const {
 t_block rcvr::dirstat(BTCB *dirf,const char *name,bool interactive) {
   BTCB b;
   int rc;
+  time_t now;
   b.root = dirf->root;
   b.mid = dirf->mid;
   b.flags = 0;
@@ -256,7 +257,8 @@ t_block rcvr::dirstat(BTCB *dirf,const char *name,bool interactive) {
       printf("%s: STAT failed (rc == %d), using defaults\n",name,rc);
     st.bcnt = 0;	/* can't get status */
     st.rcnt = 0;
-    st.mtime = st.atime = time(&st.ctime);
+    time(&now);
+    st.mtime = st.atime = st.ctime = now;
     st.links = 0;
     st.opens = 0;
     st.id.user = getuid();
