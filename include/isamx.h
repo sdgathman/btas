@@ -20,10 +20,6 @@
 extern "C" {
 #endif
 
-#ifndef MORE
-#include <port.h>
-#endif
-
 enum {
   CHARTYPE=0, DECIMALTYPE=0,INTTYPE,LONGTYPE,DOUBLETYPE,FLOATTYPE,MAXTYPE,
   ISDESC=0x80,	/* add to make descending type */
@@ -253,16 +249,16 @@ int isbuildx(const char *,int,const struct keydesc *,int ,
 struct btflds *isflds(int fd);
 int isaddflds(int fd,const struct btfrec *flds,int cnt);
 int isclose(int);
-int isread(int, PTR, int);
-int isrange(int, const PTR, const PTR);
-int isstart(int, const struct keydesc *, int, const PTR, int);
-int isstartn(int, const char *, int, const PTR, int);
-int iswrite(int, const PTR);
-int iswrcurr(int, const PTR);
-int isrewrite(int, const PTR);
-int isrewcurr(int, const PTR);
-int isrewrec(int, long, const PTR);
-int isdelete(int, const PTR);
+int isread(int, void *, int);
+int isrange(int, const void *, const void *);
+int isstart(int, const struct keydesc *, int, const void *, int);
+int isstartn(int, const char *, int, const void *, int);
+int iswrite(int, const void *);
+int iswrcurr(int, const void *);
+int isrewrite(int, const void *);
+int isrewcurr(int, const void *);
+int isrewrec(int, long, const void *);
+int isdelete(int, const void *);
 int isdelcurr(int);
 int isdelrec(int, long);
 int isuniqueid(int, long *);

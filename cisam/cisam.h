@@ -2,6 +2,7 @@
 #include <isamx.h>
 #include <ftype.h>
 #include <btflds.h>
+#include <port.h>
 
 #define iserr(code)	((iserrno = code) ? -1 : 0)
 enum { MAXFILES = 255, MAXCISAMREC = 4096, MAXKEYNAME = 32 };

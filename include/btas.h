@@ -15,7 +15,6 @@
     along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
 */
 #ifndef BTASKEY
-#include <port.h>
 #include <string.h>
 
 #ifdef __MSDOS__

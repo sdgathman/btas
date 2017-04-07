@@ -3,6 +3,7 @@
 #include <string.h>
 #include <signal.h>
 #include <btas.h>
+#include <port.h>
 
 long totstk[256], *total;
 

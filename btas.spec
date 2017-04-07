@@ -1,11 +1,11 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 Version: 2.12
-Release: 1%{dist}
+Release: 2%{dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-#Patch: btas-el6.patch
+Patch: btas-port.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libstdc++-devel, gcc-c++, check-devel
 BuildRequires: bison, ncurses-devel
@@ -35,7 +35,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
-#patch -p1 -b .el6
+%patch -p1 -b .port
 
 %build
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make
@@ -162,10 +162,13 @@ rm -rf $RPM_BUILD_ROOT
 /bms/include/*.h
 
 %changelog
-* Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.12-1
+* Fri Apr  7 2017 Stuart Gathman <stuart@gathman.org> 2.12-2
+- Remove port.h from public interfaces
+
+* Wed Mar 29 2017 Stuart Gathman <stuart@gathman.org> 2.12-1
 - 64bit clean, builds and runs on CentOS-7
 
-* Thu Jul 12 2012 Stuart Gathman <stuart@bmsi.com> 2.11.6-2
+* Sat Mar  5 2016 Stuart Gathman <stuart@gathman.org> 2.11.6-2
 - Fix logrotate
 - Add BR: ncurses-devel
 

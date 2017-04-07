@@ -96,8 +96,8 @@ int packstr(char *,const char *,int);
 #define BYTE unsigned char
 void e2brec_begin(unsigned);
 int e2brec_conv(BYTE *,const BYTE *,int,int);
-unsigned e2brec(const BYTE *, const BYTE far *, unsigned, BTCB *, int);
-void b2erec(const BYTE *, BYTE far *, int, const char *, int);
+unsigned e2brec(const BYTE *, const BYTE *, unsigned, BTCB *, int);
+void b2erec(const BYTE *, BYTE *, int, const char *, int);
 extern BYTE e2brec_skip;
 #ifdef __cplusplus
 }
