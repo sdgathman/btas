@@ -341,12 +341,12 @@ static sql sql_pic(sql x) {
 
 static sql sql_fmttime(sql y,sql fmt) {
   int len;
-  long t;
+  time_t t;
   char *p;
   y = toconst(y,0);
   if (y->op != EXCONST)
     return y;
-  t = Mtol(&y->u.num.val);
+  t = (time_t)y->u.num.val.high << 16 + y->u.num.val.low;
   if (!t) return mkstring("");
   len = strlen(fmt->u.name[0]); 
   p = (char *)obstack_alloc(sqltree,len + 1);

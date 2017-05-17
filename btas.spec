@@ -1,7 +1,7 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 Version: 2.12
-Release: 2%{dist}
+Release: 3%{dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -162,6 +162,9 @@ rm -rf $RPM_BUILD_ROOT
 /bms/include/*.h
 
 %changelog
+* Wed May 17 2017 Stuart Gathman <stuart@gathman.org> 2.12-3
+- Fix 64bit problems in sql
+
 * Fri Apr  7 2017 Stuart Gathman <stuart@gathman.org> 2.12-2
 - Remove port.h from public interfaces
 

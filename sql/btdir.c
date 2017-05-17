@@ -207,14 +207,14 @@ static void DirField_print(Column *c,enum Column_type what,char *buf) {
     case dirPerm:
       sprintf(buf,"%10s",permstr(dir->st.id.mode)); break;
     case dirBlks: case dirRecs:
-      sprintf(buf,"%8ld",*(long *)this->buf); break;
+      sprintf(buf,"%8ld",*(int32_t *)this->buf); break;
     case dirUid: case dirGid:
     case dirLinks: case dirLocks:
       sprintf(buf,"%5d",*(short *)this->buf); break;
     case dirMode:
       sprintf(buf,"%5o",dir->st.id.mode); break;
     case dirMtime: case dirAtime: case dirCtime:
-      timemask(*(long *)this->buf,ftmask,buf);
+      timemask(*(int32_t *)this->buf,ftmask,buf);
       sprintf(buf,"%12.12s",buf);
       break;
     case dirRlen: case dirFlds:

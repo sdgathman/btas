@@ -291,7 +291,7 @@ static void Time_print(Column *c,enum Column_type type,char *buf) {
     divM(&tval,1000);
   else if (this->len == 4)
     tval.high &= 0xFFFFL;
-  t = Mtol(&tval);
+  t = (time_t)tval.high << 16 + tval.low;
   if (t && t != -1L) {
     const char *mask = this->fmt;
     int len;
