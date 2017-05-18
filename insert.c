@@ -66,7 +66,7 @@ bool BLOCK::insert(int idx,const char *rec,int len) {
     unsigned char buf[MAXKEY];
     i = size(idx+1);
     if (flags & BLK_STEM) i -= sizeof blk;
-    if (i > sizeof buf) i = sizeof buf;
+    if (i > (int)sizeof buf) i = sizeof buf;
     copy(idx+1,(char *)buf,i,dup);
     dup += blkcmp(buf+dup,(unsigned char *)rec+dup,i-dup);
     assert(dup == i || (unsigned char)rec[dup] > buf[dup]);

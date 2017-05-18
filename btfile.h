@@ -51,7 +51,7 @@ struct btfile: private bttrace {
   BLOCK *btfirst(BTCB *);		/* find first matching key */
   BLOCK *btlast(BTCB *);		/* find last matching key */
   BLOCK *verify(BTCB *);		/* verify cached location */
-  bttrace::trace;
+  using bttrace :: trace;
   int addrec(BTCB *);		/* add user record */
   void delrec(BTCB *, BLOCK *);	/* delete user record */
   void replace(BTCB *b,bool rew = false);

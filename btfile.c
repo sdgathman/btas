@@ -179,7 +179,7 @@ static int check_perm(btperm *st,btperm *ut,short mode) {
 #endif
 
 int btfile::openfile(BTCB *b,int stat) {
-  BLOCK *bp;
+  BLOCK *bp = 0;
   int len, rlen = b->rlen;
   char *p;
   btperm id;
@@ -265,7 +265,7 @@ int btfile::openfile(BTCB *b,int stat) {
     bp->buf.r.stat.opens = 0;			/* reset stale lock */
 
   if (stat) {
-    if (rlen < sizeof (struct btstat)) return BTERKLEN;
+    if (rlen < (int)sizeof (struct btstat)) return BTERKLEN;
     memcpy(b->lbuf,(PTR)&bp->buf.r.stat,sizeof (struct btstat));
     b->rlen = sizeof (struct btstat);
     return 0;
@@ -383,7 +383,7 @@ int btfile::delfile(BTCB *b,t_block root) {
 }
 
 t_block btfile::linkfile(BTCB *b) {
-  if (b->rlen > bufpool->maxrec - sizeof b->root) btpost(BTERKLEN);
+  if ((size_t)b->rlen > bufpool->maxrec - sizeof b->root) btpost(BTERKLEN);
 #if 0	// until . .. created in btserve, we still need to link 1L
   if (b->u.cache.node == 1L) {
     // prevent linking a filesystem root

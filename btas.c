@@ -91,7 +91,7 @@ extern "C" {
 int btserve::btas(BTCB *b,int opcode) {
   BLOCK *bp;
 
-  if ((unsigned)b->klen > b->rlen || (unsigned)b->rlen > bufpool->maxrec)
+  if ((b->klen & 0xFFFF) > b->rlen || (unsigned)b->rlen > bufpool->maxrec)
     return BTERKLEN;	/* invalid key or record length */
   if (b->klen > MAXKEY)
     b->klen = MAXKEY;	/* truncate long keys */
@@ -255,8 +255,8 @@ int btserve::btas(BTCB *b,int opcode) {
     if (b->klen)
       return engine->openfile(b,1);
     if (b->root) {
-      if (b->rlen >= sizeof (long)) {
-	if (b->rlen > sizeof (struct btstat))
+      if ((size_t)b->rlen >= sizeof (long)) {
+	if ((size_t)b->rlen > sizeof (struct btstat))
 	  b->rlen = sizeof (struct btstat);
 	btget(1);
 	bp = bufpool->btbuf(b->root);
@@ -269,7 +269,7 @@ int btserve::btas(BTCB *b,int opcode) {
     b->rlen = devtbl[b->mid].gethdr(b->lbuf,b->rlen);
     return 0;
   case BTTOUCH:
-    if (b->rlen >= sizeof (struct btstat)) {
+    if ((size_t)b->rlen >= sizeof (struct btstat)) {
       struct btstat st;
       btget(1);
       bp = bufpool->btbuf(b->root);
@@ -303,7 +303,7 @@ int btserve::btas(BTCB *b,int opcode) {
     return 0;
   /* BTUNLINK is done by setting b->flags at present */
   case BTPSTAT:
-    if (b->rlen >= sizeof bufpool->serverstats)
+    if ((size_t)b->rlen >= sizeof bufpool->serverstats)
       b->rlen = sizeof bufpool->serverstats;
     memcpy(b->lbuf,&bufpool->serverstats,b->rlen);
     return 0;

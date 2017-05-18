@@ -151,8 +151,8 @@ int BlockCache::flush() {		/* flush buffers to disk */
    @param psize	size in chars of buffer pool
  */
 BlockCache::BlockCache(int size,unsigned psize):
-  maxrec(BLOCK::maxrec(size)),
-  BufferPool(poolsize = psize / (nsize = offsetof(BLOCK,buf) + size))
+  BufferPool(poolsize = psize / (nsize = offsetof(BLOCK,buf) + size)),
+  maxrec(BLOCK::maxrec(size))
 {
   DEV::maxblksize = size;	/* save max block size */
   newcnt = 0;
@@ -186,7 +186,7 @@ BLOCK *BlockCache::btbuf(t_block blk) {
     btpost(BTERROOT);	/* invalid root error */
   if ((bp = btread(blk))->buf.r.root != root) {
 #if TRACE > 0
-    fprintf(stderr,"201: btbuf(%08lX), root = %08lX\n", blk, root);
+    fprintf(stderr,"201: btbuf(%08lX), root = %08lX\n", (long)blk, (long)root);
     bp->dump();
 #endif
 #if 0
@@ -224,7 +224,7 @@ BLOCK *BlockCache::btnew(short flag) {
 	if (dp->buf.r.root) {		/* verify that it's deleted */
 	  dev->free = 0; dev->space = 0;
 	  fprintf(stderr,"free root = %08lX, %08lX\n",
-		bp->buf.s.root,dp->buf.r.root);
+		(long)bp->buf.s.root,(long)dp->buf.r.root);
 	  btpost(BTERFREE);
 	}
 	dev->droot = bp->buf.s.root;	/* new droot */
@@ -305,7 +305,7 @@ int BlockCache::writebuf(BLOCK *bp) {
 #endif
   if (rc) {
     fprintf(stderr,"writebuf(mid=%d,blk=%08lX) returns %d\n",
-	bp->mid,bp->blk,rc);
+	bp->mid,(long)bp->blk,rc);
   }
   return rc;
 }

@@ -201,12 +201,12 @@ int BLOCK::replace(int idx,const char *rec,int len) {
 
 void BLOCK::dump() const {
   fprintf(stderr,"blk = %08lX, mid = %d, cnt = %d,%s%s%s%s%s\n",
-    blk, mid, cnt(),
+    (long)blk, mid, cnt(),
     (flags & BLK_MOD) ? " BLK_MOD" : "",
     (flags & BLK_TOUCH) ? " BLK_TOUCH" : "",
     (flags & BLK_ROOT) ? " BLK_ROOT" : "",
     (flags & BLK_STEM) ? " BLK_STEM" : "",
     (flags & BLK_CHK) ? " BLK_CHK" : ""
   );
-  fprintf(stderr,"root = %08lX, son/rbro = %08lX\n", buf.r.root, buf.r.son);
+  fprintf(stderr,"root = %08lX, son/rbro = %08lX\n", (long)buf.r.root, (long)buf.r.son);
 }

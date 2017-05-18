@@ -57,7 +57,7 @@ inline void bttrace::btfree(BLOCK *blk) { bufpool->btfree(blk); }
 */
 
 void bttrace::add(char *urec,int ulen) {
-  BLOCK *bp,*np,*dp,*ap;
+  BLOCK *bp,*np,*dp = 0,*ap;
   struct btlevel *savstk;
   short idx,i,limit,acnt,cnt;
   int rc;

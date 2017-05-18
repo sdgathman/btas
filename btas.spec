@@ -53,15 +53,18 @@ LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -e -C sql
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C fix
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C btbr
 
+%check
+sh test.sh
+
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
 cp -p btas.rc $RPM_BUILD_ROOT/etc/init.d/btas
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
 cp -p btas.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/btas
-mkdir -p $RPM_BUILD_ROOT/bms/etc
-cp -p btfstab $RPM_BUILD_ROOT/bms/etc
-mkdir -p $RPM_BUILD_ROOT/bms/etc/clrlock.d
+mkdir -p $RPM_BUILD_ROOT/etc/btas
+cp -p btfstab $RPM_BUILD_ROOT/etc/btas
+mkdir -p $RPM_BUILD_ROOT/etc/btas/clrlock.d
 mkdir -p $RPM_BUILD_ROOT/bms/bin
 cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
 chmod a+x *.sh
@@ -101,8 +104,7 @@ mkdir -p $RPM_BUILD_ROOT/var/log/btas
 chmod 0775 $RPM_BUILD_ROOT/var/log/btas
 chmod g+s $RPM_BUILD_ROOT/var/log/btas
 
-%clean
-rm -rf $RPM_BUILD_ROOT
+mkdir -p $RPM_BUILD_ROOT/var/lib/btas
 
 %pre
 /usr/sbin/useradd -u 711 -d /bms -M -c "BTAS/X File System" -g bms btas || true
@@ -116,8 +118,8 @@ rm -rf $RPM_BUILD_ROOT
 %dir /bms/bin
 %dir /var/log/btas
 /bms/bin/btstart
-%config(noreplace) /bms/etc/btfstab
-%dir /bms/etc/clrlock.d
+%config(noreplace) /etc/btas/btfstab
+%dir /etc/btas/clrlock.d
 %attr(0755,root,root)/etc/init.d/btas
 %attr(0644,root,root)/etc/logrotate.d/btas
 /usr/share/btas/btutil.help
@@ -164,6 +166,7 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 * Wed May 17 2017 Stuart Gathman <stuart@gathman.org> 2.12-3
 - Fix 64bit problems in sql
+- Add /var/lib/btas and use that as base for filesystems.
 
 * Fri Apr  7 2017 Stuart Gathman <stuart@gathman.org> 2.12-2
 - Remove port.h from public interfaces

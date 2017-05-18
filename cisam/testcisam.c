@@ -26,7 +26,7 @@ static const char ftbl[] = {
   0,3,BT_NUM,4,BT_NUM,2, BT_BIN, 26 ,BT_BIN,200,BT_BIN,204,BT_NUM,4
 };
 
-static long time_value;
+static time_t time_value;
 
 static void start_timer(const char *desc, int n) {
   time(&time_value);
@@ -34,7 +34,7 @@ static void start_timer(const char *desc, int n) {
 }
 
 static void stop_timer(long cnt) {
-  long elapsed;
+  time_t elapsed;
   time(&elapsed);
   elapsed -= time_value;
   printf("\t%ld elapsed seconds.\n",elapsed);

@@ -1,7 +1,8 @@
 #!/bin/sh
 export MONEY=NEW
 
-FSTAB="/bms/etc/btfstab$BTSERVE"
+FSTAB="/etc/btas/btfstab$BTSERVE"
+BASEDIR="/var/lib/btas"
 
 /bms/bin/btstat >/dev/null && {
  echo "Server $BTSERVE already running."
@@ -29,6 +30,7 @@ while read fs mnt tb back; do
   [ "$tb" -gt "$blksiz" ] && blksiz="$tb"
 done <"${FSTAB}"
 
+cd "$BASEDIR"
 /bms/bin/btserve -b "${blksiz}" -c "${cache}" "${rootfs}"
 
 while read fs mnt tb back; do
@@ -47,7 +49,7 @@ done <"${FSTAB}"
 
 # Clear lock files
 tmplock=/tmp/btstart.$$
-for locklist in $(ls /bms/etc/clrlock.d/*)
+for locklist in $(ls /etc/btas/clrlock.d/*)
 do
   cat $locklist | while read lockfile 
   do

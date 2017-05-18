@@ -1,6 +1,7 @@
 #!/bin/sh
 
 export BTSERVE=T
+export LD_LIBRARY_PATH=lib
 
 testBigExtent() {
   #startSkipping
