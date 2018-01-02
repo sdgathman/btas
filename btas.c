@@ -91,7 +91,7 @@ extern "C" {
 int btserve::btas(BTCB *b,int opcode) {
   BLOCK *bp;
 
-  if ((b->klen & 0xFFFF) > b->rlen || (unsigned)b->rlen > bufpool->maxrec)
+  if ((b->klen & 0xFFFF) > b->rlen || b->rlen > bufpool->maxrec)
     return BTERKLEN;	/* invalid key or record length */
   if (b->klen > MAXKEY)
     b->klen = MAXKEY;	/* truncate long keys */

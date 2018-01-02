@@ -44,7 +44,9 @@ int show(const char *name,const struct btstat *st) {
   return cancel;
 }
 
-GOTO usage() {
+static GOTO usage() NORETURN;
+
+static GOTO usage() {
   fputs("\
 Usage:	btdu [-asm] files $Revision$\n\
 	-a	show files also\n\

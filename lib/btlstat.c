@@ -21,6 +21,7 @@
 #include <btas.h>
 #include <bterr.h>
 #include <errenv.h>
+#include <unistd.h>
 
 /** Return information about file pointed to by symlink.
   @param btcb the BTCB to report

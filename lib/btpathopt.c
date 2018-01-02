@@ -29,7 +29,7 @@
  */
 int btpathopt(BTCB *b, char *name) {
   BTCB *t;
-  char path[MAXKEY], *p;
+  char path[MAXKEY];
   int rc = -1;
   if (strlen(name) >= sizeof path)
     return rc;

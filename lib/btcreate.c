@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errenv.h>
 #include <btflds.h>
+#include <sys/stat.h>
 
 #ifndef __MSDOS__
 #include <unistd.h>
@@ -68,7 +69,7 @@ int btcreate(const char *path,const struct btflds *fld,int mode) {
 
   catch(rc)
     b = btopendir(path,BTWRONLY);
-    /* b->lbuf[24] = 0;	/* enforce max filename length */
+    // b->lbuf[24] = 0;	/* enforce max filename length */
     /* copy fld to lbuf, compute rlen */
     b->rlen = stflds(fld,b->lbuf);
     b->u.id.user = geteuid();

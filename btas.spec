@@ -114,6 +114,7 @@ mkdir -p $RPM_BUILD_ROOT/var/lib/btas
 /sbin/chkconfig --add btas
 
 %files
+%license COPYING
 %defattr(-,btas,bms)
 %dir /bms/bin
 %dir /var/log/btas

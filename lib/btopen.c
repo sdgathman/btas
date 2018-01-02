@@ -29,6 +29,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errenv.h>
+#include <unistd.h>
 
 #ifdef __MSDOS__
 #define	geteuid()	0

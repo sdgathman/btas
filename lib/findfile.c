@@ -26,7 +26,8 @@ int findfirst(const char *name,struct btff *ff) {
   /* find filename portion */
   ff->s = name;
 
-  if (p = strrchr(ff->s,'/')) {
+  p = strrchr(ff->s,'/');
+  if (p) {
     ff->savdir = btgetdir();
     if (p == ff->s)
       ff->dir = "/";

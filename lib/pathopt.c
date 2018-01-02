@@ -28,9 +28,9 @@ char *pathopt(char *path,const char *p) {
   while (p) {
     int len;
     const char *w = p;
-    if (p = strchr(w,'/')) {
+    p = strchr(w,'/');
+    if (p)
       len = p++ - w;
-    }
     else
       len = strlen(w);
     memcpy(op,w,len);
@@ -39,7 +39,8 @@ char *pathopt(char *path,const char *p) {
       if (op > path + 1) {
 	char *q;
 	*--op = 0;
-	if (q = strrchr(path,'/'))
+	q = strrchr(path,'/');
+	if (q)
 	  ++q;
 	else
 	  q = path;

@@ -41,7 +41,7 @@ int match(const char *p,const char *pat) {
 	while (*p++);
       }
       else {
-	while (p = strchr(p,*pat)) {
+	while ((p = strchr(p,*pat))) {
 	  if (match(p++,pat)) return p - b;
 	}
       }
@@ -55,8 +55,8 @@ int match(const char *p,const char *pat) {
       }
       while (*pat) {
 	if (
-	  pat[1] == '-' && *pat++ <= *p && *p <= *++pat	/* range */
-	  || *p == *pat					/* single */
+	  (pat[1] == '-' && *pat++ <= *p && *p <= *++pat)	/* range */
+	  || *p == *pat						/* single */
 	) {
 	  if (inverse) return 0;
 	  inverse = 1;

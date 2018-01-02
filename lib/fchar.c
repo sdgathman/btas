@@ -17,21 +17,17 @@
 #include <ftype.h>
 #include <string.h>
 
-void ldchar(src,len,dst)
-  const char *src;
-  char *dst;
+void ldchar(const char *src,int len,char *dst)
 {
   while (len-- && src[len] == ' ');
   memcpy(dst,src,++len);
   dst[len] = 0;
 }
 
-int stchar(src,dst,len)
-  const char *src;
-  char *dst;
+int stchar(const char *src,char *dst,int len)
 {
   if (src)
     while (len && *src) *dst++ = *src++,len--;
-  memset(dst,' ',len);
+  if (len > 0) memset(dst,' ',len);
   return (*src) ? -1 : 0;
 }

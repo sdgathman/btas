@@ -200,7 +200,7 @@ void btfile::replace(BTCB *b,bool rewrite) {
   bufpool->newcnt = 0;
   /* convert user record to a directory record if required */
   if (b->flags & BT_DIR) {
-    if (b->rlen > bufpool->maxrec - sizeof (t_block))
+    if (b->rlen > bufpool->maxrec - (int)sizeof (t_block))
       b->rlen = bufpool->maxrec - sizeof (t_block);
     t_block root = bp->ldptr(sp->slot);
     b->rlen += stptr(root,b->lbuf + b->rlen);

@@ -14,6 +14,8 @@
     You should have received a copy of the GNU Lesser General Public License
     along with BTAS.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+#include <string.h>
 #include <money.h>
 
 /** Direct format a MONEY variable from file format input to output buffer.
@@ -30,7 +32,9 @@ MONEY *FpicM(p,m,b)
   const char *m;	/* mask */
   char *b;	/* buffer postion */
 { static MONEY jlsM;
-  jlsM = ldM(p);
+  FMONEY fp;
+  memcpy(fp,p,sizeof fp);
+  jlsM = ldM(fp);
   (void)pic(&jlsM,m,b);
   return &jlsM;
 }

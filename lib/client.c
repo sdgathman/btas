@@ -22,6 +22,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define HDRSIZE(b)	(sizeof *b - sizeof b->lbuf - sizeof b->msgident)
 static int btasreq = -1;	/* BTAS/2 request queue */

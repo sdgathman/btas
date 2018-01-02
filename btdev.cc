@@ -86,7 +86,7 @@ int DEV::read(t_block blk,char *buf) {
   while (lseek64(fd,blk_pos(blk),0) == -1
     || (rc = ::_read(fd,buf,blksize)) != blksize) {
 #if 1 //TRACE > 0
-    fprintf(stderr,"%d: btread(%08lx), fd=%d, rc=%d\n", errno, blk, fd, rc);
+    fprintf(stderr,"%d: btread(%08lx), fd=%d, rc=%d\n", errno, (long)blk, fd, rc);
 #endif
     if (!retry--)
       return errno;
@@ -138,7 +138,7 @@ int DEV::chkspace(int needed,bool safe_eof) {	/* check available space */
       if (!safe_eof) return 0;	// expandable with no checking
       needed -= space + newspace;	/* additional blocks to reserve */
       for (t_block blk = p->d.eod + newspace; needed; --needed) {
-	if (dcnt > 1 && blk >= MAXBLK || blk >= maxblk) {
+	if ((dcnt > 1 && blk >= MAXBLK) || blk >= maxblk) {
 	  p->d.eof = blk;
 	  space += blk - p->d.eod;
 	  return BTERFULL;
@@ -214,8 +214,8 @@ int DEV::open(const char *name,bool rdonly) {
   else if (u.d.hdr.mcnt && u.d.hdr.server != index)
     rc = BTERBUSY;
   else if (u.d.hdr.baseid < extcnt
-	&& extbl[u.d.hdr.baseid].dev->isopen()
-	&& u.d.hdr.mount_time == extbl[u.d.hdr.baseid].dev->mount_time) {
+	&& extbl[(int)u.d.hdr.baseid].dev->isopen()
+	&& u.d.hdr.mount_time == extbl[(int)u.d.hdr.baseid].dev->mount_time) {
     rc = BTEROPEN;
   }
 
@@ -325,7 +325,7 @@ int DEV::close() {
   }
   for (i = baseid + dcnt; i < extcnt; ++i) {
     DEV *m = extbl[i].dev;
-    extbl[baseid] = extbl[i];        /* compress extent table */
+    extbl[(int)baseid] = extbl[i];        /* compress extent table */
     if (m->baseid == i)
       m->baseid = baseid;
     ++baseid;

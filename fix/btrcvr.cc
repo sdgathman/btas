@@ -282,6 +282,7 @@ static char *fsname(int mid) {
   return name;
 }
 
+static GOTO usage() NORETURN;
 static GOTO usage() {
   puts("\
 Usage:	btrcvr [-t] [file]\n\

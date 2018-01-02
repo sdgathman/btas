@@ -226,7 +226,7 @@ Usage:	btserve [-b blksize] [-c cachesize] [-d] [-e] [-f] [filesys ...]\n\
     do
         cache += 50000L;
     while (!BlockCache::ok(block,cache));
-    fprintf(stderr,"Cache size increased to %ld.\n",cache);
+    fprintf(stderr,"Cache size increased to %u.\n",cache);
   }
   {
   const char *s = getenv("BTSERVE");
@@ -313,7 +313,7 @@ Usage:	btserve [-b blksize] [-c cachesize] [-d] [-e] [-f] [filesys ...]\n\
     rc = reqp->op = server.btas(reqp,op);	/* execute request */
 
     /* add allowed trap flags to error code */
-    if (reqp->op >= 200 && reqp->op < sizeof btflags + 200)
+    if (reqp->op >= 200 && reqp->op < (int)sizeof btflags + 200)
       reqp->op |= btflags[reqp->op - 200] << 8;
 
     int len = sizeof *reqp - sizeof reqp->msgident - sizeof reqp->lbuf;
@@ -335,7 +335,7 @@ Usage:	btserve [-b blksize] [-c cachesize] [-d] [-e] [-f] [filesys ...]\n\
 	fprintf(stderr,
 	  "%sBTCB:\tpid=%ld root=%08lX mid=%d flgs=%04X rc=%d op=%d\n",
 	  ctime(&btserve::curtime),
-	  reqp->msgident,reqp->root,reqp->mid,reqp->flags,reqp->op,op
+	  reqp->msgident,(long)reqp->root,reqp->mid,reqp->flags,reqp->op,op
 	);
 	n = server.getmaxrec();
 	fprintf(stderr,"\tklen = %d rlen = %d, maxrec=%d\n",

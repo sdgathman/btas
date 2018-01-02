@@ -32,9 +32,9 @@ char signmethod() {
   char *s = getenv("MONEY");
   if (s) {
     switch (*s) {
-    case 'O': case 'C':		/* OLD / COMPAT */
+    case 'O': case 'o': case 'C': case 'c':		/* OLD / COMPAT */
       return SBIT;		/* invert sign bit for sorting */
-    case 'N':
+    case 'N': case 'n':
       return 0;
     }
   }
@@ -43,8 +43,7 @@ char signmethod() {
 
 static char sbit = 1;
 
-MONEY ldM(p)   /* convert from file format to machine MONEY */
-  FMONEY p;
+MONEY ldM(FMONEY p)   /* convert from file format to machine MONEY */
 {
   MONEY temp;
   if (sbit == 1) sbit = signmethod();
@@ -55,8 +54,7 @@ MONEY ldM(p)   /* convert from file format to machine MONEY */
   return temp;
 }
 
-char *stM(v,p)	/* convert MONEY from memory to file format */
-  MONEY v; FMONEY p;  /* send MONEY to postion p */
+char *stM(MONEY v,FMONEY p)	/* convert MONEY from memory to file format */
 {
   if (sbit == 1) sbit = signmethod();
   stlong(v.high,p);
