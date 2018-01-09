@@ -28,7 +28,6 @@
 */
 #include <bttype.h>
 
-enum { MAXMNT = 26 };
 
 struct DEV: btfhdr {
   DEV();

@@ -21,6 +21,7 @@
 #include <sys/types.h>
 enum {
   MAXDEV    = 20,	/* max extents in a filesystem */
+  MAXMNT    = 26,	/* max mounts */
   BLKSIZE   = 1024,	/* default block size */
   MAXREC    = 502,	/* (BLKSIZE - sizeof(struct stem))/2 - sizeof(short) */
   MAXKEY    = 256	/* maximum key size */

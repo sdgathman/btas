@@ -111,7 +111,7 @@ int fsstat() {		/* report status of mounted file systems */
     stat1(*s - 'A');
     return 0;
   }
-  for (d = 0; d < MAXDEV; ++d)
+  for (d = 0; d < MAXMNT; ++d)
     stat1(d);
   return 0;
 }
