@@ -4,7 +4,7 @@ export MONEY=NEW
 FSTAB="/etc/btas/btfstab$BTSERVE"
 BASEDIR="/var/lib/btas"
 
-/bms/bin/btstat >/dev/null && {
+/usr/libexec/btas/btstat >/dev/null && {
  echo "Server $BTSERVE already running."
  exit 1
 }
@@ -31,7 +31,7 @@ while read fs mnt tb back; do
 done <"${FSTAB}"
 
 cd "$BASEDIR"
-/bms/bin/btserve -b "${blksiz}" -c "${cache}" "${rootfs}"
+/usr/libexec/btas/btserve -b "${blksiz}" -c "${cache}" "${rootfs}"
 
 while read fs mnt tb back; do
   case "$fs" in
@@ -41,11 +41,11 @@ while read fs mnt tb back; do
   "cache")	continue;;
   "/")		continue;;
   esac
-  /bms/bin/btutil "mo $fs $mnt"
+  /usr/libexec/btas/btutil "mo $fs $mnt"
 done <"${FSTAB}"
 
 # Log current state
-/bms/bin/btutil df
+/usr/libexec/btas/btutil df
 
 # Clear lock files
 tmplock=/tmp/btstart.$$
@@ -55,7 +55,7 @@ do
   do
     case "$lockfile" in
     *LOCK*) # Sanity check - only clear files with LOCK in their name
-      /bms/bin/btutil "du $lockfile" >$tmplock
+      /usr/libexec/btas/btutil "du $lockfile" >$tmplock
       if test -s $tmplock
       then
         if fgrep -q 'Fatal error 212' $tmplock
@@ -64,7 +64,7 @@ do
         else
           echo "Clearing $lockfile"
           cat $tmplock
-          /bms/bin/btutil "di $lockfile" "cl $lockfile"
+          /usr/libexec/btas/btutil "di $lockfile" "cl $lockfile"
         fi
       fi
       ;;
