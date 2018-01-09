@@ -51,7 +51,7 @@ struct DEV: btfhdr {
   static unsigned short maxblksize;
   static char index;	// server index
   virtual ~DEV();
-  enum { SECT_SIZE = 512, MAXEXT = MAXMNT*2, MAXBLK = 0xFFFFFF };
+  enum { SECT_SIZE = 512, MAXEXT = MAXMNT+MAXDEV, MAXBLK = 0xFFFFFF };
 protected:
   int superoffset;	// offset in bytes of super block
   extent &ext(int i) const;
