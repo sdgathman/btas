@@ -1,0 +1,16 @@
+[Unit]
+Description=btas - database filesystem server
+After=syslog.target
+
+[Service]
+Type=forking
+ExecStart=/usr/libexec/btas/btstart
+ExecStop=/usr/libexec/btas/btstop
+WorkingDirectory=/var/lib/btas
+User=btas
+Group=bms
+ProtectSystem=true
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
