@@ -10,10 +10,10 @@ testBigExtent() {
   # filesystem near 0xFFFFFF block limit
   assertTrue "btinit" "./btinit -f -b 2048 -e 16777210 test.bt"
   assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>test.log"
-  assertTrue "btutil 'cr tmp'"
+  assertTrue "util/btutil 'cr tmp'"
   assertTrue "testcisam" "cisam/testcisam >>test.log 2>&1"
   assertTrue "testlib" "lib/testlib >>test.log 2>&1"
-  assertTrue "btsync" "btutil sy"
+  assertTrue "btsync" "util/btutil sy"
   assertTrue "btstop" "./btstop"
   # now see if btfs can be opened again
   assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>>test.log"
@@ -30,11 +30,12 @@ testMountLimit() {
     cp test.bt test$i.bt
   done
   assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>test.log"
+  export BTASDIR=/
   for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21; do
-    assertTrue "btutil 'cr mnt$i'"
-    assertTrue "btutil 'mo test$i.bt /mnt$i'"
+    assertTrue "btutil cr mnt$i" "util/btutil 'cr mnt$i'"
+    assertTrue "btutil mo test$i.bt /mnt$i" "util/btutil 'mo test$i.bt /mnt$i'"
   done
-  assertTrue "btutil df>>test.log"
+  assertTrue "util/btutil df>>test.log"
   lastline=`tail -1 test.log`
   assertEquals "mount failed: $lastline" "test21.bt 16777211 used" "$lastline"
   assertTrue "btstop" "./btstop"
@@ -61,3 +62,5 @@ testFSLimit() {
 }
 
 . ./shunit2
+
+test "${__shunit_testsFailed}" -eq 0 || exit 1

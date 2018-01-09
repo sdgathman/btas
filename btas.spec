@@ -1,16 +1,30 @@
+%if 0%{?rhel} >= 5 && 0%{?rhel} < 7
+%global use_systemd 0
+%else
+%global use_systemd 1
+%endif
+
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-Version: 2.12
-Release: 3%{dist}
+Version: 2.13
+Release: 2%{dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-Patch: btas-port.patch
+#Patch: btas-port.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libstdc++-devel, gcc-c++, check-devel
 BuildRequires: bison, ncurses-devel
 # needed to build until libbms references purged
 BuildRequires: libbms-devel >= 1.1.7
+%if %{use_systemd}
+# systemd macros are not defined unless systemd is present
+BuildRequires: systemd
+%{?systemd_requires}
+%else
+Requires: chkconfig, daemonize
+%endif
+Requires: logrotate
 # needed to build btdb
 #BuildRequires: libb++-devel
 # workaround for libb++ bug in lib/client.c 
@@ -35,7 +49,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
-%patch -p1 -b .port
+#patch -p1 -b .port
 
 %build
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make
@@ -58,46 +72,47 @@ sh test.sh
 
 %install
 rm -rf $RPM_BUILD_ROOT
+%if %{use_systemd}
+mkdir -p $RPM_BUILD_ROOT%{_unitdir}
+cp -p *.service $RPM_BUILD_ROOT%{_unitdir}
+%else
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
 cp -p btas.rc $RPM_BUILD_ROOT/etc/init.d/btas
+%endif
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
 cp -p btas.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/btas
 mkdir -p $RPM_BUILD_ROOT/etc/btas
 cp -p btfstab $RPM_BUILD_ROOT/etc/btas
 mkdir -p $RPM_BUILD_ROOT/etc/btas/clrlock.d
-mkdir -p $RPM_BUILD_ROOT/bms/bin
-cp btserve btstop btstat btinit $RPM_BUILD_ROOT/bms/bin
+BIN="%{_libexecdir}/btas"
+mkdir -p $RPM_BUILD_ROOT/$BIN
+cp btserve btstop btstat btinit $RPM_BUILD_ROOT/$BIN
 chmod a+x *.sh
-cp -p btstart.sh $RPM_BUILD_ROOT/bms/bin/btstart
-cp -p btbackup.sh $RPM_BUILD_ROOT/bms/bin/btbackup
+cp -p btstart.sh $RPM_BUILD_ROOT/$BIN/btstart
+cp -p btbackup.sh $RPM_BUILD_ROOT/$BIN/btbackup
 cp fix/btsave fix/btddir fix/btreload fix/btfree fix/btrcvr fix/btrest \
-	$RPM_BUILD_ROOT/bms/bin
+	$RPM_BUILD_ROOT/$BIN
 cp util/btutil util/btpwd util/btar util/btdu util/btfreeze \
-	$RPM_BUILD_ROOT/bms/bin
-cp util/btinit $RPM_BUILD_ROOT/bms/bin/btinitx
-mkdir -p $RPM_BUILD_ROOT/bms/lib
-cp lib/libbtas.a $RPM_BUILD_ROOT/bms/lib
-cp lib/libbtas.so $RPM_BUILD_ROOT/bms/lib
-mkdir -p $RPM_BUILD_ROOT/bms/include
-cp include/[a-z]*.h cisam/isreq.h $RPM_BUILD_ROOT/bms/include
+	$RPM_BUILD_ROOT/$BIN
+cp util/btinit $RPM_BUILD_ROOT/$BIN/btinitx
+mkdir -p $RPM_BUILD_ROOT%{_libdir}
+cp lib/libbtas.a $RPM_BUILD_ROOT%{_libdir}
+cp lib/libbtas.so $RPM_BUILD_ROOT%{_libdir}
+mkdir -p $RPM_BUILD_ROOT%{_includedir}/btas
+cp include/[a-z]*.h cisam/isreq.h $RPM_BUILD_ROOT%{_includedir}/btas
 mkdir -p $RPM_BUILD_ROOT/bms/fbin
 cp util/btcd.sh $RPM_BUILD_ROOT/bms/fbin/btcd
 mkdir -p $RPM_BUILD_ROOT/usr/share/btas
 cp util/btutil.help $RPM_BUILD_ROOT/usr/share/btas
-cp sql/btl.sh $RPM_BUILD_ROOT/bms/bin/btl
-cp sql/btlc.sh $RPM_BUILD_ROOT/bms/bin/btlc
-cp sql/btlx.sh $RPM_BUILD_ROOT/bms/bin/btlx
-cp sql/sql $RPM_BUILD_ROOT/bms/bin
+cp sql/btl.sh $RPM_BUILD_ROOT/$BIN/btl
+cp sql/btlc.sh $RPM_BUILD_ROOT/$BIN/btlc
+cp sql/btlx.sh $RPM_BUILD_ROOT/$BIN/btlx
+cp sql/sql $RPM_BUILD_ROOT/$BIN
 cp cisam/istrace cisam/isserve cisam/bcheck cisam/addindex cisam/indexinfo \
-	$RPM_BUILD_ROOT/bms/bin
-cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/bms/bin
+	$RPM_BUILD_ROOT/$BIN
+cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/$BIN
 
-{ cd $RPM_BUILD_ROOT/bms/bin
-  strip btserve btinit btstop || true
-  strip btsave btddir btreload btfree btrcvr btrest || true
-  strip btutil btar btdu btpwd sql || true
-  strip btbr btflded || true
-  strip istrace isserve bcheck || true
+{ cd $RPM_BUILD_ROOT/$BIN
   ln addindex delindex
 }
 mkdir -p $RPM_BUILD_ROOT/var/log/btas
@@ -107,64 +122,101 @@ chmod g+s $RPM_BUILD_ROOT/var/log/btas
 mkdir -p $RPM_BUILD_ROOT/var/lib/btas
 
 %pre
-/usr/sbin/useradd -u 711 -d /bms -M -c "BTAS/X File System" -g bms btas || true
+getent group bms > /dev/null || /usr/sbin/groupadd -r -g 101 bms 
+getent passwd btas > /dev/null || /usr/sbin/useradd -g bms \
+        -c "BTAS/X Database filesystem" \
+        -r -d %{_sharedstatedir}/btas -s /sbin/nologin btas
+exit 0
+
+%if %{use_systemd}
+
+%post
+/sbin/ldconfig
+%systemd_post acme-tiny.service acme-tiny.timer
+
+%postun
+%systemd_postun_with_restart acme-tiny.service acme-tiny.timer
+
+%preun
+%systemd_preun acme-tiny.service acme-tiny.timer
+
+%else
 
 %post
 /sbin/ldconfig
 /sbin/chkconfig --add btas
 
+%preun
+if [ $1 = 0 ]; then
+  /sbin/chkconfig --del btas
+fi
+
+%endif
+
 %files
 %license COPYING
 %defattr(-,btas,bms)
-%dir /bms/bin
 %dir /var/log/btas
-/bms/bin/btstart
 %config(noreplace) /etc/btas/btfstab
 %dir /etc/btas/clrlock.d
+%attr(0755,btas,bms) %{_sharedstatedir}/btas
+%if %{use_systemd}
+%{_unitdir}/*
+%else
 %attr(0755,root,root)/etc/init.d/btas
+%endif
 %attr(0644,root,root)/etc/logrotate.d/btas
 /usr/share/btas/btutil.help
-/bms/bin/btbackup
-/bms/bin/btar
-/bms/bin/btddir
-/bms/bin/btdu
-/bms/bin/btfree
-/bms/bin/btinit
-/bms/bin/btpwd
-/bms/bin/btreload
-/bms/bin/btrcvr
-%attr(6755,btas,bms)/bms/bin/btserve
-%attr(6755,btas,bms)/bms/bin/btstop
-%attr(6755,btas,bms)/bms/bin/btstat
-%attr(2755,btas,bms)/bms/bin/btutil
-/bms/bin/btsave
-/bms/bin/btrest
-%attr(2755,btas,bms)/bms/bin/sql
-/bms/bin/btl
-/bms/bin/btlc
-/bms/bin/btlx
-/bms/bin/bcheck
-/bms/bin/addindex
-/bms/bin/delindex
-/bms/bin/istrace
-/bms/bin/indexinfo
-/bms/bin/btbr
-/bms/bin/btinitx
-/bms/bin/btfreeze
-/bms/bin/btflded
-/bms/bin/btflded.scr
-%attr(2755,btas,bms)/bms/bin/isserve
-%dir /bms/lib
-/bms/lib/libbtas.so
+%{_libexecdir}/btas
+%attr(6755,btas,bms)%{_libexecdir}/btas/btserve
+%attr(6755,btas,bms)%{_libexecdir}/btas/btstop
+%attr(6755,btas,bms)%{_libexecdir}/btas/btstat
+%attr(2755,btas,bms)%{_libexecdir}/btas/btutil
+%attr(2755,btas,bms)%{_libexecdir}/btas/sql
+%attr(2755,btas,bms)%{_libexecdir}/btas/isserve
+#/bms/bin/btstart
+#/bms/bin/btbackup
+#/bms/bin/btar
+#/bms/bin/btddir
+#/bms/bin/btdu
+#/bms/bin/btfree
+#/bms/bin/btinit
+#/bms/bin/btpwd
+#/bms/bin/btreload
+#/bms/bin/btrcvr
+#/bms/bin/btsave
+#/bms/bin/btrest
+#/bms/bin/btl
+#/bms/bin/btlc
+#/bms/bin/btlx
+#/bms/bin/bcheck
+#/bms/bin/addindex
+#/bms/bin/delindex
+#/bms/bin/istrace
+#/bms/bin/indexinfo
+#/bms/bin/btbr
+#/bms/bin/btinitx
+#/bms/bin/btfreeze
+#/bms/bin/btflded
+#/bms/bin/btflded.scr
+%{_libdir}/libbtas.so
 %dir /bms/fbin
 /bms/fbin/btcd
 
 %files devel
 %defattr(-,btas,bms)
-/bms/lib/libbtas.a
-/bms/include/*.h
+%{_libdir}/libbtas.a
+%{_includedir}/btas/*.h
 
 %changelog
+* Mon Jan  8 2018 Stuart Gathman <stuart@gathman.org> 2.13-2
+- Move executables to %%{_libexecdir}/btas
+- Add systemd service
+
+* Tue Jan  2 2018 Stuart Gathman <stuart@gathman.org> 2.13-1
+- Move libraries to %%{_libdir}
+- Move headers to %%{_includedir}/btas
+
 * Wed May 17 2017 Stuart Gathman <stuart@gathman.org> 2.12-3
 - Fix 64bit problems in sql
 - Add /var/lib/btas and use that as base for filesystems.
