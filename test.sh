@@ -29,14 +29,14 @@ testMountLimit() {
   for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21; do
     cp test.bt test$i.bt
   done
-  assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>test.log"
+  assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>>test.log"
   export BTASDIR=/
   for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21; do
     assertTrue "btutil cr mnt$i" "util/btutil 'cr mnt$i'"
     assertTrue "btutil mo test$i.bt /mnt$i" "util/btutil 'mo test$i.bt /mnt$i'"
   done
   assertTrue "util/btutil df>>test.log"
-  lastline=`tail -1 test.log`
+  lastline=`tail -1 test.log | xargs`
   assertEquals "mount failed: $lastline" "test21.bt 16777211 used" "$lastline"
   assertTrue "btstop" "./btstop"
   for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21; do
@@ -49,7 +49,7 @@ testFSLimit() {
   rm -f test.bt
   # filesystem near 2048 GiB ext3 filesystem limit
   assertTrue "btinit" "./btinit -f -b 2048 -e 1073741810 test.bt"
-  assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>test.log"
+  assertTrue "Server startup failed" "./btserve -b 2048 test.bt 2>>test.log"
   assertTrue "btutil 'cr tmp'" 
   assertTrue "testcisam" "cisam/testcisam 2>>test.log"
   assertTrue "btsync" "btutil sy"
