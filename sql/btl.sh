@@ -76,7 +76,7 @@ if [ $# -gt 0 ] ; then
   done
 fi
 
-sql $SQLFLGS <<EOF
+/usr/libexec/btas/sql $SQLFLGS <<EOF
 $H
 $SELECT from ""
 where name like $WILD

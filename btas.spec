@@ -7,11 +7,11 @@
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
 Version: 2.13
-Release: 2%{dist}
+Release: 3%{?dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-#Patch: btas-port.patch
+Patch: btas-btcd.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libstdc++-devel, gcc-c++, check-devel
 BuildRequires: bison, ncurses-devel
@@ -49,7 +49,7 @@ Headers and libraries needed to develop BTAS applications.
 
 %prep
 %setup -q
-#patch -p1 -b .port
+%patch -p1 -b .btcd
 
 %build
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make
@@ -100,8 +100,8 @@ cp lib/libbtas.a $RPM_BUILD_ROOT%{_libdir}
 cp lib/libbtas.so $RPM_BUILD_ROOT%{_libdir}
 mkdir -p $RPM_BUILD_ROOT%{_includedir}/btas
 cp include/[a-z]*.h cisam/isreq.h $RPM_BUILD_ROOT%{_includedir}/btas
-mkdir -p $RPM_BUILD_ROOT/bms/fbin
-cp util/btcd.sh $RPM_BUILD_ROOT/bms/fbin/btcd
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/profile.d
+cp util/btcd.sh $RPM_BUILD_ROOT%{_sysconfdir}/profile.d
 mkdir -p $RPM_BUILD_ROOT/usr/share/btas
 cp util/btutil.help $RPM_BUILD_ROOT/usr/share/btas
 cp sql/btl.sh $RPM_BUILD_ROOT/$BIN/btl
@@ -118,8 +118,14 @@ cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/$BIN
 mkdir -p $RPM_BUILD_ROOT/var/log/btas
 chmod 0775 $RPM_BUILD_ROOT/var/log/btas
 chmod g+s $RPM_BUILD_ROOT/var/log/btas
+mkdir -p $RPM_BUILD_ROOT%{_sharedstatedir}/btas
 
-mkdir -p $RPM_BUILD_ROOT/var/lib/btas
+mkdir -p $RPM_BUILD_ROOT%{_bindir}
+ln -sf %{_libexecdir}/btas/btpwd $RPM_BUILD_ROOT%{_bindir}
+ln -sf %{_libexecdir}/btas/btutil $RPM_BUILD_ROOT%{_bindir}
+ln -sf %{_libexecdir}/btas/btlc $RPM_BUILD_ROOT%{_bindir}
+ln -sf %{_libexecdir}/btas/btl $RPM_BUILD_ROOT%{_bindir}
+ln -sf %{_libexecdir}/btas/sql $RPM_BUILD_ROOT%{_bindir}/btsql
 
 %pre
 getent group bms > /dev/null || /usr/sbin/groupadd -r -g 101 bms 
@@ -174,6 +180,9 @@ fi
 %attr(2755,btas,bms)%{_libexecdir}/btas/btutil
 %attr(2755,btas,bms)%{_libexecdir}/btas/sql
 %attr(2755,btas,bms)%{_libexecdir}/btas/isserve
+%attr(2755,btas,bms)%{_libexecdir}/btas/btpwd
+%attr(2755,btas,bms)%{_libexecdir}/btas/btbr
+%{_bindir}/*
 #/bms/bin/btstart
 #/bms/bin/btbackup
 #/bms/bin/btar
@@ -186,8 +195,6 @@ fi
 #/bms/bin/btrcvr
 #/bms/bin/btsave
 #/bms/bin/btrest
-#/bms/bin/btl
-#/bms/bin/btlc
 #/bms/bin/btlx
 #/bms/bin/bcheck
 #/bms/bin/addindex
@@ -200,8 +207,7 @@ fi
 #/bms/bin/btflded
 #/bms/bin/btflded.scr
 %{_libdir}/libbtas.so
-%dir /bms/fbin
-/bms/fbin/btcd
+%{_sysconfdir}/profile.d/btcd.sh
 
 %files devel
 %defattr(-,btas,bms)
@@ -209,6 +215,11 @@ fi
 %{_includedir}/btas/*.h
 
 %changelog
+* Sat Sep  1 2018 Stuart Gathman <stuart@gathman.org> 2.13-3
+- put btcd in /etc/profile.d
+- add sgid to btpwd
+- Add some symlinks in /usr/bin
+
 * Mon Jan  8 2018 Stuart Gathman <stuart@gathman.org> 2.13-2
 - Move executables to %%{_libexecdir}/btas
 - Add systemd service
