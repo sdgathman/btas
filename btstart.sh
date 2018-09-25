@@ -49,7 +49,7 @@ done <"${FSTAB}"
 
 # Clear lock files
 tmplock=/tmp/btstart.$$
-for locklist in $(ls /etc/btas/clrlock.d/*)
+for locklist in $(ls /etc/btas/clrlock.d/)
 do
   cat $locklist | while read lockfile 
   do

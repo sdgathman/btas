@@ -26,6 +26,6 @@
 /* 2.11+ See btas.spec */
 #include "btbuf.h"
 const char version[] = "\
-BTAS/X v2.11, Copyright 1985-2013 Business Management Systems, Inc.\n\
+BTAS/X v2.13, Copyright 1985-2018 Business Management Systems, Inc.\n\
 ";
-const int version_num = 211;
+const int version_num = 213;
