@@ -6,8 +6,8 @@
 
 Summary: The BMS BTree Access filesystem (BTAS)
 Name: btas
-Version: 2.13
-Release: 3%{?dist}
+Version: 2.14
+Release: 1%{?dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
@@ -16,7 +16,7 @@ BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libstdc++-devel, gcc-c++, check-devel
 BuildRequires: bison, ncurses-devel
 # needed to build until libbms references purged
-BuildRequires: libbms-devel >= 1.1.7
+#BuildRequires: libbms-devel >= 1.1.7
 %if %{use_systemd}
 # systemd macros are not defined unless systemd is present
 BuildRequires: systemd
@@ -215,6 +215,9 @@ fi
 %{_includedir}/btas/*.h
 
 %changelog
+* Mon Dec 30 2019 Stuart Gathman <stuart@gathman.org> 2.14-1
+- eliminate libbms dependency
+
 * Sat Sep  1 2018 Stuart Gathman <stuart@gathman.org> 2.13-3
 - put btcd in /etc/profile.d
 - add sgid to btpwd

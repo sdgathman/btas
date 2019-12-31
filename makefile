@@ -1,4 +1,4 @@
-VERS = btas-2.13
+VERS = btas-2.14
 TAG = $(VERS)
 
 OBJS =	btree.o btbuf.o node.o find.o insert.o btas.o hash.o version.o	\
