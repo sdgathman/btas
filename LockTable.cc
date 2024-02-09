@@ -74,10 +74,10 @@ LockEntry::LockEntry(const LockEntry &r): key(r.key) /*,ident(r.ident) */ {
 
 string LockEntry::toString() const {
   char *buf = (char *)alloca(80 + key.length() * 3);
-  sprintf(buf,"pid=%ld root=%lX mid=%d key=%u,",
-    (long)pid,(long)root,mid,key.length());
+  sprintf(buf,"pid=%ld root=%lX mid=%d key=%lu,",
+    (long)pid,(long)root,mid,(unsigned long)key.length());
   int len = strlen(buf);
-  for (int i = 0; i < key.length(); ++i) {
+  for (unsigned int i = 0; i < key.length(); ++i) {
     sprintf(buf+len," %02X",key[i]);
     len += strlen(buf + len);
   }

@@ -3,8 +3,8 @@ import Cisam
 dd = Cisam.DataDict('/edx')
 dd.open()
 try:
-  print dd.rec.gethdr()
+  print(dd.rec.gethdr())
   for r in dd.getrows():
-    print r
+    print(r)
 finally:
   dd.close()

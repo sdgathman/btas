@@ -34,10 +34,6 @@
 #ifdef __MSDOS__
 #define	geteuid()	0
 #define	getegid()	0
-#else
-#ifndef lint
-static char what[] = "%W%";
-#endif
 #endif
 
 #include <btas.h>
@@ -133,7 +129,7 @@ int btopenf(BTCB *b,const char *name,int mode,int rlen) {
     strcpy(b->lbuf + len,name);
     b->klen = len = strlen(b->lbuf);
     /* set path seperator to null for kernel */
-    for (dirname = b->lbuf; dirname = strchr(dirname,'/'); *dirname++ = 0);
+    for (dirname = b->lbuf; (dirname = strchr(dirname,'/')); *dirname++ = 0);
     b->rlen = rlen;
     catch(rc)
       rc = btas(b,BTOPEN+(mode&(BTERR|BTEXCL)));

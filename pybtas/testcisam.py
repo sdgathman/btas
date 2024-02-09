@@ -18,7 +18,7 @@ class CisamTestCase(unittest.TestCase):
     r = Cisam.Record(flds,fd.recbuf)
     try:
       fd.read(ISFIRST)
-      #print r.menu,r.opt
+      #print(r.menu,r.opt)
     finally:
       fd.close()
 

@@ -21,6 +21,10 @@
 	
 #include <btas.h>
 #include <bterr.h>
+#include <errenv.h>
+
+extern void semlock(int id,int op); /* code in libbms/semlock.c */
+
 /** Acquire a voluntary exclusive lock on a btas file.  
  <p>
 	Although there is a server operation to do this, it is more efficient
@@ -43,10 +47,10 @@ int btlock(b,op)
       if (op) return BTERLOCK;
       errpost(BTERLOCK);
     }
-    b->flags += (~BT_LOCK+1 & BT_LOCK);
-    return;
+    b->flags += ((~BT_LOCK+1) & BT_LOCK);
+    return 0;
   }
-  b->flags += (~BT_LOCK+1 & BT_LOCK);
+  b->flags += ((~BT_LOCK+1) & BT_LOCK);
   /* I can't think of a legitimate reason to "busy wait"
      If you really need it, the semlock interface will
      need a "test and set" option.  For now, we always succeed. */

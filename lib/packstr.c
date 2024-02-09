@@ -52,7 +52,8 @@ int packstr(dst,ubuf,len)
     }
 
     nblen = blkfntl(ubuf+flen,' ',flen);
-    if (cp = memccpy(buf,ubuf,0,nblen)) {
+    cp = memccpy(buf,ubuf,0,nblen);
+    if (cp) {
       nblen = cp - buf - 1;
       buf = cp;	/* stopped at null terminator */
     }

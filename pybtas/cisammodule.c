@@ -26,6 +26,11 @@
 #include <btflds.h>
 #include <Python.h>
 #include <structmember.h>
+#ifdef Py_READONLY
+#define RO Py_READONLY
+#else
+#define RO READONLY
+#endif
 
 static PyObject *CisamError;
 static PyTypeObject cisam_Type;
@@ -241,12 +246,20 @@ static int convertKeydesc(PyObject *kd,void *p) {
   if (PySequence_Fast_GET_SIZE(t) >= 2) {
     PyObject *flg = PySequence_Fast_GET_ITEM(t,0);
     PyObject *kpart = PySequence_Fast_GET_ITEM(t,1);
+#if PY_MAJOR_VERSION >= 3
+    if (PyLong_Check(flg)
+#else
     if (PyInt_Check(flg)
+#endif
       && (kpart = PySequence_Fast(kpart,"Invalid keydesc"))) {
       int n = PySequence_Fast_GET_SIZE(kpart);
       if (n <= NPARTS) {
 	int i;
+#if PY_MAJOR_VERSION >= 3
+	k->k_flags = (short)PyLong_AS_LONG(flg);
+#else
 	k->k_flags = (short)PyInt_AS_LONG(flg);
+#endif
 	k->k_nparts = (short)n;
 	rc = 1;
 	for (i = 0; i < n; ++i) {
@@ -291,8 +304,13 @@ Py_FromKeydesc(const struct keydesc *k) {
     }
     PyTuple_SET_ITEM(kpart,i,p);
   }
+#if PY_MAJOR_VERSION >= 3
+  kflags = PyLong_FromLong(k->k_flags);
+  klen = PyLong_FromLong(k->k_len);
+#else
   kflags = PyInt_FromLong(k->k_flags);
   klen = PyInt_FromLong(k->k_len);
+#endif
   if (ok && kflags && klen)
     kd = PyTuple_New(3);
   if (kd == NULL) {
@@ -398,7 +416,11 @@ cisam_rewrite(PyObject *isamfile, PyObject *args) {
   else if (flg == Py_None)
     rc = isrewcurr(self->fd,buf);
   else 
+#if PY_MAJOR_VERSION >= 3
+    rc = isrewrec(self->fd,PyLong_AsLong(flg),buf);
+#else
     rc = isrewrec(self->fd,PyInt_AsLong(flg),buf);
+#endif
   return _generic_return(self,rc);
 }
 
@@ -423,7 +445,11 @@ cisam_delete(PyObject *isamfile, PyObject *args) {
   else if (flg == Py_None)
     rc = isdelcurr(self->fd);
   else 
+#if PY_MAJOR_VERSION >= 3
+    rc = isdelrec(self->fd,PyLong_AsLong(flg));
+#else
     rc = isdelrec(self->fd,PyInt_AsLong(flg));
+#endif
   return _generic_return(self,rc);
 }
 
@@ -619,12 +645,36 @@ static char cisam_documentation[] =
 "This module interfaces with the BMS Cisam emulator for BTAS/X,\n\
 allowing one to access BTAS/X files directly in Python.\n";
 
-void
-initcisam(void) {
+#if PY_MAJOR_VERSION >= 3
+
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "cisam",             /* m_name */
+    cisam_documentation, /* m_doc */
+    -1,                  /* m_size */
+    cisam_methods,       /* m_methods */
+    NULL,                /* m_reload */
+    NULL,                /* m_traverse */
+    NULL,                /* m_clear */
+    NULL,                /* m_free */
+};
+
+PyMODINIT_FUNC PyInit_cisam(void) {
+    PyObject *m, *d;
+
+   if (PyType_Ready(&cisam_Type) < 0)
+          return NULL;
+
+   m = PyModule_Create(&moduledef);
+   if (m == NULL) return NULL;
+#else
+
+void initcisam(void) {
    PyObject *m, *d;
 
    m = Py_InitModule4("cisam", cisam_methods, cisam_documentation,
 		      (PyObject*)NULL, PYTHON_API_VERSION);
+#endif
    d = PyModule_GetDict(m);
    CisamError = PyErr_NewException("cisam.error", PyExc_EnvironmentError, NULL);
    if (!CisamError) return;
@@ -651,4 +701,7 @@ initcisam(void) {
    /* Symbols which conflict between isamx.h and structmember.h */
    PyModule_AddIntConstant(m,"READONLY",ISINPUT + ISMANULOCK);
    PyModule_AddIntConstant(m,"UPDATE",ISINOUT + ISMANULOCK);
+#if PY_MAJOR_VERSION >= 3
+   return m;
+#endif
 }
