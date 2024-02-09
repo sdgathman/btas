@@ -17,4 +17,5 @@ attach to read and write BTAS/X file through the C-isam API.
 	url="http://www.bmsi.com/python/cisam.html",
 #	py_modules=["Milter","mime"],
 	ext_modules=[Extension("cisam", ["cisammodule.c"],libraries=libs,
-	  include_dirs=["/bms/include"],library_dirs=["/bms/lib"])])
+	  include_dirs=["../include","/bms/include"],
+	  library_dirs=["../lib","/bms/lib"])])

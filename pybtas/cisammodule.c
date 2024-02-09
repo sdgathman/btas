@@ -28,8 +28,7 @@
 #include <structmember.h>
 
 static PyObject *CisamError;
-
-staticforward PyTypeObject cisam_Type;
+static PyTypeObject cisam_Type;
 
 typedef struct {
   PyObject_HEAD

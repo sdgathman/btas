@@ -1,3 +1,21 @@
+%if 0%{?epel} == 7
+%global python3 python36
+%else
+%global python3 python3
+%endif
+
+%if 0%{?fedora} >= 32
+%bcond_with python2
+%global python2 python27
+%else
+%if 0%{?epel} < 8
+%bcond_without python2
+%else
+%bcond_with python2
+%endif
+%global python2 python2
+%endif
+
 %if 0%{?rhel} >= 5 && 0%{?rhel} < 7
 %global use_systemd 0
 %else
@@ -11,12 +29,12 @@ Release: 1%{?dist}
 License: Commercial
 Group: System Environment/Base
 Source: file:/linux/btas-%{version}.src.tar.gz
-Patch: btas-btcd.patch
+#Patch: btas-btcd.patch
 BuildRoot: /var/tmp/%{name}-root
 BuildRequires: libstdc++-devel, gcc-c++, check-devel
 BuildRequires: bison, ncurses-devel
 # needed to build until libbms references purged
-#BuildRequires: libbms-devel >= 1.1.7
+BuildRequires: libbms-devel >= 1.1.7
 %if %{use_systemd}
 # systemd macros are not defined unless systemd is present
 BuildRequires: systemd
@@ -47,9 +65,30 @@ Requires: btas = %{version}
 %description devel
 Headers and libraries needed to develop BTAS applications.
 
+%if %{with python2}
+%package -n %{python2}-btas
+Summary: Python module for cisam API
+Group: Development/Libraries
+Requires: btas = %{version}-%{release}
+%{?python_provide:%python_provide %{python2}-btas}
+BuildRequires: %{python2}-devel
+
+%description -n python2-btas
+Python interface to BTAS Cisam API
+%endif
+
+%package -n %{python3}-btas
+Summary: Python module for cisam API
+Requires: btas = %{version}-%{release}
+%{?python_provide:%python_provide %{python3}-btas}
+BuildRequires: %{python3}-devel
+
+%description -n %{python3}-btas
+Python interface to BTAS Cisam API
+
 %prep
 %setup -q
-%patch -p1 -b .btcd
+#patch -p1 -b .btcd
 
 %build
 CFLAGS="$RPM_OPT_FLAGS -I./include -I/bms/include" make
@@ -66,66 +105,78 @@ LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C util
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -e -C sql
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C fix
 LDFLAGS="$LDFLAGS" CFLAGS="$CFLAGS" make -C btbr
+cd pybtas
+%if %{with python2}
+%py2_build
+%endif
+%py3_build
+cd -
 
 %check
 sh test.sh
 
 %install
-rm -rf $RPM_BUILD_ROOT
-%if %{use_systemd}
-mkdir -p $RPM_BUILD_ROOT%{_unitdir}
-cp -p *.service $RPM_BUILD_ROOT%{_unitdir}
-%else
-mkdir -p $RPM_BUILD_ROOT/etc/init.d
-cp -p btas.rc $RPM_BUILD_ROOT/etc/init.d/btas
+rm -rf %{buildroot}
+cd pybtas
+%if %{with python2}
+%py2_install
 %endif
-mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
-cp -p btas.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/btas
-mkdir -p $RPM_BUILD_ROOT/etc/btas
-cp -p btfstab $RPM_BUILD_ROOT/etc/btas
-mkdir -p $RPM_BUILD_ROOT/etc/btas/clrlock.d
+%py3_install
+cd -
+%if %{use_systemd}
+mkdir -p %{buildroot}%{_unitdir}
+cp -p *.service %{buildroot}%{_unitdir}
+%else
+mkdir -p %{buildroot}/etc/init.d
+cp -p btas.rc %{buildroot}/etc/init.d/btas
+%endif
+mkdir -p %{buildroot}/etc/logrotate.d
+cp -p btas.logrotate %{buildroot}/etc/logrotate.d/btas
+mkdir -p %{buildroot}/etc/btas
+cp -p btfstab %{buildroot}/etc/btas
+mkdir -p %{buildroot}/etc/btas/clrlock.d
 BIN="%{_libexecdir}/btas"
-mkdir -p $RPM_BUILD_ROOT/$BIN
-cp btserve btstop btstat btinit $RPM_BUILD_ROOT/$BIN
+mkdir -p %{buildroot}/$BIN
+cp btserve btstop btstat btinit %{buildroot}/$BIN
 chmod a+x *.sh
-cp -p btstart.sh $RPM_BUILD_ROOT/$BIN/btstart
-cp -p btbackup.sh $RPM_BUILD_ROOT/$BIN/btbackup
+cp -p btstart.sh %{buildroot}/$BIN/btstart
+cp -p btbackup.sh %{buildroot}/$BIN/btbackup
 cp fix/btsave fix/btddir fix/btreload fix/btfree fix/btrcvr fix/btrest \
-	$RPM_BUILD_ROOT/$BIN
+	%{buildroot}/$BIN
 cp util/btutil util/btpwd util/btar util/btdu util/btfreeze \
-	$RPM_BUILD_ROOT/$BIN
-cp util/btinit $RPM_BUILD_ROOT/$BIN/btinitx
-mkdir -p $RPM_BUILD_ROOT%{_libdir}
-cp lib/libbtas.a $RPM_BUILD_ROOT%{_libdir}
-cp lib/libbtas.so $RPM_BUILD_ROOT%{_libdir}
-mkdir -p $RPM_BUILD_ROOT%{_includedir}/btas
-cp include/[a-z]*.h cisam/isreq.h $RPM_BUILD_ROOT%{_includedir}/btas
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/profile.d
-cp util/btcd.sh $RPM_BUILD_ROOT%{_sysconfdir}/profile.d
-mkdir -p $RPM_BUILD_ROOT/usr/share/btas
-cp util/btutil.help $RPM_BUILD_ROOT/usr/share/btas
-cp sql/btl.sh $RPM_BUILD_ROOT/$BIN/btl
-cp sql/btlc.sh $RPM_BUILD_ROOT/$BIN/btlc
-cp sql/btlx.sh $RPM_BUILD_ROOT/$BIN/btlx
-cp sql/sql $RPM_BUILD_ROOT/$BIN
+	%{buildroot}/$BIN
+cp util/btinit %{buildroot}/$BIN/btinitx
+mkdir -p %{buildroot}%{_libdir}
+cp lib/libbtas.a %{buildroot}%{_libdir}
+cp lib/libbtas.so %{buildroot}%{_libdir}
+mkdir -p %{buildroot}%{_includedir}/btas
+cp include/[a-z]*.h cisam/isreq.h %{buildroot}%{_includedir}/btas
+mkdir -p %{buildroot}%{_sysconfdir}/profile.d
+cp util/btcd.sh %{buildroot}%{_sysconfdir}/profile.d
+mkdir -p %{buildroot}/usr/share/btas
+cp util/btutil.help %{buildroot}/usr/share/btas
+cp sql/btl.sh %{buildroot}/$BIN/btl
+cp sql/btlc.sh %{buildroot}/$BIN/btlc
+cp sql/btlx.sh %{buildroot}/$BIN/btlx
+cp sql/sql %{buildroot}/$BIN
 cp cisam/istrace cisam/isserve cisam/bcheck cisam/addindex cisam/indexinfo \
-	$RPM_BUILD_ROOT/$BIN
-cp -p btbr/btbr btbr/btflded btbr/btflded.scr $RPM_BUILD_ROOT/$BIN
+	%{buildroot}/$BIN
+cp -p btbr/btbr btbr/btflded btbr/btflded.scr %{buildroot}/$BIN
 
-{ cd $RPM_BUILD_ROOT/$BIN
+{ cd %{buildroot}/$BIN
   ln addindex delindex
 }
-mkdir -p $RPM_BUILD_ROOT/var/log/btas
-chmod 0775 $RPM_BUILD_ROOT/var/log/btas
-chmod g+s $RPM_BUILD_ROOT/var/log/btas
-mkdir -p $RPM_BUILD_ROOT%{_sharedstatedir}/btas
+mkdir -p %{buildroot}/var/log/btas
+chmod 0775 %{buildroot}/var/log/btas
+chmod g+s %{buildroot}/var/log/btas
+mkdir -p %{buildroot}%{_sharedstatedir}/btas
 
-mkdir -p $RPM_BUILD_ROOT%{_bindir}
-ln -sf %{_libexecdir}/btas/btpwd $RPM_BUILD_ROOT%{_bindir}
-ln -sf %{_libexecdir}/btas/btutil $RPM_BUILD_ROOT%{_bindir}
-ln -sf %{_libexecdir}/btas/btlc $RPM_BUILD_ROOT%{_bindir}
-ln -sf %{_libexecdir}/btas/btl $RPM_BUILD_ROOT%{_bindir}
-ln -sf %{_libexecdir}/btas/sql $RPM_BUILD_ROOT%{_bindir}/btsql
+mkdir -p %{buildroot}%{_bindir}
+ln -sf %{_libexecdir}/btas/btpwd %{buildroot}%{_bindir}
+ln -sf %{_libexecdir}/btas/btutil %{buildroot}%{_bindir}
+ln -sf %{_libexecdir}/btas/btlc %{buildroot}%{_bindir}
+ln -sf %{_libexecdir}/btas/btl %{buildroot}%{_bindir}
+ln -sf %{_libexecdir}/btas/sql %{buildroot}%{_bindir}/btsql
 
 %pre
 getent group bms > /dev/null || /usr/sbin/groupadd -r -g 101 bms 
@@ -214,9 +265,21 @@ fi
 %{_libdir}/libbtas.a
 %{_includedir}/btas/*.h
 
+%if %{with python2}
+%files -n %{python2}-btas
+%license COPYING
+%doc README ChangeLog
+%{python2_sitearch}/*
+%endif
+
+%files -n %{python3}-btas
+%license COPYING
+%doc README ChangeLog
+%{python3_sitearch}/*
+
 %changelog
-* Mon Dec 30 2019 Stuart Gathman <stuart@gathman.org> 2.14-1
-- eliminate libbms dependency
+* Fri Feb  9 2024 Stuart Gathman <stuart@gathman.org> 2.14-1
+- Add python subpackages
 
 * Sat Sep  1 2018 Stuart Gathman <stuart@gathman.org> 2.13-3
 - put btcd in /etc/profile.d
