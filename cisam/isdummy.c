@@ -10,8 +10,7 @@
 	isaudit
 */
 
-int isaudit(fd,name,mode)
-  char *name;
+int isaudit(int fd,char *name,int mode)
 {
   return iserr(ENOTDONE);
 }

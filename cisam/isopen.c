@@ -249,7 +249,7 @@ int isopenx(const char *name,int mode,int rlen) {
 
       if (kp->k.k_nparts == 0) {
 	cp->recidx = kp;
-	c_recno(cp) = 0L;
+	c_recno(cp) = 0L;  /* FIXME: breaks strict aliasing */
       }
 
       cp->idx->klen = cp->idx->rlen;	/* set to read next record */

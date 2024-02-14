@@ -29,7 +29,8 @@ BTCB *btopendir(const char *path,int mode) {
   BTCB *b;
   strncpy(savbuf,path,MAXKEY)[MAXKEY] = 0;
   b = btopen(dirname(savbuf),mode|BTDIROK,MAXREC);	/* open directory */
-  strncpy(b->lbuf,basename(path),MAXKEY)[MAXKEY] = 0;
+  strncpy(savbuf,path,MAXKEY)[MAXKEY] = 0;
+  strncpy(b->lbuf,basename(savbuf),MAXKEY)[MAXKEY] = 0;
   b->klen = strlen(b->lbuf) + 1;
   return b;
 }

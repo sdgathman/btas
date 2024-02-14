@@ -16,8 +16,8 @@ extern void syserr(int,char *,MORE);
 
 #define errwhat(e,s) errvdesc(e,"%s %s line %d",s,what,__LINE__)
 
-/* weird things happen if you combine the setjmp with the 'if' in 'catch' */
-#define catch(rc) {				\
+/* weird things happen if you combine the setjmp with the 'if' in 'envcatch' */
+#define envcatch(rc) {				\
   struct JMP_BUF env, *envsav = errenv;		\
   rc = setjmp(env.buf);				\
   if (!rc && (errenv = &env)) {
@@ -37,8 +37,10 @@ extern void syserr(int,char *,MORE);
   errenv = envsav; 	\
 }
 
-#define envelope catch(errno)
+#define envelope envcatch(errno)
 #ifdef __cplusplus
 }
+#else
+#define catch envcatch
 #endif
 #endif

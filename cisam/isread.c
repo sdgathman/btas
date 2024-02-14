@@ -24,7 +24,7 @@
 int isread(int fd,void *rec,int mode) {
   register struct cisam_key *kp;
   BTCB *b;
-  enum btop op;
+  enum btop op = BTREADEQ;	/* reread record if op never set FIXME: err? */
   int rc;
   int btmode;
   char *buf;

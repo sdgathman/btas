@@ -22,11 +22,13 @@
  * Trap any exceptions and convert to error.
  *
  */
+#include <stdlib.h>
 #include <alloca.h>
 #include <isamx.h>
 #include <btas.h>
 #include <btflds.h>
 #include <errenv.h>
+#include "cisam.h"
 #include "isreq.h"
 #define iserr(code)	((iserrno = code) ? -1 : 0)
 

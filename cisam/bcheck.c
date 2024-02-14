@@ -42,4 +42,5 @@ Usage:	bcheck mastfile [mastfile ...]\n\
     fprintf(stderr,"%s:	done\n",argv[i]);
     isclose(fd);
   }
+  return 0;
 }

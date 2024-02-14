@@ -21,8 +21,17 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errenv.h>
 #include <btas.h>
+
+/* This would go in a local libbtas.h, but is the only entry so far. */
+
+#ifndef __MSDOS__
+extern int getperm(int mask);
+#else
+#define	getperm(mask)	mask
+#endif
 
 /* Create a new directory with standard links.
    Returns BTERDUP if file already exists, and 0 on success.
@@ -39,7 +48,7 @@ int btmkdir(const char *path,int mode) {
 
   catch(rc)
     b = btopendir(path,BTWRONLY+BTDIROK);
-    /* b->lbuf[24] = 0;	/* enforce max filename length */
+    // b->lbuf[24] = 0;	/* enforce max filename length */
     /* copy fld to lbuf, compute rlen */
     b->rlen = b->klen;
     b->u.id.user = geteuid();

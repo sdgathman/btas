@@ -23,7 +23,7 @@ int btFind::first() {
   memcpy(b->lbuf,pat,slen);
   b->klen = slen;
   b->rlen = MAXREC;
-  catch(rc)
+  envcatch(rc)
     btas(b,BTREADGE);
   enverr
     return rc;
@@ -33,7 +33,7 @@ int btFind::first() {
 
 int btFind::next() {
   int rc;
-  catch(rc)
+  envcatch(rc)
     for (;;) {
       b->klen = b->rlen;
       b->rlen = MAXREC;

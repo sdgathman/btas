@@ -10,6 +10,7 @@ static const char what[] = "$Revision$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <isamx.h>
 #include <errenv.h>
 #include <ischkerr.h>

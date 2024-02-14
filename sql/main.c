@@ -152,7 +152,7 @@ Usage:	sql [options] [script]\n\
   if (verbose && interactive)
     puts(version);
   if (interactive)
-    printf(prompt);
+    printf("%s",prompt);
   fflush(stdout);
   for (;;) {
     int c;
@@ -187,7 +187,7 @@ Usage:	sql [options] [script]\n\
 	  if (++lineno)
 	    printf("%3d> ",lineno);
 	  else
-	    printf(prompt);
+	    printf("%s",prompt);
 	  fflush(stdout);
 	}
       }

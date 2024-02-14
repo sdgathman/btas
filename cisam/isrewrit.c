@@ -186,12 +186,7 @@ int isrewrec(int fd,long recno,const void *rec) {
 /** Rewrite current saving key position.  
  */
 int isupdate(int fd,const void *rec) {
-  struct cisam *r;
-  struct cisam_key *kp;
-  BTCB *b;
-  char *sav;
-  int rc;
-  r = ischkfd(fd);
+  struct cisam *r = ischkfd(fd);
   if (r == 0) return iserr(ENOTOPEN);
   return ismaperr(isrew(r,rec,1));
 }

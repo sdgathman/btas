@@ -23,9 +23,8 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-main() {
+int main() {
   int btasreq, btasres;
-  struct msqid_ds buf;
   const char *s = getenv("BTSERVE");
   long key;
   if (!s) s = "";

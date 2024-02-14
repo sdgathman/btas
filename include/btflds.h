@@ -1,3 +1,5 @@
+#ifndef _BTFLDS_H
+#define _BTFLDS_H
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -108,4 +110,5 @@ static inline int btrlen(const struct btflds *fcb) {
 }
 #else
 #define btrlen(fcb)	((fcb)->f[(fcb)->rlen].pos)
+#endif
 #endif

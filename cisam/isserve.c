@@ -80,6 +80,7 @@ static const char id[] = "$Id$";
 #include <fcntl.h>
 #include <stdlib.h>
 #include <btflds.h>
+#include <arpa/inet.h>
 #include "isreq.h"
 
 static int readFully(int fd,char *buf,int len) {
@@ -96,6 +97,37 @@ static volatile int stop = 0;
 
 static void stopserver(int sig) {
   stop = 1;
+}
+
+static int writetrace(int fd,char *buf,size_t len) {
+  if (fd > 0) {	/* FIXME: should this be GE ? */
+    ssize_t n = write(fd,buf,len);
+    if (n != len) {
+      perror("write");
+      close(fd);
+      fd = -1;
+    }
+  }
+  return fd;
+}
+
+/* Discard extra when pXlen > MAXRLEN. */
+static ssize_t readlast(int fd,char *buf,size_t len) {
+  if (len) {
+    while (len > MAXRLEN) {
+      ssize_t n = read(fd,buf,MAXRLEN);
+      if (n < 0) return n;
+      len -= n;
+    }
+    size_t rem = len;
+    while (rem > 0) {
+      ssize_t n = read(fd,buf,rem);
+      if (n < 0) return n;
+      rem -= n;
+    }
+    buf[len]=0;
+  }
+  return len; /* return total read chars not discarded */
 }
 
 static int server() {
@@ -145,22 +177,14 @@ static int server() {
       stlong(ts,tsbuf);
       stlong(tbuf.tms_utime,tsbuf+4);
       stlong(tbuf.tms_stime,tsbuf+8);
-      write(trace,tsbuf,sizeof tsbuf);
-      write(trace,(char *)&r,sizeof r);
+      trace = writetrace(trace,tsbuf,sizeof tsbuf);
+      trace = writetrace(trace,(char *)&r,sizeof r);
     }
-    if (p1len) {
-      while (p1len > MAXRLEN) { read(0,p1.buf,MAXRLEN); p1len -= MAXRLEN; }
-      read(0,p1.buf,p1len);
-      p1.buf[p1len]=0;
-    }
-    if (p2len) {
-      while (p2len > MAXRLEN) { read(0,p2.buf,MAXRLEN); p2len -= MAXRLEN; }
-      read(0,p2.buf,p2len);
-      p2.buf[p2len]=0;
-    }
+    p1len = readlast(0,p1.buf,p1len);
+    p2len = readlast(0,p2.buf,p2len);
     if (trace > 0) {
-      if (p1len) write(trace,p1.buf,p1len);
-      if (p2len) write(trace,p2.buf,p2len);
+      if (p1len) trace = writetrace(trace,p1.buf,p1len);
+      if (p2len) trace = writetrace(trace,p2.buf,p2len);
     }
       
     i = isreq(r.fd,r.fxn,&p1len,p2len,p1.buf,p2.buf,mode,len);
@@ -201,11 +225,12 @@ static int server() {
       stlong(ts,tsbuf);
       stlong(tbuf.tms_utime,tsbuf+4);
       stlong(tbuf.tms_stime,tsbuf+8);
-      write(trace,tsbuf,sizeof tsbuf);
-      write(trace,(char *)&res,sizeof res);
-      if (p1len) write(trace,p1.buf,p1len);
-      if (auxlen > 0) write(trace,auxbuf,auxlen);
+      trace = writetrace(trace,tsbuf,sizeof tsbuf);
+      trace = writetrace(trace,(char *)&res,sizeof res);
+      if (p1len) trace = writetrace(trace,p1.buf,p1len);
+      if (auxlen > 0) trace = writetrace(trace,auxbuf,auxlen);
     }
+    /* FIXME: should this be fd 0 ? May work because both are same socket. */
     write(0,(char *)&res,sizeof res);
     if (p1len) write(0,p1.buf,p1len);
     if (auxlen > 0) write(0,auxbuf,auxlen);
@@ -282,7 +307,11 @@ Usage:	isserve [-a] [-ftracedir] [tcpport]\n",stderr);
     setsockopt(fd,IPPROTO_TCP,TCP_NODELAY,&nodelay,sizeof nodelay);
   #endif
     close(0); close(1); close(2);
-    dup(fd); dup(fd); close(fd);
+    if (dup(fd) != 0 || dup(fd) != 1) {
+      perror("dup returned unexpected value");
+      return 1;
+    }
+    close(fd);
     return server();
     //return fork() ? 0 : server();
   }
@@ -298,8 +327,8 @@ Usage:	isserve [-a] [-ftracedir] [tcpport]\n",stderr);
 
   /* accept incoming connections */
   for (;;) {
-    int s, len = sizeof saddr;
-    s = accept(fd,(struct sockaddr *)&saddr,&len);
+    socklen_t len = sizeof saddr;
+    int s = accept(fd,(struct sockaddr *)&saddr,&len);
     if (s < 0) {
       perror("accept");
       continue;
@@ -317,7 +346,11 @@ Usage:	isserve [-a] [-ftracedir] [tcpport]\n",stderr);
 	saddr.sin_port
       );
       close(fd); close(0); close(1);
-      dup(s); dup(s); close(s);
+      if (dup(fd) != 0 || dup(fd) != 1) {
+	perror("dup returned unexpected value");
+	return 1;
+      }
+      close(s);
       return server();
     }
     close(s);

@@ -47,8 +47,8 @@ int btrmdir(const char *path) {
 	c->klen = strlen(c->lbuf) + 1;
 	rc = btlstat(c,&st,&fa);
 	if (rc) errpost(rc);
-	if (fa.node == c->root && fa.slot == c->mid
-	 || fa.node == b->root && fa.slot == b->mid) {
+	if ((fa.node == c->root && fa.slot == c->mid)
+	 || (fa.node == b->root && fa.slot == b->mid)) {
 	  if (pass == 2)
 	    btas(c,BTDELETE);
 	}

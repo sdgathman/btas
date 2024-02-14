@@ -57,3 +57,7 @@ void isstkey(const char *, const struct keydesc *, struct fisam *);
 void isldkey(char *, struct keydesc *, const struct fisam *);
 int ismaperr(int);		/* map error codes */
 int isrlen(const struct btflds *);
+int iscleanup(const char *fname);	/* defined in iserase.c */
+int isnewfd();				/* defined in isopen.c */
+/* not yet implemented - move to isamx.h when done */
+int isaudit(int fd,char *name,int mode);

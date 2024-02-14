@@ -243,7 +243,7 @@ t_block rcvr::dirstat(BTCB *dirf,const char *name,bool interactive) {
   b.u.id.mode = BT_DIR + 04;
   b.rlen = b.klen = strlen(name);
   (void)memcpy(b.lbuf,name,b.klen);
-  catch(rc)
+  envcatch(rc)
     btas(&b,BTOPEN);
     b.rlen = sizeof st;
     b.klen = 0;

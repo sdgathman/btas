@@ -63,7 +63,7 @@ void btunlock(b)
   BTCB *b;
 {
   if (b->flags & BT_LOCK) {
-    b->flags -= (~BT_LOCK+1 & BT_LOCK);
+    b->flags -= ((~BT_LOCK+1) & BT_LOCK);
     if (b->flags & BT_LOCK) return;
     semlock((int)b->root,1);
   }

@@ -40,7 +40,7 @@ static int dodir(struct nest *n,int len,struct stk *prev) {
   struct btstat st;
   int rc;
   struct stk stk;
-  if (rc = btopenf(&n->bt,n->rpath,BTRDONLY+BTDIROK+NOKEY,MAXREC)) {
+  if ((rc = btopenf(&n->bt,n->rpath,BTRDONLY+BTDIROK+NOKEY,MAXREC))) {
     return rc;
   }
   stk.prev = prev;
@@ -113,7 +113,7 @@ int btwalkx(const char *path,btwalk_fn fn,btwalk_err errf) {
   n.userf = fn;
   n.errf = errf;
   catch(rc)
-  if (p = strrchr(n.rpath,'/')) {
+  if ((p = strrchr(n.rpath,'/'))) {
     *p++ = 0;
     savdir = btgetdir();
     btchdir(n.rpath);

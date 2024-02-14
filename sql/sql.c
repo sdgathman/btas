@@ -10,11 +10,11 @@
 #include "cursor.h"
 
 static struct sqlnode SQLFIXED[] = {
-  { EXNULL },
+  { EXNULL, 0 },
   { EXBOOL, 1 },
   { EXBOOL, 0 },
-  { EXCONST },
-  { EXSTRING }
+  { EXCONST, 0 },
+  { EXSTRING, 0 }
 };
 enum { SQLNULL, SQLTRUE, SQLFALSE, SQLZERO, SQLNULSTR, NFIXED };
 #define ISFIXED(x) (x >= SQLFIXED && x < SQLFIXED+NFIXED)
@@ -99,6 +99,7 @@ sql mkunop(enum sqlop op,sql x) {
       return mkbool(1);
     case EXCONST: case EXDBL: case EXBOOL: case EXSTRING: case EXDATE:
       return mkbool(0);
+    default: break;
     }
     break;
   case EXNOT:
@@ -139,6 +140,7 @@ sql mkunop(enum sqlop op,sql x) {
       a = x->u.opd[0];
       rmsql(x);
       return a;
+    default: break;
     }
     break;
   case EXNEG:
@@ -156,8 +158,10 @@ sql mkunop(enum sqlop op,sql x) {
       x->u.opd[0] = x->u.opd[1];
       x->u.opd[1] = a;
       return x;
+    default: break;
     }
     break;
+  default: break;
   }
   if (x->op == EXNULL)
     return x;
@@ -203,6 +207,7 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
       z->u.opd[0] = x;
       z->u.opd[1] = y;
       return z;
+    default: break;
     }
     rmexp(x); return y;
   }
@@ -212,6 +217,7 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
     x = tostring(x);
     y = tostring(y);
     break;
+  default: break;
   }
 
   if (op == EXADD || op == EXSUB) {
@@ -316,6 +322,7 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
 	rmsql(x);
 	return y;
       }
+    default: break;
     }
   }
   if (y->op == EXBOOL) {
@@ -329,6 +336,7 @@ sql mkbinop(sql x,enum sqlop op,sql y) {
 	rmexp(x);
 	return y;
       }
+    default: break;
     }
   }
   if (x->op == EXSTRING && y->op == EXSTRING) {
@@ -456,6 +464,7 @@ sql sql_eval(sql x,int idx) {
       return a;
     }
     break;
+  default: break;
   }
   p = sql_form[(int)x->op].fmt;
   switch (p[0]) {
@@ -470,12 +479,14 @@ sql sql_eval(sql x,int idx) {
       return (op1->op == EXNULL) ? op1 : (*x->u.f.func)(op1);
     case 's':
       return mkalias(x->u.a.name,op1);
+    default: break;
     }
     return op1;
   case 'c':
     if (x->u.col->tabidx < (short)idx)
       return do0(x->u.col,load);
     break;
+  default: break;
   }
   op1 = mksql(x->op);
   memcpy(&op1->u,&x->u,sizeof op1->u);	/* AIX compiler bug */
@@ -498,8 +509,6 @@ int sql_width(sql x) {
   case EXCONST:
   case EXDBL:
     return sql_width(tostring(x));
-  default:
-    return 18;		/* lazy for now */
   case EXSTRING:
     return strlen(x->u.name[0]);
   case EXCAT:
@@ -514,7 +523,9 @@ int sql_width(sql x) {
     if (w1 > w) w = w1;
     if (++w > 18) return 18;
     return w;
+  default: break;
   }
+  return 18;		/* lazy for now */
 }
 
 /* init sql expression memory to use an obstack */
@@ -627,7 +638,7 @@ void sql_print(sql x,int nl) {
     break;
   case EXHEAD:
     putchar('(');
-    while (x = x->u.opd[1]) {
+    while ((x = x->u.opd[1])) {
       sql_print(x->u.opd[0],0);
       if (x->u.opd[1])
 	putchar(',');
@@ -673,6 +684,7 @@ void sql_print(sql x,int nl) {
     case AGG_CNT: p = "CNT"; break;
     case AGG_MAX: p = "MAX"; break;
     case AGG_MIN: p = "MIN"; break;
+    default: break;
     }
     printf("%s(",p);
     sql_print(x->u.f.arg,0);
@@ -687,25 +699,27 @@ void sql_print(sql x,int nl) {
 	putchar('(');
       else {
 	if (p[1] == 0)
-	  printf(o);
+	  printf("%s",o);
 	binop = 0;
       }
     }
     else
       printf("%s(",sql_form[(int)x->op].name);
     for (i = 0; p[i]; ++i) {
-      if (i)
+      if (i) {
 	if (o[0])
-	  printf(o);
+	  printf("%s",o);
 	else
 	  printf(",");
+      }
       switch (p[i]) {
       case 'x':
 	sql_print(x->u.opd[i],0);
 	break;
       case 's':
-	printf(x->u.name[i]);
+	printf("%s",x->u.name[i]);
 	break;
+      default: break;
       }
     }
     if (binop) putchar(')');
@@ -752,6 +766,7 @@ sql toconst(sql x,int fix) {
     x->u.num.fix = fix;
     x->op = EXCONST;
     break;
+  default: break;
   }
   return x;
 }
@@ -778,6 +793,7 @@ int getconst(sconst *p,const char **lexptr) {
       sign = 1;
       ++*lexptr;
       continue;
+    default: break;
     }
     break;
   }

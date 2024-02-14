@@ -26,8 +26,6 @@
 #include <errenv.h>
 #include <check.h>
 
-static int verbose;
-static int cnt = 1000;
 static const char dir[] = "/tmp";
 static const char fname[] = "/tmp/testfile";
 

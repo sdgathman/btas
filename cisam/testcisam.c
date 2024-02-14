@@ -1,9 +1,12 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <libgen.h>
+#include <time.h>
 #include <isamx.h>
 #include <ftype.h>
 #include <btflds.h>
 #include <check.h>
+#include "cisam.h"
 
 static int verbose;
 static int cnt = 1000;
@@ -147,7 +150,7 @@ START_TEST(bttesty) {
     fail_unless(isindexinfo(fd,(struct keydesc *)&di,0) == 0,
 	"indexinfo failed");
     if (di.di_nrecords != 0)
-      printf("%d records remaining\n",di.di_nrecords);
+      printf("%ld records remaining\n",(long)di.di_nrecords);
     fail_unless(di.di_nrecords == 0,"file not empty");
   }
 
@@ -192,7 +195,7 @@ START_TEST(bttestx) {
     fail_unless(isindexinfo(fd,(struct keydesc *)&di,0) == 0,
 	"indexinfo failed");
     if (di.di_nrecords != 0)
-      printf("%d records remaining\n",di.di_nrecords);
+      printf("%ld records remaining\n",(long)di.di_nrecords);
     fail_unless(di.di_nrecords == 0,"file not empty");
   }
 
@@ -217,7 +220,7 @@ START_TEST(bttestx) {
     rc = chk(isread(fd,(char *)&t,ISNEXT),EENDFILE);
   }
   stop_timer(cnt);
-  printf("\t%ld records read.\n",idx);
+  printf("\t%ld records read.\n",(long)idx);
 
   shuffle(ar,cnt);
   start_timer("Random read",cnt);
@@ -241,13 +244,13 @@ START_TEST(bttestx) {
     rc = chk(isread(fd,(char *)&t,ISNEXT),EENDFILE);
   }
   stop_timer(cnt);
-  printf("\t%ld records deleted.\n",idx);
+  printf("\t%ld records deleted.\n",(long)idx);
 
   { struct dictinfo di;
     fail_unless(isindexinfo(fd,(struct keydesc *)&di,0) == 0,
 	"indexinfo failed");
     if (di.di_nrecords != 0)
-      printf("%d records remaining\n",di.di_nrecords);
+      printf("%ld records remaining\n",(long)di.di_nrecords);
     fail_unless(di.di_nrecords == 0,"file not empty");
   }
 

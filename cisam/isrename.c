@@ -24,7 +24,8 @@ int isrename(const char *from, const char *to) {
     strcat(tobuf,idx);
     strcpy(buf,from);
     strcat(buf,idx);
-    if (rc = btrename(buf,tobuf))
+    rc = btrename(buf,tobuf);
+    if (rc)
       rc = btrename(from,to);	/* no .idx, just rename file */
     else {
       /* .idx is renamed, now try to rename keys */

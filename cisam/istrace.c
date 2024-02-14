@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <sys/times.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <alloca.h>
 #include <isamx.h>
 #include "isreq.h"
 

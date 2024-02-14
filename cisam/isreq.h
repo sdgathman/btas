@@ -88,6 +88,7 @@ void ldkeydesc(struct keydesc *k,const char *p);
 int stdictinfo(const struct dictinfo *d,char *p);
 void lddictinfo(struct dictinfo *d,const char *p);
 int stbtasictinfo(const struct btstat *d,char *p);
+int stbtstat(const struct btstat *d,char *buf);  /* defined in isparm.c */
 
 #endif
 
